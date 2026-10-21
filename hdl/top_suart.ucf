@@ -128,3 +128,10 @@ NET "dig<1>" LOC = "P63";  # цепь dig1 -> R10 240 -> VT2 -> CA1 (LD1.8)
 NET "dig<2>" LOC = "P65";  # цепь dig2 -> R11 240 -> VT3 -> CA2 (LD1.9)
 NET "dig<3>" LOC = "P48";  # цепь dig3 -> R12 240 -> VT4 -> CA3 (LD1.12)
 NET "SND"    LOC = "P67";  # цепь SND  -> BUZZER1.1 (пассивный); BUZZER1.2 -> R4 -> GND
+
+#---- тайминг-констрейнт (владелец, Constraints Editor 2026-10-21) ----
+# 25 ћ√ц на входе CPLD подтверждены осциллографом; HIGH 50% покрывает
+# и полупериодные пути negedge-триггера x1_n (XOR-пара /5)
+#Created by Constraints Editor (xc95108-pq100-15) - 2026/10/21
+NET "clk" TNM_NET = clk;
+TIMESPEC TS_clk = PERIOD "clk" 25 MHz HIGH 50%;
