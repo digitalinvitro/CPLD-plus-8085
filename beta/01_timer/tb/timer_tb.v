@@ -7,12 +7,12 @@
 // „“ќ ѕ–ќ¬≈–я≈“ (квант тика = 256 x 200 нс = 51,2 мкс при CLK_DIV=5):
 //  T0: во врем€ сброса (RST/POR) RST75 = 0 Ч ложного фронта нет;
 //  T1: инициализаци€: счЄтчик INIT = FFh -> без OUT 04h первый фронт
-//      RST75 через 255 тиков = 1305600 нс от сн€ти€ cpu_rst;
+//      RST75 через 255 тиков = 13056000 нс от сн€ти€ cpu_rst;
 //  T2: стоп-в-нуле: без ре-арма уровень RST75 держитс€ (счЄт стоит);
-//  T3: OUT 04h, N=195 -> фронт RST75 через 195 тиков = 998400 нс
-//      (допуск +-1 тик 5120 нс = фаза прескалера относительно загрузки);
+//  T3: OUT 04h, N=195 -> фронт RST75 через 195 тиков = 9984000 нс
+//      (допуск +-1 тик 51200 нс = фаза прескалера относительно загрузки);
 //  T4: ре-арм из "ISR" (OUT 04h,195 через 2 мкс после фронта) ->
-//      следующий фронт снова через ~998400 нс Ч периодичность;
+//      следующий фронт снова через ~9984000 нс Ч периодичность;
 //  T5: уровень RST75 снимаетс€ загрузкой N!=0 (дл€ защЄлки CPU важен
 //      только фронт Ч длительность уровн€ не критична).
 //=====================================================================
@@ -73,7 +73,7 @@ module timer_tb;
       @(negedge clk);                                  // posedge между: захват addr_latch (T1H && ALE)
       @(negedge clk);
       a_drv = data;  ALE = 1'b0;  WRn = 1'b0;
-      @(negedge clk);                                  // posedge между: захват bus_reg/tmr_cnt (T2 && !WRn)
+      @(negedge clk);                                  // posedge между: захват bus_reg (tmr_cnt Ч тактом позже через tmr_load_q)
       @(negedge clk);                                  // запас на трекинг строба
       WRn = 1'b1;
       IOM = 1'b0;    a_oe = 1'b0;
@@ -86,7 +86,7 @@ module timer_tb;
   time   t_release, t_rise1, t_rise2, t_rise3, t_rearm;
 
   initial begin
-    $display("=== beta/01_timer tb: старт (квант 5120 нс, CLK_DIV=5) ===");
+    $display("=== beta/01_timer tb: старт (квант 51200 нс, CLK_DIV=5) ===");
 
     // ---------- T0: сброс ----------
     #1000;
@@ -113,11 +113,11 @@ module timer_tb;
         disable t1_blk;
       end
     join
-    if (t_rise1 >= t_release + 1305600 - 5120 && t_rise1 <= t_release + 1305600 + 5120)
-      $display("OK   T1: INIT-фронт RST75 через %0d нс от cpu_rst (ожидание 1305600 +-5120)", t_rise1 - t_release);
+    if (t_rise1 >= t_release + 13056000 - 51200 && t_rise1 <= t_release + 13056000 + 51200)
+      $display("OK   T1: INIT-фронт RST75 через %0d нс от cpu_rst (ожидание 13056000 +-51200)", t_rise1 - t_release);
     else begin
       errors = errors + 1;
-      $display("FAIL T1: INIT-фронт через %0d нс, ожидалось 1305600 +-5120", t_rise1 - t_release);
+      $display("FAIL T1: INIT-фронт через %0d нс, ожидалось 13056000 +-51200", t_rise1 - t_release);
     end
 
     // ---------- T2: стоп-в-нуле (ре-арма нет -> уровень держитс€) ----------
@@ -151,11 +151,11 @@ module timer_tb;
         disable t3_blk;
       end
     join
-    if (t_rise2 >= t_rearm + 195*5120 - 5120 && t_rise2 <= t_rearm + 195*5120 + 5120)
-      $display("OK   T3: фронт через %0d нс после OUT (ожидание %0d +-5120)", t_rise2 - t_rearm, 195*5120);
+    if (t_rise2 >= t_rearm + 195*51200 - 51200 && t_rise2 <= t_rearm + 195*51200 + 51200)
+      $display("OK   T3: фронт через %0d нс после OUT (ожидание %0d +-51200)", t_rise2 - t_rearm, 195*51200);
     else begin
       errors = errors + 1;
-      $display("FAIL T3: фронт через %0d нс, ожидалось %0d +-5120", t_rise2 - t_rearm, 195*5120);
+      $display("FAIL T3: фронт через %0d нс, ожидалось %0d +-51200", t_rise2 - t_rearm, 195*51200);
     end
 
     // ---------- T4: периодичность (ре-арм каждый "ISR") ----------
@@ -175,11 +175,11 @@ module timer_tb;
         disable t4_blk;
       end
     join
-    if (t_rise3 >= t_rearm + 195*5120 - 5120 && t_rise3 <= t_rearm + 195*5120 + 5120)
+    if (t_rise3 >= t_rearm + 195*51200 - 51200 && t_rise3 <= t_rearm + 195*51200 + 51200)
       $display("OK   T4: период фронт-к-фронту %0d нс (~10 мс; 50 √ц = деление на 2 в ISR)", t_rise3 - t_rise2);
     else begin
       errors = errors + 1;
-      $display("FAIL T4: период %0d нс вне допуска %0d +-5120", t_rise3 - t_rise2, 195*5120);
+      $display("FAIL T4: период %0d нс вне допуска %0d +-51200", t_rise3 - t_rise2, 195*51200);
     end
 
     // ---------- T5: повторный ре-арм снова снимает уровень ----------
