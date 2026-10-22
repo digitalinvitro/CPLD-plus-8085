@@ -1,0 +1,146 @@
+#=====================================================================
+# top_suart.ucf (beta/01_timer) Ч цоколевка U1 (XC95108, PQFP-100) дл€ retro_PCLD_board
+# ¬ј∆Ќќ: это UCF Ё —ѕ≈–»ћ≈Ќ“ј beta/01_timer; стабильный Ч hdl/top_suart.ucf.
+# ќтличие от стабильного: P75 вышла из PGND и стала ¬џ’ќƒќћ таймера RST75.
+# ¬ариант SOFT-UART “–јЌ«»“џ (Task 70-a, 2026-10-18); база top_nouart.ucf.
+# »сточник фактов: SCHEMATIC.md І5 (проверено по нетлисту 126/126 цепей);
+# CPU.SID = cpu17 = U1.73 (нога 5), CPU.SOD = cpu18 = U1.72 (нога 4).
+# »мена сигналов = имена из hdl/top_suart.v (модуль retro_pcld_top);
+# цепи платы Ч в комментари€х.
+#
+#  ј  ѕќƒ Ћё„»“№ (Task 69/70-a): ISE -> Add Source -> этот .ucf; он
+# автоматически ассоциируетс€ с топ-модулем retro_pcld_top (Associated
+# Source). ¬ Process: Implement Design -> Translate: Keep User Location
+# Constraints = ON; в Place & Route: Ground on Unused IOs = ON; в XST:
+# Keep Unused Inputs = ON.
+#
+# ƒисциплина (ARCHITECTURE.md І3, решение владельца + Task 69/70-a;
+# beta/01_timer: держателей стало ¬ќ—≈ћ№ Ч RST7.5/P75 стал выходом таймера):
+#  - ¬ќ—≈ћ№ держателей '0' (TRAP, RST6.5/5.5, INTR, HOLD, A16, A17,
+#    A18) в HDL NET: их пины (P74, P76, P78, P79, P81, P95, P96,
+#    P98) фиттер заземлит опцией "Ground on Unused IOs" = ON Ч это
+#    ≈ƒ»Ќ—“¬≈ЌЌџ≈ пины, которым разрешено стать PGND (все Ч входы
+#    CPU/flash). P73 (SID) — Task 70-a ¬џ’ќƒ CPLD Ч в PGND Ѕџ“№ Ќ≈
+#    ƒќЋ∆Ќј! P75 (RST7.5) в beta/01_timer Ч ¬џ’ќƒ “ј…ћ≈–ј (была PGND
+#    в стабильном наборе из 9).
+#  - 14 остальных ЂмЄртвыхї пинов объ€влены ¬’ќƒјћ» в HDL ((* keep *)),
+#    чтобы опци€ их Ќ≈ заземлила: там выходы CPU, X2 (GND запрещЄн
+#    даташитом). ¬ cpldfit также включить "Keep Unused Inputs: ON"
+#    (следить за Xst:3005 в логе XST).
+#  - SOD (P72) и RX (P38) теперь –≈јЋ№Ќџ≈ входы с нагрузкой (транзиты,
+#    Task 70-a): RX -> SID (P73), SOD -> TX (P39). «ј«≈ћЋя“№ Ќ≈Ћ№«я:
+#    P38/P72 Ч выходы CH340G/CPU соответственно.
+#  - READY (P87), CS1 (P99) Ч выходы константы '1' в HDL (авто-VCC у
+#    фиттера нет, но константные выходы он реализует Ќќ√ќ… Ч доказано
+#    фитами: заземление = CPU в вечном wait / ќ«” отвалитс€);
+#  - чек-лист .rpt (beta/01_timer): PGND == ровно {P74,P76,P78,P79,P81,
+#    P95,P96,P98} (8 шт!); RST75 = P75, ¬џ’ќƒ, FAST; входы на местах
+#    (INP), включа€ SOD P72 и RX P38; Keep User Location Constraints:
+#    ON; GCK3 = P29, GSR = P1; GSR Ќ≈ используетс€ (сброс через
+#    D-gating, Task 25); MC = 108/108 впритык (17 добавлено к 91),
+#    109/108 = Placement Failed -> план Ѕ в beta/01_timer/README.md;
+#    путь тайминга новый только один: clk -> tmr_cnt -> декод -> P75
+#    (критерий анализа: не хуже 40 нс при сн€тии trce).
+#=====================================================================
+
+#---- такт и сброс ----
+NET "clk"  LOC = "P29";    # GCK3, цепь clk: измерено 25,00 ћ√ц (Task 29-d) -> X1 = 25/5 = 5 ћ√ц (v3, XOR-пара /5) -> CPU 2,5 ћ√ц
+NET "RST"  LOC = "P1";     # GSTR, цепь RST: SW20; покой = 0, нажатие = 1 (актив.1 Ч доказано платой, Task 25; противоречие с нетлистом Ч см. SCHEMATIC.md І6)
+# ѕ–»ћ≈„јЌ»≈ GSR: все триггеры имеют синхронный сброс cpu_rst = RST|por_run
+# (D-gating) Ч GSR Ќ≈ используетс€. ѕроверить в отчЄте фиттера (Task 25/68-f).
+
+#---- шина i8085: управление (ZIF-сокет U3, цепи cpuN) ----
+NET "ALE"  LOC = "P93";    # cpu1, ALE(30)
+NET "WRn"  LOC = "P92";    # cpu2, WR#(31)
+NET "RDn"  LOC = "P91";    # cpu3, RD#(32)
+NET "IOM"  LOC = "P88";    # cpu5, IO/M#(34)
+NET "A15"  LOC = "P97";    # цепь A15 (декод пам€ти)
+
+#---- мультиплексированна€ шина AD0-AD7 (цепи A0..A7, bidir) ----
+NET "A<0>" LOC = "P26";    # цепь A0
+NET "A<1>" LOC = "P21";    # цепь A1
+NET "A<2>" LOC = "P19";    # цепь A2
+NET "A<3>" LOC = "P17";    # цепь A3
+NET "A<4>" LOC = "P15";    # цепь A4
+NET "A<5>" LOC = "P13";    # цепь A5
+NET "A<6>" LOC = "P11";    # цепь A6
+NET "A<7>" LOC = "P9";     # цепь A7
+
+#---- шина данных пам€ти (цепи D0..D7, bidir) ----
+NET "D<0>" LOC = "P30";    # цепь D0
+NET "D<1>" LOC = "P32";    # цепь D1
+NET "D<2>" LOC = "P35";    # цепь D2
+NET "D<3>" LOC = "P36";    # цепь D3
+NET "D<4>" LOC = "P34";    # цепь D4
+NET "D<5>" LOC = "P31";    # цепь D5
+NET "D<6>" LOC = "P27";    # цепь D6
+NET "D<7>" LOC = "P22";    # цепь D7
+
+#---- управление пам€тью ----
+NET "CSr_n" LOC = "P20";   # цепь #CSr  -> U10.22 (flash /CE)
+NET "OEr_n" LOC = "P16";   # цепь #OEr  -> U10.24 (flash /OE)
+NET "CS_n"  LOC = "P25";   # цепь #CS   -> U4.22  (SRAM /CE)
+NET "OE_n"  LOC = "P37";   # цепь #OE   -> U4.24  (SRAM /OE)
+NET "WE_n"  LOC = "P24";   # цепь #WE   -> U4.29  (SRAM /WE, только writeback)
+NET "CS1"   LOC = "P99";   # цепь CS    -> U4.30  (SRAM CE2, константа '1')
+
+#---- поддержка процессора ----
+NET "X1"         LOC = "P68";  # cpu21, X1(1), 5 ћ√ц = 25/5 в v3 (CLK_DIV=5 фиксирован: база 20 ћ√ц даст 4 ћ√ц Ч см. SCHEMATIC.md І7.5)
+NET "READY"      LOC = "P87";  # cpu6,  READY(35) = '1' Ч  –»“»„Ќќ, иначе вечные wait
+NET "RESET_IN"   LOC = "P84";  # cpu7,  RESET IN#(36) = ~(RST|POR), активный 0 по даташиту 8085A (Task 25)
+NET "RST75"      LOC = "P75";  # cpu.RST7.5 (U3.7, нога 7) <- ¬џ’ќƒ таймера (beta/01_timer), вектор 003Ch; –јЌ≈≈ PGND Ч P75 ¬џЎЋј из набора из 9!
+
+#---- soft-UART транзиты (Task 70-a) ----
+NET "RX"  LOC = "P38";     # вход: U1.38 <- цепь платы ЂTXї (CH340G.TXD); транзит в SID; «ј«≈ћЋя“№ Ќ≈Ћ№«я (выход CH340G)!
+NET "TX"  LOC = "P39";     # выход: U1.39 -> цепь платы ЂRXї (CH340G.RXD); TX = SOD (транзит передачи)
+NET "SOD" LOC = "P72";     # вход: cpu18, SOD(4) Ч CPU.SOD; транзит в TX; теперь с нагрузкой (INP)
+NET "SID" LOC = "P73";     # выход: cpu17, SID(5) Ч CPU.SID; транзит RX; –јЌ≈≈ PGND (до Task 70-a) Ч теперь ¬џ’ќƒ CPLD!
+
+#---- входы-наблюдатели: CPU-выходы и X2 (объ€влены входами, Ќ≈ заземл€ть!) ----
+NET "X2"     LOC = "P69";  # cpu20, X2(2): второй вывод генератора Ч GND запрещЄн даташитом
+NET "RSTOUT" LOC = "P70";  # cpu19, RESET OUT(3)
+NET "INTAn"  LOC = "P80";  # cpu11, INTA#(11)
+NET "HLDA"   LOC = "P82";  # cpu9,  HLDA(38)
+NET "CLKOUT" LOC = "P83";  # cpu8,  CLK OUT(37)
+NET "S0"     LOC = "P94";  # cpu0,  S0(29)
+NET "S1"     LOC = "P89";  # cpu4,  S1(33)
+NET "AH8"    LOC = "P10";  # цепь A8,  нога 21 Ч адрес пам€ти, наблюдатель
+NET "AH9"    LOC = "P12";  # цепь A9,  нога 22
+NET "AH10"   LOC = "P18";  # цепь A10, нога 23
+NET "AH11"   LOC = "P14";  # цепь A11, нога 24
+NET "AH12"   LOC = "P4";   # цепь A12, нога 25
+NET "AH13"   LOC = "P8";   # цепь A13, нога 26
+NET "AH14"   LOC = "P3";   # цепь A14, нога 27
+
+#---- клавиатура (наблюдатели; этап 2 задействует в сканировании) ----
+NET "col0" LOC = "P44";   # SW1/SW5/SW9/SW13/SW17
+NET "col1" LOC = "P43";   # SW2/SW6/SW10/SW14/SW18
+NET "col2" LOC = "P42";   # SW3/SW7/SW11/SW15/SW19
+NET "col3" LOC = "P41";   # SW4/SW8/SW12/SW16 (SW20 вне матрицы: SW20.1->RST, SW20.3/4->GND)
+NET "row0" LOC = "P56";   # R25 подт€жка, SW1
+NET "row1" LOC = "P55";   # R24, SW5
+NET "row2" LOC = "P54";   # R23, SW9
+NET "row3" LOC = "P52";   # R22, SW13
+NET "row4" LOC = "P51";   # R21, SW17
+
+#---- индикаци€ и звук ----
+NET "seg<0>" LOC = "P45";  # цепь a    -> LD1.11
+NET "seg<1>" LOC = "P62";  # цепь b    -> LD1.7
+NET "seg<2>" LOC = "P61";  # цепь c    -> LD1.4
+NET "seg<3>" LOC = "P57";  # цепь d    -> LD1.2
+NET "seg<4>" LOC = "P58";  # цепь e    -> LD1.1
+NET "seg<5>" LOC = "P66";  # цепь f    -> LD1.10
+NET "seg<6>" LOC = "P5";   # цепь g    -> LD1.5
+NET "seg<7>" LOC = "P60";  # цепь dp56 -> LD1.3
+NET "dig<0>" LOC = "P6";   # цепь dig0 -> R5  240 -> VT1 -> CA0 (LD1.6)
+NET "dig<1>" LOC = "P63";  # цепь dig1 -> R10 240 -> VT2 -> CA1 (LD1.8)
+NET "dig<2>" LOC = "P65";  # цепь dig2 -> R11 240 -> VT3 -> CA2 (LD1.9)
+NET "dig<3>" LOC = "P48";  # цепь dig3 -> R12 240 -> VT4 -> CA3 (LD1.12)
+NET "SND"    LOC = "P67";  # цепь SND  -> BUZZER1.1 (пассивный); BUZZER1.2 -> R4 -> GND
+
+#---- тайминг-констрейнт (владелец, Constraints Editor 2026-10-21) ----
+# 25 ћ√ц на входе CPLD подтверждены осциллографом; HIGH 50% покрывает
+# и полупериодные пути negedge-триггера x1_n (XOR-пара /5)
+#Created by Constraints Editor (xc95108-pq100-15) - 2026/10/21
+NET "clk" TNM_NET = clk;
+TIMESPEC TS_clk = PERIOD "clk" 25 MHz HIGH 50%;
