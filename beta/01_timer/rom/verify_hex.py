@@ -29,6 +29,17 @@ v4 (2026-10-23): фикс 2400-терминала (дамп владельца: 
   Холостой бит (0Ch прокатывается через путь данных: D=0FFh — фикс.
   точка) отодвигает след. старт на 10,71 бита приёмника — ПОСЛЕ конца
   кадра; одиночный сбой отныне портит <= 1 символ.
+
+v5 (2026-10-24): + эхо-образ (первый тест тракта ПРИЁМА):
+  echo  — uart_echo_test.hex: полноценный UART (приём-передача, эхо).
+          ISR: вентиль TX (H>0 -> TX заморожен) + TX-автомат v4 в C/D
+          (однобайтовый: стоп -> 0FFh сразу) + RX-автомат в H/L
+          (H = интервалы кадра: 11..4 выборки d0..d7 через RIM,
+          3..1 хвост, 0 покой; L = накопитель LSB-first).
+          MAIN: баннер '>' -> POLL (DI, RIM): старт -> загрузка RXN1=12
+          квантов ДО сброса латча (SIM 08h выбрасывает залетевшие фронты
+          атомарно) -> H=11, EI. Релиз: TX свободен -> D<-L, C<-0Bh.
+          TX ПАСС подтверждён владельцем 10-24 (v4, «текст ровный»).
 """
 import sys
 
@@ -235,11 +246,120 @@ REF_USW = (
     + bytes([0x0D, 0x0A, 0x00])                                # CR LF NUL
 )
 
+# ---- ручной эталон (echo): полноценный UART (приём-передача, эхо) ----
+# Вентиль TX (H>0 -> заморозка), TX-автомат v4 в C/D (однобайтовый),
+# RX-автомат в H/L (H=интервалы 11..0, L=байт LSB-first); MAIN: баннер
+# '>', POLL(DI,RIM), загрузка RXN1=12 ДО сброса латча (SIM 08h), H=11.
+REF_ECHO = (
+    bytes([0xC3, 0xA0, 0x00])                                  # 0000 JMP 00A0h (MAIN)
+    + bytes(0x00 for _ in range(0x3B - 0x03 + 1))              # NOP-заполнение
+    # вектор 003Ch занят ре-армом ЦЕЛИКОМ (период = N x Q ровно)
+    + bytes([0x3E, 0x08])                                      # 003C MVI A,08h (TMR_N=8 -> 2400)
+    + bytes([0xD3, 0x04])                                      # 003E OUT 04h (ре-арм ~12 мкс от фронта)
+    # --- вентиль: RX активен (H>0) -> TX заморожен ---
+    + bytes([0x7C])                                            # 0040 MOV A,H
+    + bytes([0xB7])                                            # 0041 ORA A
+    + bytes([0xCA, 0x48, 0x00])                                # 0042 JZ 0048h (TXRUN)
+    + bytes([0xC3, 0x79, 0x00])                                # 0045 JMP 0079h (RX)
+    # --- TX-автомат (фазы v4: 0Bh/0Ah/09..02/01, однобайтовый) ---
+    + bytes([0x79])                                            # 0048 MOV A,C (TXRUN)
+    + bytes([0xFE, 0xFF])                                      # 0049 CPI 0FFh (покой?)
+    + bytes([0xCA, 0x76, 0x00])                                # 004B JZ 0076h (TXIDLE)
+    + bytes([0x0D])                                            # 004E DCR C
+    + bytes([0x79])                                            # 004F MOV A,C
+    + bytes([0xFE, 0x0A])                                      # 0050 CPI 0Ah (старт?)
+    + bytes([0xCA, 0x68, 0x00])                                # 0052 JZ 0068h (TXST)
+    + bytes([0xFE, 0x01])                                      # 0055 CPI 1 (стоп?)
+    + bytes([0xCA, 0x6E, 0x00])                                # 0057 JZ 006Eh (TXSP)
+    + bytes([0x7A])                                            # 005A MOV A,D (данные d0..d7)
+    + bytes([0x0F])                                            # 005B RRC (A7 <- D0)
+    + bytes([0xE6, 0x80])                                      # 005C ANI 80h
+    + bytes([0xF6, 0x40])                                      # 005E ORI 40h (SSE; MSE=0)
+    + bytes([0x30])                                            # 0060 SIM
+    + bytes([0x37])                                            # 0061 STC (единицы сверху)
+    + bytes([0x7A])                                            # 0062 MOV A,D
+    + bytes([0x1F])                                            # 0063 RAR (D >>= 1, D7 <- 1)
+    + bytes([0x57])                                            # 0064 MOV D,A
+    + bytes([0xC3, 0x79, 0x00])                                # 0065 JMP 0079h (RX)
+    + bytes([0x3E, 0x40])                                      # 0068 MVI A,40h (TXST: старт, SOD=0; D загружен заранее)
+    + bytes([0x30])                                            # 006A SIM
+    + bytes([0xC3, 0x79, 0x00])                                # 006B JMP 0079h (RX)
+    + bytes([0x3E, 0xC0])                                      # 006E MVI A,0C0h (TXSP: стоп, SOD=1)
+    + bytes([0x30])                                            # 0070 SIM
+    + bytes([0x0E, 0xFF])                                      # 0071 MVI C,0FFh (однобайтовый: сразу в покой)
+    + bytes([0xC3, 0x79, 0x00])                                # 0073 JMP 0079h (RX)
+    + bytes([0x3E, 0xC0])                                      # 0076 MVI A,0C0h (TXIDLE: покой, SOD=1)
+    + bytes([0x30])                                            # 0078 SIM
+    # --- RX-автомат: H=интервалы кадра, L=байт (LSB-first) ---
+    + bytes([0x7C])                                            # 0079 MOV A,H (RX)
+    + bytes([0xB7])                                            # 007A ORA A
+    + bytes([0xCA, 0x99, 0x00])                                # 007B JZ 0099h (RXE: H=0 — покой)
+    + bytes([0xFE, 0x04])                                      # 007E CPI 4 (H>=4 — данные; H=3..1 — хвост)
+    + bytes([0xFA, 0x8A, 0x00])                                # 0080 JM 008Ah (RXT)
+    + bytes([0x20])                                            # 0083 RIM (SID -> A7)
+    + bytes([0xE6, 0x80])                                      # 0084 ANI 80h
+    + bytes([0x1F])                                            # 0086 RAR (CY <- SID)
+    + bytes([0x7D])                                            # 0087 MOV A,L
+    + bytes([0x1F])                                            # 0088 RAR (L = (L>>1) | SID<<7)
+    + bytes([0x6F])                                            # 0089 MOV L,A
+    + bytes([0x25])                                            # 008A DCR H (RXT: интервал отработан)
+    + bytes([0x7C])                                            # 008B MOV A,H
+    + bytes([0xB7])                                            # 008C ORA A
+    + bytes([0xC2, 0x99, 0x00])                                # 008D JNZ 0099h (RXE: кадр не кончился)
+    + bytes([0x79])                                            # 0090 MOV A,C (релиз: TX свободен?)
+    + bytes([0xFE, 0xFF])                                      # 0091 CPI 0FFh
+    + bytes([0xC2, 0x99, 0x00])                                # 0093 JNZ 0099h (RXE: занят — байт теряем)
+    + bytes([0x55])                                            # 0096 MOV D,L (эхо: D <- принятый байт)
+    + bytes([0x0E, 0x0B])                                      # 0097 MVI C,0Bh (след. фронт = старт эха)
+    + bytes([0xFB])                                            # 0099 EI (RXE)
+    + bytes([0xC9])                                            # 009A RET
+    + bytes(0x00 for _ in range(0xA0 - 0x9B))                  # NOP до MAIN
+    # --- MAIN: баннер '>' + опрос SID (DI) + атомарный арм приёма ---
+    + bytes([0x31, 0xFF, 0xFF])                                # 00A0 LXI SP,FFFFh
+    + bytes([0x3E, 0xC0])                                      # 00A3 MVI A,C0h (SOD=1, гасим BREAK)
+    + bytes([0x30])                                            # 00A5 SIM
+    + bytes([0x3E, 0xFF])                                      # 00A6 MVI A,FFh (маячок «8.» на всех разрядах)
+    + bytes([0xD3, 0x00])                                      # 00A8 OUT 00h
+    + bytes([0x3E, 0x0F])                                      # 00AA MVI A,0Fh
+    + bytes([0xD3, 0x01])                                      # 00AC OUT 01h
+    + bytes([0x3E, 0x1B])                                      # 00AE MVI A,1Bh (SIMW: 5.5/6.5 закрыты, 7.5 открыт)
+    + bytes([0x30])                                            # 00B0 SIM
+    + bytes([0x16, 0x3E])                                      # 00B1 MVI D,3Eh (баннер '>')
+    + bytes([0x0E, 0x0B])                                      # 00B3 MVI C,0Bh (след. фронт = старт)
+    + bytes([0x3E, 0x08])                                      # 00B5 MVI A,08h (TMR_N)
+    + bytes([0xD3, 0x04])                                      # 00B7 OUT 04h (пуск таймера)
+    + bytes([0x26, 0x00])                                      # 00B9 MVI H,00h (RX покой)
+    + bytes([0x2E, 0x00])                                      # 00BB MVI L,00h
+    + bytes([0xFB])                                            # 00BD EI
+    + bytes([0x79])                                            # 00BE MOV A,C (BAN: ждём конца баннера)
+    + bytes([0xFE, 0xFF])                                      # 00BF CPI 0FFh
+    + bytes([0xC2, 0xBE, 0x00])                                # 00C1 JNZ 00BEh (BAN)
+    + bytes([0xF3])                                            # 00C4 DI (POLL: опрос без ISR)
+    + bytes([0x20])                                            # 00C5 RIM (SID -> A7)
+    + bytes([0xE6, 0x80])                                      # 00C6 ANI 80h
+    + bytes([0xC2, 0xC4, 0x00])                                # 00C8 JNZ 00C4h (POLL: 1 = idle)
+    + bytes([0x3E, 0x0C])                                      # 00CB MVI A,0Ch (RXN1=12: 1,5 бита)
+    + bytes([0xD3, 0x04])                                      # 00CD OUT 04h (загрузка ДО сброса латча)
+    + bytes([0x3E, 0x08])                                      # 00CF MVI A,08h (SIMLR)
+    + bytes([0x30])                                            # 00D1 SIM (латч RST 7.5 сброшен: залетевшие фронты выброшены)
+    + bytes([0x2E, 0x00])                                      # 00D2 MVI L,00h (накопитель с нуля)
+    + bytes([0x26, 0x0B])                                      # 00D4 MVI H,0Bh (11 интервалов кадра)
+    + bytes([0xFB])                                            # 00D6 EI
+    + bytes([0x7C])                                            # 00D7 MOV A,H (RWAIT: ждём H -> 0)
+    + bytes([0xB7])                                            # 00D8 ORA A
+    + bytes([0xC2, 0xD7, 0x00])                                # 00D9 JNZ 00D7h (RWAIT)
+    + bytes([0x79])                                            # 00DC MOV A,C (EWAIT: ждём C -> 0FFh)
+    + bytes([0xFE, 0xFF])                                      # 00DD CPI 0FFh
+    + bytes([0xC2, 0xDC, 0x00])                                # 00DF JNZ 00DCh (EWAIT)
+    + bytes([0xC3, 0xC4, 0x00])                                # 00E2 JMP 00C4h (POLL)
+)
+
 HEXCOLS = {
     'tone':  ('timer_test_tone.hex',  REF_TONE,  0x009F),
     'blink': ('timer_test_blink.hex', REF_BLINK, 0x009F),
     'uart':  ('timer_test_uart.hex',  REF_UART,  0x00CE),
     'usw':   ('uart_sw_test.hex',     REF_USW,   0x0071),
+    'echo':  ('uart_echo_test.hex',   REF_ECHO,  0x00E4),
 }
 
 
@@ -325,6 +445,29 @@ def main():
         ('usw', 0x0049, 0x28), ('usw', 0x0058, 0x01), ('usw', 0x0059, 0x32),
         ('usw', 0x005A, 0x02), ('usw', 0x0062, 0x54), ('usw', 0x006F, 0x0D),
         ('usw', 0x0070, 0x0A), ('usw', 0x0071, 0x00),
+        # echo: ре-арм в векторе, вентиль TX, RX-автомат (RIM/DCR H),
+        # релиз (MOV D,L), баннер '>', POLL (DI,RIM), загрузка 12 ДО SIM 08h
+        ('echo', 0x0001, 0xA0), ('echo', 0x003C, 0x3E), ('echo', 0x003D, 0x08),
+        ('echo', 0x003E, 0xD3), ('echo', 0x003F, 0x04), ('echo', 0x0040, 0x7C),
+        ('echo', 0x0042, 0xCA), ('echo', 0x0045, 0xC3), ('echo', 0x0048, 0x79),
+        ('echo', 0x0071, 0x0E), ('echo', 0x0072, 0xFF),            # однобайтовый стоп -> 0FFh
+        ('echo', 0x007E, 0xFE), ('echo', 0x007F, 0x04),            # CPI 4 (данные/хвост)
+        ('echo', 0x0080, 0xFA),                                    # JM RXT
+        ('echo', 0x0083, 0x20),                                    # RIM (выборка SID)
+        ('echo', 0x0089, 0x6F),                                    # MOV L,A (LSB-first)
+        ('echo', 0x008A, 0x25),                                    # DCR H (интервалы)
+        ('echo', 0x0096, 0x55),                                    # MOV D,L (эхо: D <- байт)
+        ('echo', 0x0097, 0x0E), ('echo', 0x0098, 0x0B),            # MVI C,0Bh (старт эха)
+        ('echo', 0x0099, 0xFB), ('echo', 0x009A, 0xC9),            # EI/RET
+        ('echo', 0x00A0, 0x31), ('echo', 0x00A6, 0x3E), ('echo', 0x00A7, 0xFF),
+        ('echo', 0x00B1, 0x16), ('echo', 0x00B2, 0x3E),            # баннер '>'
+        ('echo', 0x00C4, 0xF3), ('echo', 0x00C5, 0x20),            # POLL: DI, RIM
+        ('echo', 0x00CB, 0x3E), ('echo', 0x00CC, 0x0C),            # RXN1=12 (1,5 бита)
+        ('echo', 0x00CD, 0xD3),                                    # OUT ДО сброса латча
+        ('echo', 0x00CF, 0x3E), ('echo', 0x00D0, 0x08), ('echo', 0x00D1, 0x30),
+        ('echo', 0x00D4, 0x26), ('echo', 0x00D5, 0x0B),            # H=11 интервалов
+        ('echo', 0x00D7, 0x7C), ('echo', 0x00E2, 0xC3), ('echo', 0x00E3, 0xC4),
+        ('echo', 0x00E4, 0x00),                                    # JMP POLL (млн/ст/ст)
     ]
     for kind, addr, val in checks:
         mem = read_ihex(HEXCOLS[kind][0])
@@ -332,7 +475,7 @@ def main():
             print('[FAIL] %s: %04Xh = %02X, ожидалось %02X' % (kind, addr, mem.get(addr), val))
             ok = False
     if ok:
-        print('ВЕРИФИКАЦИЯ ПРОЙДЕНА: все 4 образа корректны (checksum + эталон + точки).')
+        print('ВЕРИФИКАЦИЯ ПРОЙДЕНА: все 5 образов корректны (checksum + эталон + точки).')
     else:
         sys.exit(1)
 
