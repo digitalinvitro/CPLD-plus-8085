@@ -19,6 +19,16 @@ v3 (2026-10-23): + UART-образы (задание «таймер как за�
           эталон для TMR_N=8 (2400 бод), варианты -D сверяются --disasm.
   usw   — uart_sw_test.hex: полностью софтверный референс (бит = 1042
           такта: LXI H,40 + 2 NOP + цикл DCX H), кадр 10 бит в паре DE.
+
+v4 (2026-10-23): фикс 2400-терминала (дамп владельца: мусор сериями в
+  ~25% строк, повторяющийся байт в байт) — 2-й стоп-бит: в STOPB
+  MVI C,0Bh -> MVI C,0Ch (0071h: 0B -> 0C, размер/адреса НЕ изменились).
+  Причина: TX 2465 бод (+2,7%) при кадрах вплотную — след. старт-фронт
+  приходил на 26% бита РАНЬШЕ конца кадра приёмника 2400 (9,74 бита) —
+  коллизия границы кадра, сдвиг на 1 бит, «пережёванный» хвост строки.
+  Холостой бит (0Ch прокатывается через путь данных: D=0FFh — фикс.
+  точка) отодвигает след. старт на 10,71 бита приёмника — ПОСЛЕ конца
+  кадра; одиночный сбой отныне портит <= 1 символ.
 """
 import sys
 
@@ -84,6 +94,10 @@ REF_BLINK = (
 )
 
 # ---- ручной эталон (uart, TMR_N=8): ISR-автомат, ре-арм в векторе ----
+# v4: 2-й стоп (холостой бит, фаза 0Ch); байт грузится в СТАРТ-фазе,
+# вне кадра D=0FFh (фикс. точка пути данных); preload'ы убраны, образ
+# ужался 209 -> 207 байт (IRET 0089h, IDLE 007Dh, STOPB 0068h, ESTR 0076h,
+# START 0060h, MSG 00BFh)
 REF_UART = (
     bytes([0xC3, 0xA0, 0x00])                                  # 0000 JMP 00A0h (MAIN)
     + bytes(0x00 for _ in range(0x3B - 0x03 + 1))              # NOP-заполнение
@@ -94,13 +108,13 @@ REF_UART = (
     # E пауза, HL указатель MSG; MAIN живёт в HLT -- сохранять нечего)
     + bytes([0x79])                                            # 0040 MOV A,C
     + bytes([0xFE, 0xFF])                                      # 0041 CPI 0FFh (покой?)
-    + bytes([0xCA, 0x7C, 0x00])                                # 0043 JZ 007Ch (IDLE)
+    + bytes([0xCA, 0x7D, 0x00])                                # 0043 JZ 007Dh (IDLE)
     + bytes([0x0D])                                            # 0046 DCR C
     + bytes([0x79])                                            # 0047 MOV A,C
     + bytes([0xFE, 0x0A])                                      # 0048 CPI 0Ah (старт?)
     + bytes([0xCA, 0x60, 0x00])                                # 004A JZ 0060h (START)
     + bytes([0xFE, 0x01])                                      # 004D CPI 1 (стоп?)
-    + bytes([0xCA, 0x66, 0x00])                                # 004F JZ 0066h (STOPB)
+    + bytes([0xCA, 0x68, 0x00])                                # 004F JZ 0068h (STOPB)
     + bytes([0x7A])                                            # 0052 MOV A,D
     + bytes([0x0F])                                            # 0053 RRC (A7 <- D0)
     + bytes([0xE6, 0x80])                                      # 0054 ANI 80h
@@ -110,33 +124,32 @@ REF_UART = (
     + bytes([0x7A])                                            # 005A MOV A,D
     + bytes([0x1F])                                            # 005B RAR (D >>= 1, D7 <- 1)
     + bytes([0x57])                                            # 005C MOV D,A
-    + bytes([0xC3, 0x8A, 0x00])                                # 005D JMP 008Ah (IRET)
+    + bytes([0xC3, 0x89, 0x00])                                # 005D JMP 0089h (IRET)
     + bytes([0x3E, 0x40])                                      # 0060 MVI A,40h (старт-бит, SOD=0)
     + bytes([0x30])                                            # 0062 SIM
-    + bytes([0xC3, 0x8A, 0x00])                                # 0063 JMP IRET
-    + bytes([0x3E, 0xC0])                                      # 0066 MVI A,0C0h (стоп-бит, SOD=1)
-    + bytes([0x30])                                            # 0068 SIM
-    + bytes([0x23])                                            # 0069 INX H (кадры вплотную)
-    + bytes([0x7E])                                            # 006A MOV A,M
-    + bytes([0xB7])                                            # 006B ORA A (00h = конец строки)
-    + bytes([0xCA, 0x75, 0x00])                                # 006C JZ 0075h (ESTR)
-    + bytes([0x57])                                            # 006F MOV D,A (след. байт заранее)
-    + bytes([0x0E, 0x0B])                                      # 0070 MVI C,0Bh (00h не возникает)
-    + bytes([0xC3, 0x8A, 0x00])                                # 0072 JMP IRET
-    + bytes([0x0E, 0xFF])                                      # 0075 MVI C,0FFh (покой)
-    + bytes([0x1E, 0x0D])                                      # 0077 MVI E,0Dh (GAPN=13 бит)
-    + bytes([0xC3, 0x8A, 0x00])                                # 0079 JMP IRET
-    + bytes([0x3E, 0xC0])                                      # 007C MVI A,0C0h (покой, SOD=1)
-    + bytes([0x30])                                            # 007E SIM
-    + bytes([0x1D])                                            # 007F DCR E
-    + bytes([0xC2, 0x8A, 0x00])                                # 0080 JNZ IRET
-    + bytes([0x21, 0xC1, 0x00])                                # 0083 LXI H,00C1h (MSG)
-    + bytes([0x7E])                                            # 0086 MOV A,M (preload D)
-    + bytes([0x57])                                            # 0087 MOV D,A
-    + bytes([0x0E, 0x0B])                                      # 0088 MVI C,0Bh
-    + bytes([0xFB])                                            # 008A EI
-    + bytes([0xC9])                                            # 008B RET
-    + bytes(0x00 for _ in range(0xA0 - 0x8C))                  # NOP до MAIN
+    + bytes([0x7E])                                            # 0063 MOV A,M (v4: байт грузится
+    + bytes([0x57])                                            # 0064 MOV D,A  в старт-фазе)
+    + bytes([0xC3, 0x89, 0x00])                                # 0065 JMP IRET
+    + bytes([0x3E, 0xC0])                                      # 0068 MVI A,0C0h (стоп-бит, SOD=1)
+    + bytes([0x30])                                            # 006A SIM
+    + bytes([0x23])                                            # 006B INX H (след. байт)
+    + bytes([0x7E])                                            # 006C MOV A,M
+    + bytes([0xB7])                                            # 006D ORA A (00h = конец строки)
+    + bytes([0xCA, 0x76, 0x00])                                # 006E JZ 0076h (ESTR)
+    + bytes([0x0E, 0x0C])                                      # 0071 MVI C,0Ch (2-й стоп, v4)
+    + bytes([0xC3, 0x89, 0x00])                                # 0073 JMP IRET
+    + bytes([0x0E, 0xFF])                                      # 0076 MVI C,0FFh (покой)
+    + bytes([0x1E, 0x0D])                                      # 0078 MVI E,0Dh (GAPN=13 бит)
+    + bytes([0xC3, 0x89, 0x00])                                # 007A JMP IRET
+    + bytes([0x3E, 0xC0])                                      # 007D MVI A,0C0h (покой, SOD=1)
+    + bytes([0x30])                                            # 007F SIM
+    + bytes([0x1D])                                            # 0080 DCR E
+    + bytes([0xC2, 0x89, 0x00])                                # 0081 JNZ IRET
+    + bytes([0x21, 0xBF, 0x00])                                # 0084 LXI H,00BFh (MSG)
+    + bytes([0x0E, 0x0B])                                      # 0087 MVI C,0Bh
+    + bytes([0xFB])                                            # 0089 EI (IRET)
+    + bytes([0xC9])                                            # 008A RET
+    + bytes(0x00 for _ in range(0xA0 - 0x8B))                  # NOP до MAIN
     + bytes([0x31, 0xFF, 0xFF])                                # 00A0 LXI SP,FFFFh
     + bytes([0x3E, 0xC0])                                      # 00A3 MVI A,C0h (SOD=1, гасим BREAK)
     + bytes([0x30])                                            # 00A5 SIM
@@ -148,14 +161,12 @@ REF_UART = (
     + bytes([0xD3, 0x04])                                      # 00B0 OUT 04h (пуск таймера)
     + bytes([0x3E, 0x1B])                                      # 00B2 MVI A,1Bh (SIMW)
     + bytes([0x30])                                            # 00B4 SIM
-    + bytes([0x21, 0xC1, 0x00])                                # 00B5 LXI H,00C1h (MSG)
-    + bytes([0x7E])                                            # 00B8 MOV A,M (первый байт заранее)
-    + bytes([0x57])                                            # 00B9 MOV D,A
-    + bytes([0x0E, 0x0B])                                      # 00BA MVI C,0Bh
-    + bytes([0xFB])                                            # 00BC EI
-    + bytes([0x76])                                            # 00BD HLT
-    + bytes([0xC3, 0xBD, 0x00])                                # 00BE JMP 00BDh (HLT-цикл)
-    + bytes([0x54, 0x49, 0x4D, 0x45, 0x52, 0x2D, 0x55, 0x41])  # 00C1 'TIMER-UA
+    + bytes([0x21, 0xBF, 0x00])                                # 00B5 LXI H,00BFh (MSG)
+    + bytes([0x0E, 0x0B])                                      # 00B8 MVI C,0Bh
+    + bytes([0xFB])                                            # 00BA EI
+    + bytes([0x76])                                            # 00BB HLT
+    + bytes([0xC3, 0xBB, 0x00])                                # 00BC JMP 00BBh (HLT-цикл)
+    + bytes([0x54, 0x49, 0x4D, 0x45, 0x52, 0x2D, 0x55, 0x41])  # 00BF 'TIMER-UA
     + bytes([0x52, 0x54, 0x20, 0x4F, 0x4B])                    # RT OK'
     + bytes([0x0D, 0x0A, 0x00])                                # CR LF NUL
 )
@@ -227,7 +238,7 @@ REF_USW = (
 HEXCOLS = {
     'tone':  ('timer_test_tone.hex',  REF_TONE,  0x009F),
     'blink': ('timer_test_blink.hex', REF_BLINK, 0x009F),
-    'uart':  ('timer_test_uart.hex',  REF_UART,  0x00D0),
+    'uart':  ('timer_test_uart.hex',  REF_UART,  0x00CE),
     'usw':   ('uart_sw_test.hex',     REF_USW,   0x0071),
 }
 
@@ -299,11 +310,14 @@ def main():
         ('uart', 0x0001, 0xA0), ('uart', 0x003C, 0x3E), ('uart', 0x003D, 0x08),
         ('uart', 0x003E, 0xD3), ('uart', 0x003F, 0x04), ('uart', 0x0040, 0x79),
         ('uart', 0x0043, 0xCA), ('uart', 0x0052, 0x7A), ('uart', 0x0058, 0x30),
-        ('uart', 0x0060, 0x3E), ('uart', 0x0061, 0x40), ('uart', 0x0066, 0x3E),
-        ('uart', 0x0067, 0xC0), ('uart', 0x0069, 0x23),            # INX H: кадры вплотную
-        ('uart', 0x007C, 0x3E), ('uart', 0x008A, 0xFB), ('uart', 0x008B, 0xC9),
-        ('uart', 0x00A0, 0x31), ('uart', 0x00BD, 0x76), ('uart', 0x00C1, 0x54),
-        ('uart', 0x00CE, 0x0D), ('uart', 0x00CF, 0x0A), ('uart', 0x00D0, 0x00),
+        ('uart', 0x0060, 0x3E), ('uart', 0x0061, 0x40),
+        ('uart', 0x0063, 0x7E),                                    # v4: MOV A,M в старт-фазе
+        ('uart', 0x0068, 0x3E), ('uart', 0x0069, 0xC0),            # стоп-бит SOD=1
+        ('uart', 0x006B, 0x23),                                    # INX H: след. байт
+        ('uart', 0x0071, 0x0E), ('uart', 0x0072, 0x0C),            # v4: 2-й стоп (холостой бит)
+        ('uart', 0x007D, 0x3E), ('uart', 0x0089, 0xFB), ('uart', 0x008A, 0xC9),
+        ('uart', 0x00A0, 0x31), ('uart', 0x00BB, 0x76), ('uart', 0x00BF, 0x54),
+        ('uart', 0x00CC, 0x0D), ('uart', 0x00CD, 0x0A), ('uart', 0x00CE, 0x00),
         # usw: DI, маскировать ВСЁ, LXI H,40 (пауза), LXI B,562, 'T' в MSG
         ('usw', 0x0001, 0x06), ('usw', 0x0006, 0xF3), ('usw', 0x000A, 0x3E),
         ('usw', 0x000B, 0x1F), ('usw', 0x0021, 0xCD), ('usw', 0x0031, 0x3E),
