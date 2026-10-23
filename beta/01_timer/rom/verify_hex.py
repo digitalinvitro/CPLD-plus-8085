@@ -5,6 +5,11 @@
 Эталон рассчитан вручную по карте опкодов Intel 8085 (не ассемблером):
   0000: JMP 0080h | 003C: JMP 0040h (вектор RST 7.5) | ISR с 0040h | MAIN с 0080h.
 Плюс: контроль checksum каждой записи Intel HEX и структуры EOF.
+
+v2: в ISR НЕТ PUSH B/POP B — счётчик мигания B:C обязан жить между
+прерываниями; в v1 POP B каждую квитанцию восстанавливал исходные
+KB:KA и мигание никогда не срабатывало (баг найден по симптомам
+«тон есть, g+dp горят, мигания нет»).
 """
 import sys
 
@@ -16,16 +21,16 @@ REF_TONE = (
     + bytes(0x00 for _ in range(0x3B - 0x03 + 1))              # NOP-заполнение
     + bytes([0xC3, 0x40, 0x00])                                # 003C JMP ISR (RST 7.5)
     + bytes([0x00])                                            # 003F
-    + bytes([0xF5, 0xC5])                                      # PUSH PSW, PUSH B
+    + bytes([0xF5])                                            # PUSH PSW (v2: БЕЗ PUSH B!)
     + bytes([0x3A, 0x01, 0x80])                                # LDA 8001h (DIGST)
     + bytes([0xEE, 0x10])                                      # XRI 10h (SND)
     + bytes([0x32, 0x01, 0x80])                                # STA 8001h
     + bytes([0xD3, 0x01])                                      # OUT 01h
     + bytes([0x0D])                                            # DCR C
-    + bytes([0xC2, 0x62, 0x00])                                # JNZ 0062h
+    + bytes([0xC2, 0x61, 0x00])                                # JNZ 0061h
     + bytes([0x0E, 0x74])                                      # MVI C,74h (KA=116)
     + bytes([0x05])                                            # DCR B
-    + bytes([0xC2, 0x62, 0x00])                                # JNZ 0062h
+    + bytes([0xC2, 0x61, 0x00])                                # JNZ 0061h
     + bytes([0x06, 0x04])                                      # MVI B,04h (KB=4)
     + bytes([0x3A, 0x00, 0x80])                                # LDA 8000h (SEGST)
     + bytes([0xEE, 0x40])                                      # XRI 40h ('g')
@@ -33,8 +38,8 @@ REF_TONE = (
     + bytes([0xD3, 0x00])                                      # OUT 00h
     + bytes([0x3E, 0x14])                                      # MVI A,14h (N=20)
     + bytes([0xD3, 0x04])                                      # OUT 04h (ре-арм)
-    + bytes([0xC1, 0xF1, 0xFB, 0xC9])                          # POP B, POP PSW, EI, RET
-    + bytes(0x00 for _ in range(0x80 - 0x6A))                  # NOP до MAIN
+    + bytes([0xF1, 0xFB, 0xC9])                                # POP PSW, EI, RET (v2: БЕЗ POP B!)
+    + bytes(0x00 for _ in range(0x80 - 0x68))                  # NOP до MAIN
     + bytes([0x31, 0xFF, 0xFF])                                # LXI SP,FFFFh
     + bytes([0x3E, 0xC0])                                      # MVI A,C0h ('g'+dp)
     + bytes([0x32, 0x00, 0x80])                                # STA SEGST
@@ -54,20 +59,20 @@ REF_TONE = (
 
 REF_BLINK = (
     REF_TONE[:0x40]
-    + bytes([0xF5, 0xC5])                                      # PUSH PSW, PUSH B
+    + bytes([0xF5])                                            # PUSH PSW (v2: БЕЗ PUSH B!)
     + bytes([0x0D])                                            # DCR C
-    + bytes([0xC2, 0x58, 0x00])                                # JNZ 0058h
+    + bytes([0xC2, 0x57, 0x00])                                # JNZ 0057h
     + bytes([0x0E, 0x74])                                      # MVI C,74h
     + bytes([0x05])                                            # DCR B
-    + bytes([0xC2, 0x58, 0x00])                                # JNZ 0058h
+    + bytes([0xC2, 0x57, 0x00])                                # JNZ 0057h
     + bytes([0x06, 0x04])                                      # MVI B,04h
     + bytes([0x3A, 0x00, 0x80])                                # LDA 8000h
     + bytes([0xEE, 0x40])                                      # XRI 40h
     + bytes([0x32, 0x00, 0x80])                                # STA 8000h
     + bytes([0xD3, 0x00])                                      # OUT 00h
     + bytes([0x3E, 0x14, 0xD3, 0x04])                          # MVI A,14h, OUT 04h
-    + bytes([0xC1, 0xF1, 0xFB, 0xC9])                          # POP B, POP PSW, EI, RET
-    + bytes(0x00 for _ in range(0x80 - 0x60))
+    + bytes([0xF1, 0xFB, 0xC9])                                # POP PSW, EI, RET (v2: БЕЗ POP B!)
+    + bytes(0x00 for _ in range(0x80 - 0x5E))
     + REF_TONE[0x80:]
 )
 
@@ -127,10 +132,13 @@ def main():
     # ключевые контрольные точки независимо от эталона
     checks = [
         ('tone', 0x0000, 0xC3), ('tone', 0x0001, 0x80), ('tone', 0x003C, 0xC3),
-        ('tone', 0x003D, 0x40), ('tone', 0x0040, 0xF5), ('tone', 0x0062, 0x3E),
-        ('tone', 0x0064, 0xD3), ('tone', 0x0064 + 1, 0x04), ('tone', 0x009A, 0x30),
-        ('tone', 0x009C, 0x76), ('blink', 0x003D, 0x40), ('blink', 0x0042, 0x0D),
-        ('blink', 0x0058, 0x3E),
+        ('tone', 0x003D, 0x40), ('tone', 0x0040, 0xF5),
+        ('tone', 0x0041, 0x3A),                                    # v2: LDA сразу после PUSH PSW (нет C5)
+        ('tone', 0x0061, 0x3E), ('tone', 0x0063, 0xD3), ('tone', 0x0064, 0x04),
+        ('tone', 0x0065, 0xF1),                                    # v2: POP PSW после ре-арма (нет C1)
+        ('tone', 0x0066, 0xFB), ('tone', 0x009A, 0x30), ('tone', 0x009C, 0x76),
+        ('blink', 0x003D, 0x40), ('blink', 0x0040, 0xF5), ('blink', 0x0041, 0x0D),
+        ('blink', 0x0057, 0x3E), ('blink', 0x005B, 0xF1),
     ]
     for kind, addr, val in checks:
         mem = read_ihex(HEXCOLS[kind])
