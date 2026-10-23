@@ -172,7 +172,16 @@ def opcode_class(mnem, ops, lineno):
     if mnem in ('ORG', 'EQU', 'IF', 'ELSE', 'ENDIF', 'END'):
         return mnem.lower(), 0
     if mnem == 'DB':
-        return 'db', len(ops)
+        # размер: строка '...' даёт len(символов) байт (как в эмиттере),
+        # остальные элементы -- по 1 байту (урок: len(ops) ломал метки,
+        # стоящие ПОСЛЕ DB со строкой -- адрес уезжал на len-1 байт)
+        n = 0
+        for it in ops:
+            if len(it) >= 2 and it[0] == "'":
+                n += len(it[1:-1] if it.endswith("'") else it[1:])
+            else:
+                n += 1
+        return 'db', n
     if mnem == 'DW':
         return 'dw', 2 * len(ops)
     if mnem in IMPL1:
