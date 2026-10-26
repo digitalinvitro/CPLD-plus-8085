@@ -15,9 +15,9 @@
      выброс латча СОХРАНЕНА (MVI E,0 -- ПОСЛЕ SIM).
   5. SEGTAB с 0160h (lo = 60h -- ADD L без переноса).
 """
-import sys
+import os, sys
 
-ROM = '/home/z/my-project/CPLD-plus-8085/beta/01_timer/rom'
+ROM = os.path.dirname(os.path.abspath(__file__))  # каталог rom/
 
 
 def load(path):

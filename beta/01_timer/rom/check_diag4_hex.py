@@ -25,9 +25,9 @@ diag4 = diag3 с исправленным вводом и порядком эх�
   H. Заполнители 00F3h-00FFh и 016Ch-016Fh = 00; MAIN 0100h, DMUX 0170h,
      SEGTAB 01D0h = v3 байт в байт.
 """
-import sys
+import os, sys
 
-ROM = '/home/z/my-project/CPLD-plus-8085/beta/01_timer/rom'
+ROM = os.path.dirname(os.path.abspath(__file__))  # каталог rom/
 
 
 def load(path):

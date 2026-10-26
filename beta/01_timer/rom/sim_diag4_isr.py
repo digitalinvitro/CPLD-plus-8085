@@ -22,9 +22,9 @@ uart_echo_diag3 (баг) и uart_echo_diag4 (фикс): MAIN + ISR + DMUX/HSEG
 
 Запуск:  python3 sim_diag4_isr.py
 """
-import sys
+import os, sys
 
-ROMDIR = '/home/z/my-project/CPLD-plus-8085/beta/01_timer/rom'
+ROMDIR = os.path.dirname(os.path.abspath(__file__))  # каталог rom/
 
 
 def load_hex(path):

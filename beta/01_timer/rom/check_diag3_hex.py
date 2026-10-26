@@ -14,9 +14,9 @@
   7. MAIN: SSELF-счётчик захватов своего эха (LDA SSELF/INR A/STA при
      C != 0FFh), MVI E,12, MVI L,0; SEGTAB на 01D0h (lo = D0h).
 """
-import sys
+import os, sys
 
-ROM = '/home/z/my-project/CPLD-plus-8085/beta/01_timer/rom'
+ROM = os.path.dirname(os.path.abspath(__file__))  # каталог rom/
 
 
 def load(path):
