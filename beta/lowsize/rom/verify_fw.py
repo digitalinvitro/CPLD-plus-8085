@@ -16,6 +16,11 @@
      fw_text_kbd: скан колонок, "--" в покое, ловля нажатия (строка/колонка),
                    глифы по таблице, бип (тон + длительность), отпускание,
                    дебаунс, второе нажатие.
+  2а) БЛЭНКИНГ (клк10-67, по дефекту железа 10-30: сквозь '1' просвечивал
+      '2'): регенерация = ГАШЕНИЕ (SEGP=0) -> РАЗРЯД -> ГЛИФ; проверяется,
+      что КАЖДЫЙ разряд переключается строго при погашенных сегментах
+      (призрак чужого глифа невозможен по построению) и что после
+      переключения в SEGP уходит ровно глиф этой фазы.
   3) АРИФМЕТИКА тайминга полного образа: единица ~1 мс = 3558 T (замер на
      симуляции) x константы полных выдержек -> интервалы в мс/с + тон.
 
@@ -467,31 +472,53 @@ def test_disp():
         chk("полупериод тона ~3558 T (996 мкс -> ~502 Гц)",
             3558 * 0.97 <= half <= 3558 * 1.03, "=%d T" % half)
 
-    # --- финал tE5t: после 32-го шага p0 циклит глифы 78,79,6D,78 ---
-    # берём события ПОСЛЕ конца 32-го шага
+    # --- финал tE5t: после 32-го шага фазы циклят глифы 78,79,6D,78 ---
+    # протокол с блэнкингом (клк10-67): на фазу OUT 00h=0 (гашение) ->
+    # OUT 01h (разряд) -> OUT 00h=глиф; разряд переключается только пустым
     if len(steps) == 32:
         t_end = steps[-1]['t1']
-        tail = [v for (t, p, v) in ev if p == 0 and t > t_end]
+        tail_ev = [(t, p, v) for (t, p, v) in ev if t > t_end]
+        tail = [v for (t, p, v) in tail_ev if p == 0 and v != 0]
         te5t = [0x78, 0x79, 0x6D, 0x78]
         cnt = min(16, len(tail))
         okt3 = cnt >= 16 and all(tail[i] == te5t[i % 4] for i in range(cnt))
         chk("финал: глифы tE5t (78,79,6D,78) в регенерации", okt3,
             "хвост: %s" % [hex(v) for v in tail[:8]])
-        digtail = [v for (t, p, v) in ev if p == 1 and t > t_end]
+        digtail = [v for (t, p, v) in tail_ev if p == 1]
         cnt = min(16, len(digtail))
         okt4 = cnt >= 16 and all(
             (digtail[i] & 0x0F) == (0x08 >> (i % 4)) and (digtail[i] & 0x10) == 0
             for i in range(cnt))
         chk("финал: разряды DIG3->DIG0, тон выключен", okt4,
             "хвост: %s" % [hex(v) for v in digtail[:8]])
-        # период фазы tE5t ~5335 T
-        if len(tail) >= 5:
-            ph = tail[4] if False else None
-        phs = [t for (t, p, v) in ev if p == 0 and t > t_end][:5]
+        # БЛЭНКИНГ: перед каждым OUT 01h последний OUT 00h = 0 (гашение),
+        # после OUT 01h в SEGP уходит ровно глиф этой фазы
+        dmap = {0x08: 0, 0x04: 1, 0x02: 2, 0x01: 3}
+        okg, why, nph = True, "", 0
+        for i, (t, p, v) in enumerate(tail_ev):
+            if p != 1 or not (v & 0x0F):
+                continue
+            prev0 = next((tail_ev[j][2] for j in range(i - 1, -1, -1)
+                          if tail_ev[j][1] == 0), None)
+            nxt0 = next((tail_ev[j][2] for j in range(i + 1, len(tail_ev))
+                         if tail_ev[j][1] == 0), None)
+            if nxt0 is None:        # фаза обрезана окном симуляции - пропуск
+                continue
+            phn = dmap.get(v & 0x0F)
+            if prev0 != 0 or nxt0 != te5t[phn]:
+                okg = False
+                why = ("OUT 01h=%02X: до него SEGP=%s, после=%s (ожидалось 0/%02X)"
+                       % (v & 0x0F, prev0, nxt0, te5t[phn]))
+                break
+            nph += 1
+        chk("финал: блэнкинг (гашение -> разряд -> глиф фазы)",
+            okg and nph >= 8, why or "проверено фаз: %d" % nph)
+        # период фазы tE5t: глиф->глиф ~5354 T (1499 мкс, регенерация ~167 Гц)
+        phs = [t for (t, p, v) in tail_ev if p == 0 and v != 0][:5]
         if len(phs) >= 2:
             dph = phs[1] - phs[0]
-            chk("фаза tE5t ~5335 T (1494 мкс, регенерация ~167 Гц)",
-                5335 * 0.97 <= dph <= 5335 * 1.03, "=%d T" % dph)
+            chk("фаза tE5t ~5354 T (1499 мкс, регенерация ~167 Гц)",
+                5354 * 0.97 <= dph <= 5354 * 1.03, "=%d T" % dph)
 
     # --- арифметика ПОЛНОГО образа ---
     print()
@@ -505,7 +532,7 @@ def test_disp():
         "=%.1f мс" % (gap * STEP_NS / 1e6))
     tot = 32 * (iv + gap)
     print("  полный обход: 32 x (896,6 + 59,0) мс = %.1f с, затем tE5t"
-          % (tot * STEP_NS / 1e6))
+          % (tot * STEP_NS / 1e9))
 
 
 def test_kbd():
@@ -566,17 +593,32 @@ def test_kbd():
     m3 = [v for (t, p, v) in log if p == 1 and (v & 0x0F) == 0x08]
     m0 = [v for (t, p, v) in log if p == 1 and (v & 0x0F) == 0x01]
     okg3 = any(True for _ in m3) and True
-    # глиф проверяется парой (OUT 00 перед OUT 01) - ищем в парах лога
-    pairs = []
-    for i in range(len(log) - 1):
-        if log[i][1] == 0 and log[i + 1][1] == 1:
-            pairs.append((log[i][2], log[i + 1][2] & 0x0F))
-    p08 = [g for (g, d) in pairs if d == 0x08]
-    p01 = [g for (g, d) in pairs if d == 0x01]
+    # глифы и блэнкинг: модель регенерации (клк10-67). На каждый OUT 01h:
+    #   sb - последний OUT 00h до него (обязан быть 0 = гашение),
+    #   sa - первый OUT 00h после него (глиф этого разряда)
+    def phases(lg):
+        res = []
+        for i, (t, p, v) in enumerate(lg):
+            if p != 1:
+                continue
+            sb = next((lg[j][2] for j in range(i - 1, -1, -1)
+                       if lg[j][1] == 0), None)
+            sa = next((lg[j][2] for j in range(i + 1, len(lg))
+                       if lg[j][1] == 0), None)
+            res.append((t, v & 0x0F, sb, sa))
+        return res
+
+    ph = phases(log)
+    p08 = [sa for (t, d, sb, sa) in ph if d == 0x08 and sa is not None]
+    p01 = [sa for (t, d, sb, sa) in ph if d == 0x01 and sa is not None]
     chk("строка 2 -> глиф '2' (5Bh) на левом (DIG3)",
         0x5B in p08[-4:] if p08 else False, "%s" % [hex(x) for x in p08[-6:]])
     chk("колонка 2 -> глиф '2' (5Bh) на правом (DIG0)",
         0x5B in p01[-4:] if p01 else False, "%s" % [hex(x) for x in p01[-6:]])
+    bad = [(hex(d), sb) for (t, d, sb, sa) in ph
+           if sb is not None and sb != 0]
+    chk("блэнкинг: КАЖДЫЙ разряд переключается при погашенных сегментах",
+        not bad, "нарушений: %d %s" % (len(bad), bad[:3]))
     # длительность бипа: полупериод тона по SND-событиям (t,v)
     if len(beepdigs) >= 2:
         step2 = beepdigs[1][0] - beepdigs[0][0]      # 2 единицы (1->0->1)
@@ -602,13 +644,9 @@ def test_kbd():
     state['keys'][(0, 0)] = True
     t0 = cpu.T
     cpu.run(cpu.T + 60_000)
-    pairs = []
-    for i in range(len(state['log']) - 1):
-        a, b = state['log'][i], state['log'][i + 1]
-        if a[1] == 0 and b[1] == 1 and a[0] >= t0:
-            pairs.append((a[2], b[2] & 0x0F))
-    p08 = [g for (g, d) in pairs if d == 0x08]
-    p01 = [g for (g, d) in pairs if d == 0x01]
+    ph2 = [pp for pp in phases(state['log']) if pp[0] >= t0]
+    p08 = [sa for (t, d, sb, sa) in ph2 if d == 0x08 and sa is not None]
+    p01 = [sa for (t, d, sb, sa) in ph2 if d == 0x01 and sa is not None]
     chk("второе нажатие: '0'(3Fh) слева, '0'(3Fh) справа",
         (0x3F in p08[-3:] if p08 else False) and
         (0x3F in p01[-3:] if p01 else False))
@@ -616,8 +654,8 @@ def test_kbd():
     # --- арифметика полного образа ---
     print()
     print("  Арифметика полного образа (BEEP_MS=200, SET_MS=30):")
-    print("  бип = 200 x полупериод = ~0,20-0,21 с, тон ~480-500 Гц;"
-          " дебаунс = 30 x ~1,04 мс = ~31 мс")
+    print("  бип = 200 x полупериод = ~0,21 с, тон ~475 Гц;"
+          " дебаунс = 30 x ~1,05 мс = ~31 мс")
 
 
 if __name__ == '__main__':
