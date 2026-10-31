@@ -1,5 +1,9 @@
 # Монитор fw_mon (меню ACdE) — инструкция пользователя
 
+> **PDF-версия в ретро-стиле** (с рисунками 7-сегментного индикатора ко всем
+> командам): [`manuals/fw_mon_acde_manual_retro.pdf`](fw_mon_acde_manual_retro.pdf) —
+> содержание то же, формат книжный.
+
 **Плата retro_PCLD_board V2 · КР1821ВМ85 (i8085) · CPLD lowsize v3.9.x · CPU 3,571 МГц (T = 280 нс) · октябрь 2026**
 
 Монитор fw_mon — штатная прошивка платы (образ `beta/lowsize/rom/fw_mon.hex`,
