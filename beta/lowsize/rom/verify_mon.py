@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""verify_mon.py — верификация монитора fw_mon_ape (beta/lowsize/rom, clk10-69).
+"""verify_mon.py — верификация монитора fw_mon (beta/lowsize/rom, клк10-69/70).
 
 Метод:
   1) МИНИ-ИНТЕРПРЕТАТОР 8085 из verify_fw.py (точные T-состояния Intel
@@ -12,11 +12,13 @@
      задаётся парой (row,col); модель регенерации с БЛЭНКИНГ-контролем
      (клк10-67): каждый OUT 01h с битами разряда обязан идти строго
      после OUT 00h=0.
-  3) СЦЕНАРИИ по ТЗ владельца: меню APE_, F1 глобально, ввод адреса
-     (4 тетрады, сдвиг справа), Enter, ввод программы (2 тетрады,
-     "__C3"), запись в ОЗУ и адрес+, игнор пустого Enter, отброс
-     записи в ROM, запуск (E) с возвратом по RET, вытеснение 5-й
-     тетрады, авто-повтор, тик (тон+длительность).
+  3) СЦЕНАРИИ по ТЗ владельца (клк10-69/70): меню ACDE, F1 глобально,
+     ввод адреса (4 тетрады, сдвиг справа), Enter, ввод кода по C
+     (2 тетрады, "__C3"), запись в ОЗУ и адрес+, игнор пустого Enter,
+     отброс записи в ROM, запуск (E) с возвратом по RET, ПРОСМОТР
+     кода по D (Enter = следующий байт, только чтение), B снова
+     тетрада, вытеснение 5-й тетрады, авто-повтор, тик
+     (тон+длительность).
 
 Использование: python3 verify_mon.py   (из rom/; нужен verify_fw.py)
 """
@@ -165,12 +167,12 @@ def phases(board, t_from=0):
 
 def main():
     print("=" * 76)
-    print("fw_mon_ape_fast.hex: поведение монитора (FAST=1: тик 4 ед, "
+    print("fw_mon_fast.hex: поведение монитора (FAST=1: тик 4 ед, "
           "дебаунс 2 ед)")
     print("=" * 76)
 
     board = Board()
-    cpu, mem = make_cpu(board, 'fw_mon_ape_fast.hex')
+    cpu, mem = make_cpu(board, 'fw_mon_fast.hex')
     cpu.run(25_000)                                  # загрузка + меню
 
     # ---- 1. загрузка ----
@@ -178,13 +180,13 @@ def main():
         board.log[0][1] == 0 and board.log[0][2] == 0)
     chk("boot: второй OUT 01h = 00 (разряды off, SND off)",
         board.log[1][1] == 1 and board.log[1][2] == 0)
-    chk("boot: меню APE_ на дисплее", visible(board) == "APE ",
+    chk("boot: меню ACDE на дисплее", visible(board) == "ACdE",
         "%r" % visible(board))
 
     # ---- 2. F1 в меню (4__1) ----
     press(cpu, board, K['F1'])
     chk("F1 в меню: остаёмся в меню, тик отработал",
-        visible(board) == "APE " and board.snd_seen > 0)
+        visible(board) == "ACdE" and board.snd_seen > 0)
 
     # ---- 3. A: ввод адреса 8000 ----
     press(cpu, board, K['A'])
@@ -203,18 +205,18 @@ def main():
     chk("адрес: '8000' -> \"8000\"", visible(board) == "8000",
         "%r" % visible(board))
     press(cpu, board, K['ENT'])
-    chk("Enter: возврат в меню APE_", visible(board) == "APE ",
+    chk("Enter: возврат в меню ACDE", visible(board) == "ACdE",
         "%r" % visible(board))
 
-    # ---- 4. B (=P): ввод программы C3 в 8000 ----
-    press(cpu, board, K['B'])
-    chk("B: режим программы - поле пустое (__C3 стартовый вид)",
+    # ---- 4. C (=Code): ввод кода C3 в 8000 ----
+    press(cpu, board, K['C'])
+    chk("C: режим кода - поле пустое (__C3 стартовый вид)",
         visible(board) == "    ", "%r" % visible(board))
     press(cpu, board, K['C'])
-    chk("прогр.: 'C' -> \"___C\"", visible(board) == "   C",
+    chk("код: 'C' -> \"___C\"", visible(board) == "   C",
         "%r" % visible(board))
     press(cpu, board, K['k3'])
-    chk("прогр.: 'C3' -> \"__C3\"", visible(board) == "  C3",
+    chk("код: 'C3' -> \"__C3\"", visible(board) == "  C3",
         "%r" % visible(board))
     press(cpu, board, K['ENT'])
     chk("Enter: RAM[8000]=C3 записан, поле погашено, адрес 8001",
@@ -226,23 +228,23 @@ def main():
     # ---- 5. пустой Enter - игнор ----
     before = mem[0x8001]
     press(cpu, board, K['ENT'])
-    chk("Enter при пустом поле - игнор (без записи, режим programme)",
+    chk("Enter при пустом поле - игнор (без записи, режим кода)",
         mem[0x8001] == before and mem[0xFFF1] == 0 and
         visible(board) == "    ")
 
     # ---- 6. второй байт 0E ----
     press(cpu, board, K['k0'])
     press(cpu, board, K['E'])
-    chk("прогр.: '0E' -> \"__0E\"", visible(board) == "  0E",
+    chk("код: '0E' -> \"__0E\"", visible(board) == "  0E",
         "%r" % visible(board))
     press(cpu, board, K['ENT'])
     chk("Enter: RAM[8001]=0E записан, адрес 8002",
         mem[0x8001] == 0x0E and mem[0xFFEA] == 0x80 and
         mem[0xFFEB] == 0x02)
 
-    # ---- 7. F1 выходит из ввода программы ----
+    # ---- 7. F1 выходит из ввода кода ----
     press(cpu, board, K['F1'])
-    chk("F1 из программы: меню APE_", visible(board) == "APE ")
+    chk("F1 из кода: меню ACDE", visible(board) == "ACdE")
 
     # ---- 8. адрес 0080 (ROM): запись отбрасывается железом ----
     press(cpu, board, K['A'])
@@ -252,7 +254,7 @@ def main():
         "%r" % visible(board))
     press(cpu, board, K['ENT'])
     rom_snapshot = mem[0x0080]
-    press(cpu, board, K['B'])
+    press(cpu, board, K['C'])
     press(cpu, board, K['C'])
     press(cpu, board, K['k3'])
     press(cpu, board, K['ENT'])
@@ -271,10 +273,42 @@ def main():
     press(cpu, board, K['E'])
     chk("E: ушли в 8000h (исполнен RET пользователя)", cpu.ram_pc,
         "PC заходил в 8000-FFE7")
-    chk("E: возврат по RET - снова меню APE_ (клавишу дождались)",
-        visible(board) == "APE ", "%r" % visible(board))
+    chk("E: возврат по RET - снова меню ACDE (клавишу дождались)",
+        visible(board) == "ACdE", "%r" % visible(board))
     chk("E: дисплей гасился при выходе (OUT 01h=0)",
         board.blank_seen > 0, "полных гашений: %d" % board.blank_seen)
+
+    # ---- 9b. D: просмотр кода с ADDR (после сценария 9 там 8000) ----
+    press(cpu, board, K['D'])
+    chk("D: просмотр - байт [8000]=C9 в правых разрядах",
+        visible(board) == "  C9" and mem[0xFFE9] == 3,
+        "%r STATE=%d" % (visible(board), mem[0xFFE9]))
+    press(cpu, board, K['ENT'])
+    chk("D: Enter - следующий байт [8001]=0E, ADDR=8001",
+        visible(board) == "  0E" and mem[0xFFEA] == 0x80 and
+        mem[0xFFEB] == 0x01, "%r" % visible(board))
+    press(cpu, board, K['ENT'])
+    chk("D: Enter - следующий байт [8002]=00, ADDR=8002",
+        visible(board) == "  00" and mem[0xFFEB] == 0x02,
+        "%r" % visible(board))
+    press(cpu, board, K['A'])
+    chk("D: тетрада игнорируется (только чтение), ADDR не сдвинулся",
+        visible(board) == "  00" and mem[0xFFEB] == 0x02,
+        "%r" % visible(board))
+    press(cpu, board, K['F1'])
+    chk("D: F1 - выход в меню ACDE", visible(board) == "ACdE",
+        "%r" % visible(board))
+
+    # ---- 9c. B снова обычная тетрада (в меню игнор) ----
+    n_snd = board.snd_seen
+    press(cpu, board, K['B'])
+    chk("B в меню - игнор (меню на месте, тика нет)",
+        visible(board) == "ACdE" and board.snd_seen == n_snd)
+    press(cpu, board, K['A'])
+    press(cpu, board, K['B'])
+    chk("B в адресе - тетрада B (\"___b\", шрифт 7сег: B как 'b')",
+        visible(board) == "   b", "%r" % visible(board))
+    press(cpu, board, K['F1'])
 
     # ---- 10. вытеснение 5-й тетрады ----
     press(cpu, board, K['A'])
@@ -298,7 +332,7 @@ def main():
     n_snd = board.snd_seen
     press(cpu, board, K['F2'])
     chk("F2 в меню - игнор (меню на месте, тика нет)",
-        visible(board) == "APE " and board.snd_seen == n_snd)
+        visible(board) == "ACdE" and board.snd_seen == n_snd)
 
     # ---- 13. карта клавиш: (2,2) -> '6' в адресе ----
     press(cpu, board, K['A'])
