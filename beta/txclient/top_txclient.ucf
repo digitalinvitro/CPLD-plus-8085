@@ -1,0 +1,140 @@
+#=====================================================================
+# top_txclient.ucf - цоколевка U1 (XC95108, PQFP-100) дл€ retro_PCLD_board
+# ¬ариант TXCLIENT v1 (beta/txclient, 2026-11-01); база hdl/top_suart.ucf
+# (Task 70-a). ќ“Ћ»„»я от базы - ровно 3:
+#   1) + NET "HOLD" LOC = "P81"  (запрос DMA txclient; –јЌ≈≈ P81 была
+#      в дев€тке PGND - теперь ¬џ’ќƒ, в PGND Ѕџ“№ Ќ≈ ƒќЋ∆Ќј);
+#   2) дисциплина PGND: 9 -> 8 шт (P81 ушЄл);
+#   3) SOD (P72) - вход-ЌјЅЋёƒј“≈Ћ№ Ѕ≈« нагрузки (soft-UART v3.7
+#      удалЄн; keep в HDL об€зателен - заземл€ть Ќ≈Ћ№«я, выход CPU).
+# ќстальное - байт-в-байт hdl/top_suart.ucf. »мена сигналов = имена из
+# beta/txclient/top_txclient_v1_utf8.v (модуль retro_pcld_top).
+#
+#  ј  ѕќƒ Ћё„»“№: ISE -> Add Source -> этот .ucf; он автоматически
+# ассоциируетс€ с топ-модулем retro_pcld_top (Associated Source). ¬
+# Process: Implement Design -> Translate: Keep User Location
+# Constraints = ON; в Place & Route: Ground on Unused IOs = ON; в XST:
+# Keep Unused Inputs = ON (следить за Xst:3005 - SOD должен остатьс€!).
+#
+# ƒисциплина (TXCLIENT v1):
+#  - ¬ќ—≈ћ№ держателей '0' (TRAP, RST7.5/6.5/5.5, INTR, A16, A17, A18)
+#    в HDL NET: их пины (P74, P75, P76, P78, P79, P95, P96, P98) фиттер
+#    заземлит опцией "Ground on Unused IOs" = ON - это ≈ƒ»Ќ—“¬≈ЌЌџ≈
+#    пины, которым разрешено стать PGND (все - входы CPU/flash).
+#    HOLD (P81) — TXCLIENT v1 ¬џ’ќƒ CPLD - в PGND Ѕџ“№ Ќ≈ ƒќЋ∆Ќј!
+#    P73 (SID) - выход CPLD - в PGND Ѕџ“№ Ќ≈ ƒќЋ∆Ќј!
+#  - 13 остальных ЂмЄртвыхї пинов объ€влены ¬’ќƒјћ» ((* keep *)), чтобы
+#    опци€ их Ќ≈ заземлила: там выходы CPU, X2 (GND запрещЄн даташитом).
+#    SOD (P72) теперь среди них - вход Ѕ≈« нагрузки (следить за
+#    Xst:3005 в логе XST).
+#  - RX (P38) - реальный вход с нагрузкой (транзит в SID). «ј«≈ћЋя“№
+#    Ќ≈Ћ№«я: выход CH340G.
+#  - READY (P87), CS1 (P99) - выходы константы '1' в HDL.
+#  - чек-лист .rpt: PGND == ровно {P74,P75,P76,P78,P79,P95,P96,P98}
+#    (8 шт!); входы на местах (INP), включа€ SOD P72 и RX P38; HOLD
+#    P81 = OUT; Keep User Location Constraints: ON; GCK3 = P29, GSR =
+#    P1; GSR Ќ≈ используетс€ (сброс через D-gating, Task 25); MC < 108.
+#=====================================================================
+
+#---- такт и сброс ----
+NET "clk"  LOC = "P29";    # GCK3, цепь clk: измерено 25,00 ћ√ц (Task 29-d) -> X1 = 2x25/7 = 7,14 ћ√ц (v3.9.2) -> CPU 3,57 ћ√ц
+NET "RST"  LOC = "P1";     # GSTR, цепь RST: SW20; покой = 0, нажатие = 1 (актив.1 - доказано платой, Task 25)
+
+#---- шина i8085: управление (ZIF-сокет U3, цепи cpuN) ----
+NET "ALE"  LOC = "P93";    # cpu1, ALE(30)
+NET "WRn"  LOC = "P92";    # cpu2, WR#(31)
+NET "RDn"  LOC = "P91";    # cpu3, RD#(32)
+NET "IOM"  LOC = "P88";    # cpu5, IO/M#(34)
+NET "A15"  LOC = "P97";    # цепь A15 (декод пам€ти + окно txclient)
+
+#---- мультиплексированна€ шина AD0-AD7 (цепи A0..A7, bidir) ----
+NET "A<0>" LOC = "P26";    # цепь A0
+NET "A<1>" LOC = "P21";    # цепь A1
+NET "A<2>" LOC = "P19";    # цепь A2
+NET "A<3>" LOC = "P17";    # цепь A3
+NET "A<4>" LOC = "P15";    # цепь A4
+NET "A<5>" LOC = "P13";    # цепь A5
+NET "A<6>" LOC = "P11";    # цепь A6
+NET "A<7>" LOC = "P9";     # цепь A7
+
+#---- шина данных пам€ти (цепи D0..D7, bidir) ----
+NET "D<0>" LOC = "P30";    # цепь D0
+NET "D<1>" LOC = "P32";    # цепь D1
+NET "D<2>" LOC = "P35";    # цепь D2
+NET "D<3>" LOC = "P36";    # цепь D3
+NET "D<4>" LOC = "P34";    # цепь D4
+NET "D<5>" LOC = "P31";    # цепь D5
+NET "D<6>" LOC = "P27";    # цепь D6
+NET "D<7>" LOC = "P22";    # цепь D7
+
+#---- управление пам€тью ----
+NET "CSr_n" LOC = "P20";   # цепь #CSr  -> U10.22 (flash /CE)
+NET "OEr_n" LOC = "P16";   # цепь #OEr  -> U10.24 (flash /OE)
+NET "CS_n"  LOC = "P25";   # цепь #CS   -> U4.22  (SRAM /CE)
+NET "OE_n"  LOC = "P37";   # цепь #OE   -> U4.24  (SRAM /OE)
+NET "WE_n"  LOC = "P24";   # цепь #WE   -> U4.29  (SRAM /WE, только writeback)
+NET "CS1"   LOC = "P99";   # цепь CS    -> U4.30  (SRAM CE2, константа '1')
+
+#---- поддержка процессора ----
+NET "X1"         LOC = "P68";  # cpu21, X1(1): 7,14 ћ√ц (v3.9.2, счЄтчик mod-7); CPU = 3,57 ћ√ц
+NET "READY"      LOC = "P87";  # cpu6,  READY(35) = '1' -  –»“»„Ќќ, иначе вечные wait
+NET "RESET_IN"   LOC = "P84";  # cpu7,  RESET IN#(36) = ~(RST|POR), активный 0
+NET "HOLD"       LOC = "P81";  # cpu10, HOLD(39): запрос DMA txclient (TXCLIENT v1);
+                               # –јЌ≈≈ PGND ЂHOLD=0, DMA нетї - теперь ¬џ’ќƒ '0'/'1'!
+                               # ¬ покое '0' - электрически то же, что прежний PGND
+
+#---- UART-пути (TXCLIENT v1) ----
+NET "RX"  LOC = "P38";     # вход: U1.38 <- цепь платы ЂTXї (CH340G.TXD); транзит в SID;
+                           # «ј«≈ћЋя“№ Ќ≈Ћ№«я (выход CH340G)!
+NET "TX"  LOC = "P39";     # выход: U1.39 -> цепь платы ЂRXї (CH340G.RXD); TX = shreg[0]
+                           # (аппаратный сериализатор txclient, пакет [addr_lo][data])
+NET "SOD" LOC = "P72";     # вход: cpu18, SOD(4) - CPU.SOD; TXCLIENT: транзит ”ƒјЋ®Ќ,
+                           # вход-наблюдатель Ѕ≈« нагрузки (keep!; заземл€ть Ќ≈Ћ№«я)
+NET "SID" LOC = "P73";     # выход: cpu17, SID(5) - CPU.SID; транзит RX; в PGND Ѕџ“№ Ќ≈ ƒќЋ∆Ќј!
+
+#---- входы-наблюдатели: CPU-выходы и X2 (объ€влены входами, Ќ≈ заземл€ть!) ----
+NET "X2"     LOC = "P69";  # cpu20, X2(2): второй вывод генератора - GND запрещЄн даташитом
+NET "RSTOUT" LOC = "P70";  # cpu19, RESET OUT(3)
+NET "INTAn"  LOC = "P80";  # cpu11, INTA#(11)
+NET "HLDA"   LOC = "P82";  # cpu9,  HLDA(38): “≈ѕ≈–№ — Ќј√–”« ќ… (синхронизатор txclient)
+NET "CLKOUT" LOC = "P83";  # cpu8,  CLK OUT(37)
+NET "S0"     LOC = "P94";  # cpu0,  S0(29)
+NET "S1"     LOC = "P89";  # cpu4,  S1(33)
+NET "AH8"    LOC = "P10";  # цепь A8,  нога 21 - адрес пам€ти (декод окна txclient)
+NET "AH9"    LOC = "P12";  # цепь A9,  нога 22
+NET "AH10"   LOC = "P18";  # цепь A10, нога 23
+NET "AH11"   LOC = "P14";  # цепь A11, нога 24
+NET "AH12"   LOC = "P4";   # цепь A12, нога 25
+NET "AH13"   LOC = "P8";   # цепь A13, нога 26
+NET "AH14"   LOC = "P3";   # цепь A14, нога 27
+
+#---- клавиатура (наблюдатели; этап 2 задействует в сканировании) ----
+NET "col0" LOC = "P44";   # SW1/SW5/SW9/SW13/SW17
+NET "col1" LOC = "P43";   # SW2/SW6/SW10/SW14/SW18
+NET "col2" LOC = "P42";   # SW3/SW7/SW11/SW15/SW19
+NET "col3" LOC = "P41";   # SW4/SW8/SW12/SW16 (SW20 вне матрицы: SW20.1->RST, SW20.3/4->GND)
+NET "row0" LOC = "P56";   # R25 подт€жка, SW1
+NET "row1" LOC = "P55";   # R24, SW5
+NET "row2" LOC = "P54";   # R23, SW9
+NET "row3" LOC = "P52";   # R22, SW13
+NET "row4" LOC = "P51";   # R21, SW17
+
+#---- индикаци€ и звук ----
+NET "seg<0>" LOC = "P45";  # цепь a    -> LD1.11
+NET "seg<1>" LOC = "P62";  # цепь b    -> LD1.7
+NET "seg<2>" LOC = "P61";  # цепь c    -> LD1.4
+NET "seg<3>" LOC = "P57";  # цепь d    -> LD1.2
+NET "seg<4>" LOC = "P58";  # цепь e    -> LD1.1
+NET "seg<5>" LOC = "P66";  # цепь f    -> LD1.10
+NET "seg<6>" LOC = "P5";   # цепь g    -> LD1.5
+NET "seg<7>" LOC = "P60";  # цепь dp56 -> LD1.3
+NET "dig<0>" LOC = "P6";   # цепь dig0 -> R5  240 -> VT1 -> CA0 (LD1.6)
+NET "dig<1>" LOC = "P63";  # цепь dig1 -> R10 240 -> VT2 -> CA1 (LD1.8)
+NET "dig<2>" LOC = "P65";  # цепь dig2 -> R11 240 -> VT3 -> CA2 (LD1.9)
+NET "dig<3>" LOC = "P48";  # цепь dig3 -> R12 240 -> VT4 -> CA3 (LD1.12)
+NET "SND"    LOC = "P67";  # цепь SND  -> BUZZER1.1 (пассивный); BUZZER1.2 -> R4 -> GND
+
+#---- тайминг-констрейнт (владелец, Constraints Editor 2026-10-21) ----
+#Created by Constraints Editor (xc95108-pq100-15) - 2026/10/21
+NET "clk" TNM_NET = clk;
+TIMESPEC TS_clk = PERIOD "clk" 25 MHz HIGH 50%;
