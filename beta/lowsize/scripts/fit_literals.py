@@ -11,6 +11,7 @@ FILES = [
     ("v3.10  (hiclock)",  os.path.join(HERE, "../../hiclock/retro_pcld_top (v310).rpt")),
     ("v3.9.2 (lowsize)",  os.path.join(HERE, "../retro_pcld_top (v392).rpt")),
     ("v3.9.3 (lowsize)",  os.path.join(HERE, "../retro_pcld_top (v393).rpt")),
+    ("v3.9.3 fit2 (прошит)", os.path.join(HERE, "../retro_pcld_top (v393-fit2-1102-954PM).rpt")),
 ]
 
 for name, path in FILES:
