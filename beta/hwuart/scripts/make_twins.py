@@ -11,6 +11,7 @@ HWUART = os.path.normpath(os.path.join(HERE, ".."))
 
 JOBS = [
     ("top_hwuart_por6_v400_utf8.v", "top_hwuart_por6_v400.v"),
+    ("top_hwuart_por6_v401_utf8.v", "top_hwuart_por6_v401.v"),
     ("top_hwuart_utf8.ucf",         "top_hwuart.ucf"),
 ]
 

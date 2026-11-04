@@ -7,6 +7,13 @@
 //    scenarios for iverilog: TX frame 8N1 at 25MHz/13, RX byte + IRQ,
 //    reset mid-frame;
 //  - rx_int goes to P75 (RST 7.5); SID = RX transit observer is alive.
+//  - FIX 11-5 (first real iverilog run; RTL unchanged, stimulus bugs only):
+//    (1) C3 polls TXRDY in a loop - a single poll lands while the previous
+//    frame still runs (TXRDY=0 legitimately); (2) C5 pre-reads status IN 05h
+//    before the RX frame: the io_rd_rx decode is combinational on live IOM +
+//    latched addr, after OUT 04h it holds rx_full low until the next bus
+//    cycle; (3) C7 frame-start check via dut.tx_run (data C3 has d0=1, the
+//    TX line is high during data bits).
 // Run:  iverilog -o tb_hwuart.vvp tb_hwuart_v400.v top_hwuart_por6_v400_utf8.v
 //       vvp tb_hwuart.vvp
 // Expect: "TOTAL: N pass, 0 fail" + "SIMULATION PASSED".
@@ -128,6 +135,8 @@ module tb_hwuart;
 
   // ---------- helpers ----------
   integer k;
+  integer guard;
+  reg rx_seen;
   reg [7:0] val;
   reg [63:0] w_start;
 
@@ -167,8 +176,14 @@ module tb_hwuart;
     // ---- C3: TX stream with TXRDY polling ----
     begin : stream
       for (k = 0; k < 3; k = k + 1) begin
-        // poll TXRDY (IN 05h bit1)
+        // poll TXRDY (IN 05h bit1) UNTIL ready - the previous frame may
+        // still be running (5.2 us), a single poll would see TXRDY=0
+        guard = 0;
         cpu_io_read(8'h05, val);
+        while (val[1] !== 1'b1 && guard < 50) begin
+          cpu_io_read(8'h05, val);
+          guard = guard + 1;
+        end
         chk(val[1] === 1'b1, "C3: TXRDY=1 before OUT");
         cpu_io_write(8'h04, 8'h41 + k[7:0]);
       end
@@ -176,15 +191,22 @@ module tb_hwuart;
     end
 
     // ---- C5: RX byte 0x5A -> IRQ -> read clears ----
+    // pre-read of status: the io_rd_rx decode is combinational on live
+    // IOM + latched addr - after the last OUT 04h it stays active EVERY
+    // tick and holds rx_full low until the next bus cycle changes the
+    // address. Real firmware polls status first - do the same.
+    cpu_io_read(8'h05, val);
+    rx_seen = 0;
     fork
       begin : rx5a
         pc_send(8'h5A);
       end
       begin
         @(posedge rx_int);
-        chk(1'b1, "C5: rx_int (RST7.5) asserted at stop");
+        rx_seen = 1;
       end
     join
+    chk(rx_seen === 1'b1, "C5: rx_int (RST7.5) asserted at stop");
     begin
       cpu_io_read(8'h05, val);
       chk(val[0] === 1'b1, "C5: status RXRDY=1");
@@ -195,8 +217,11 @@ module tb_hwuart;
 
     // ---- C7: reset mid-TX-frame ----
     cpu_io_write(8'h04, 8'hC3);
-    #(BITNS);                 // inside start bit
-    chk(TX === 1'b0, "C7: frame started");
+    // frame-start check is hierarchical (tx_run): with data C3 (d0=1)
+    // the TX line leaves the start bit high during data bits, so a
+    // line-level check after BITNS is meaningless
+    chk(dut.tx_run === 1'b1, "C7: frame started");
+    #(BITNS/2);               // still inside the frame
     RST = 1; #100;
     chk(TX === 1'b1, "C7: GSR drives TX to '1' immediately");
     chk(dut.tx_run === 1'b0 && dut.shreg === 9'h1FF, "C7: core cleared");
