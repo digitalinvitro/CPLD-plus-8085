@@ -13,6 +13,7 @@ FILES = [
     ("v3.9.3 (lowsize)", os.path.join(HERE, "../retro_pcld_top (v393).rpt")),
     ("v3.9.3 fit2 (прошит)", os.path.join(HERE, "../retro_pcld_top (v393-fit2-1102-954PM).rpt")),
     ("v3.9.4 fit1", os.path.join(HERE, "../retro_pcld_top (v394-fit1-1104-1015PM).rpt")),
+    ("v3.9.5 fit1", os.path.join(HERE, "../retro_pcld_top (v395-fit1-1105-1040PM).rpt")),
 ]
 
 def extract(path):
