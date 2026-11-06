@@ -1,0 +1,16 @@
+VCD info: dumpfile tb_poweron.vcd opened for output.
+=== P0: perebor 256 nachal'nyh sostoyaniy por-cepi (cnt x por_sh x x1_n), zhivoy clk ===
+RESULT P0a PASS: vse 256 kombinaciy draynyat por_sh v 0000 za <=1600 ns, navsegda - zachylki v por-cepi NEVOZMOZHNY
+RESULT P0b PASS: iz vseh dostizhimyh v zheleze sostoyaniy (F,7,3,1,0) snatie monotonnoe za <=1600 ns, bez vozvrata
+=== P1: 100 seedov starta s plavayushchey shinoy v okne POR ===
+RESULT P1 PASS: 100/100 - sbros snimaetsya <=2000 ns, logika chistaya, FSM v IDLE, /WE molchit
+=== P2: mertvyy clk (LTC6905 ne startoval): knopka i provodnichok bespolezny ===
+RESULT P2 PASS: mertvyy clk = 8.8.8.8 gorit, X1 statichen (0), RESET_IN=0, FSM v IDLE, knopka x5 i provodnichok - NUL' effekta (polnyy simptom-kompleks zhaloby 11-6bis)
+=== P3: pozdniy start clk (30 mks): dozrevanie BEZ peredyrgivaniya ===
+RESULT P3 PASS: s prihodom clk sbros snimaetsya za <=1600 ns - plata by 'dozrela sama'; v zhalobe etogo NET => mertvoe sostoyanie vladel'ca = clk NE prihodit VOOBshCHE
+=== P4: RST=1 vne knopki: otpuskanie lechit s pervogo raza (otlichie ot zhaloby) ===
+RESULT P4 PASS: klass 'RST=1' ozhivlyaetsya OTPUSKANIEM knopki s pervogo raza - vladel'ec zhmet/otpuskaet BEZ effekta, znachit etot klass vycherkivan (esli otpuskanie dohodit do U1.1)
+=== P5: lotereya 'vkl-vykl pitaniya' (20 ciklov, P_START=3/4) ===
+RESULT P5 PASS: zagruzok=16, mertvyh=4 - kazhdoe mertvoe vyzdoravlivaet tol'ko SLEDUYUshCHIM peredyrgivaniem ('rano ili pozdno', geometriya zhaloby)
+=== ITOG tb_poweron: 0 oshibok (  VSE PASS) ===
+/home/z/my-project/CPLD-plus-8085/beta/lowsize/scripts/tb_poweron.v:383: $finish called at 1175507000 (1ps)
