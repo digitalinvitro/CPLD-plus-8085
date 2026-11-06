@@ -9,7 +9,7 @@ export LD_LIBRARY_PATH=$IVLROOT/usr/lib/x86_64-linux-gnu:${LD_LIBRARY_PATH:-}
 W=/home/z/my-project/scripts/poweron_v399h_work
 mkdir -p "$W"
 
-SRC=/home/z/my-project/CPLD-plus-8085/hiclock
+SRC=/home/z/my-project/CPLD-plus-8085/beta/hiclock
 # DUT bez pereimenovaniya - tb_poweron_v399h instanciruet retro_pcld_top
 cp "$SRC/top_suart_hiclock_v399_utf8.v" "$W/dut399h.v"
 
