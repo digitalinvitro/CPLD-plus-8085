@@ -1,0 +1,20 @@
+=== tb_v398_diff: v3.9.7 (etalon, 25 MGc) vs v3.9.8 (50 MGc + clk25) - STROGOE sravnenie s t=0 ===
+  PASS T0: POR zavershon u oboih k 1600 ns (niz/ podyom NA TEH ZHE kromkah - sravnenie strogoe s t=0)
+  PASS EQ: 62716 vyborok 5 ns (vkl. por_run), 0 raskhozhdenij - logika bit-v-bit
+  PASS XP: X2 == ~X1 v KAZHDOJ vyborke posle POR u oboih
+  PASS XP: periody X1 397: 140000..140000, 398: 140000..140000 - Rovno 140 (7,143 MGc) u OBEIH
+  PASS XP: duty X1 v3.9.7 high 100000..100000 / low 40000..40000 - etalon 100/40
+  PASS XP: duty X1 v3.9.8 high 20000..20000 / low 120000..120000 - skhema vladel'ca 20/120 (duty 1/7)
+  PASS XP: clk25_q togglilsya 15682 raz (takt logiki 25 MGc zhiv)
+  PASS S1: vzvod RESET_IN cherez 398000 ns (397; 398 na toy zhe kromke - EQ stroit)
+  PASS S1: snatie RESET_IN cherez 398000 ns posle otpuskaniya
+  PASS clean S1 posle snatiya (obe DUT, vse proverennye reg chisty)
+  PASS S1: zapis' OZU posle knopki OK u OBEIH (A=21 D=5a na /WE)
+  === S1 (chistaya knopka) PASS ===
+  PASS S2: drebeg na tihoy shine - /WE ne zvenil u OBEIH (0/0)
+  PASS clean S2 final (obe DUT, vse proverennye reg chisty)
+  === S2 (drebeg, tihaya shina) PASS ===
+  PASS clean S2h final posle vymyvaniya (obe DUT, vse proverennye reg chisty)
+  PASS S2h: vrazhdebnye plavaniya + drebeg - final chistyy u oboih (lozhnye /WE ot sluchaya EQ-strogo: 0 raskhozhdenij = odinakovoe povedenie)
+=== ITOG tb_v398_diff: VSE PASS - v3.9.8 BIT-V-BIT v3.9.7 na vseh vyhodah logiki, por_run vklyucheno (69044 vyborok); X1/X2 - zakonomernaya delta duty ===
+/home/z/my-project/CPLD-plus-8085/beta/lowsize/scripts/tb_v398_diff.v:486: $finish called at 345221000 (1ps)
