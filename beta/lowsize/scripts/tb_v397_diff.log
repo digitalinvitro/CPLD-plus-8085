@@ -1,0 +1,17 @@
+=== tb_v397_diff: v3.9.6 (etalon) vs v3.9.7 (kol'tso) - STROGOE sravnenie s t=0 ===
+  PASS T0: POR zavershon u oboih k 1600 ns (vse vyborki s t=0 sovpadayut - niz/ podyom NA TOY ZHE kromke)
+  PASS EQ: 62716 vyborok 5 ns (vkl. por_run), 0 raskhozhdenij - norm-put' bit-v-bit
+  PASS XP: X2 == ~X1 v KAZHDoy vyborke 5 ns u oboih (svoystvo koltca/ schiechika sohraneno)
+  PASS XP: periody X1 (v3.9.7) 140000..140000 ns - Rovno 140 (7,143 MGc)
+  PASS S1: vzvod RESET_IN cherez 398000 ns (396; 397 na toy zhe kromke - EQ stroit)
+  PASS S1: snatie RESET_IN cherez 398000 ns posle otpuskaniya
+  PASS clean S1 posle snatiya (obe DUT, vse proverennye reg chisty)
+  PASS S1: zapis' OZU posle knopki OK u OBEIH (A=21 D=5a na /WE)
+  === S1 (chistaya knopka) PASS ===
+  PASS S2: drebeg na tihoy shine - /WE ne zvenil u OBEIH (0/0)
+  PASS clean S2 final (obe DUT, vse proverennye reg chisty)
+  === S2 (drebeg, tihaya shina) PASS ===
+  PASS clean S2h final posle vymyvaniya (obe DUT, vse proverennye reg chisty)
+  PASS S2h: vrazhdebnye plavaniya + drebeg - final chistyy u oboih (lozhnye /WE otpla in EQ-strogo: 0 raskhozhdenij = odinakovoe povedenie)
+=== ITÓG tb_v397_diff: VSE PASS - v3.9.7 (kol'tso) BIT-V-BIT v3.9.6 na vseh vyhodah, por_run vkl. (69044 vyborok) ===
+/home/z/my-project/CPLD-plus-8085/beta/lowsize/scripts/tb_v397_diff.v:412: $finish called at 345221000 (1ps)
