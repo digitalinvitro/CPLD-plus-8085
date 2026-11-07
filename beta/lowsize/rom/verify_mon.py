@@ -18,7 +18,10 @@
      отброс записи в ROM, запуск (E) с возвратом по RET, ПРОСМОТР
      кода по D (Enter = следующий байт, только чтение), B снова
      тетрада, вытеснение 5-й тетрады, авто-повтор, тик
-     (тон+длительность).
+     (тон+длительность), F2 - ПОКАЗ АДРЕСА ОПЕРАЦИЙ (задание 11-7):
+     глобально из любого режима (4 тетрады ADDR), повторное F2 - назад
+     в прежний режим (поле кода/адреса и просмотр сохраняются),
+     Enter в показе - игнор (ADDR не двигается), F1 - в меню.
 
 Использование: python3 verify_mon.py   (из rom/; нужен verify_fw.py)
 """
@@ -188,6 +191,14 @@ def main():
     chk("F1 в меню: остаёмся в меню, тик отработал",
         visible(board) == "ACdE" and board.snd_seen > 0)
 
+    # ---- 2b. F2 сразу после загрузки: адрес по умолчанию 8000 ----
+    press(cpu, board, K['F2'])
+    chk("F2 после загрузки: адрес операций 8000 (показ, STATE=4)",
+        visible(board) == "8000" and mem[0xFFE9] == 4, "%r" % visible(board))
+    press(cpu, board, K['F2'])
+    chk("F2 повторно: возврат в меню ACdE (STATE=0)",
+        visible(board) == "ACdE" and mem[0xFFE9] == 0, "%r" % visible(board))
+
     # ---- 3. A: ввод адреса 8000 ----
     press(cpu, board, K['A'])
     chk("A: режим адреса - поле пустое", visible(board) == "    ",
@@ -328,11 +339,63 @@ def main():
         "ADCNT=%d %r" % (mem[0xFFEC], visible(board)))
     press(cpu, board, K['F1'])
 
-    # ---- 12. F2 игнорируется в меню ----
+    # ---- 12. F2: показ адреса операций (ADDR=2345 после сценария 10) ----
     n_snd = board.snd_seen
     press(cpu, board, K['F2'])
-    chk("F2 в меню - игнор (меню на месте, тика нет)",
-        visible(board) == "ACdE" and board.snd_seen == n_snd)
+    chk("F2 в меню: показ адреса операций (ADDR=2345, тик есть)",
+        visible(board) == "2345" and mem[0xFFE9] == 4 and
+        board.snd_seen > n_snd, "%r" % visible(board))
+    press(cpu, board, K['F2'])
+    chk("F2 повторно: назад в меню ACdE",
+        visible(board) == "ACdE" and mem[0xFFE9] == 0)
+
+    # ---- 12b. F2 в режиме кода: поле сохраняется вокруг показа ----
+    press(cpu, board, K['C'])
+    press(cpu, board, K['C'])
+    chk("код: поле \"___C\" до F2", visible(board) == "   C",
+        "%r" % visible(board))
+    press(cpu, board, K['F2'])
+    chk("F2 в коде: адрес на экране (STATE=4)",
+        visible(board) == "2345" and mem[0xFFE9] == 4, "%r" % visible(board))
+    press(cpu, board, K['F2'])
+    chk("F2 назад: \"___C\" цело (STATE=2, BDCNT=1)",
+        visible(board) == "   C" and mem[0xFFE9] == 2 and
+        mem[0xFFF1] == 1, "%r" % visible(board))
+
+    # ---- 12c. Enter в показе адреса - игнор (ADDR не двигается) ----
+    press(cpu, board, K['F2'])
+    press(cpu, board, K['ENT'])
+    chk("Enter в показе адреса - игнор (ADDR=2345, экран на месте)",
+        mem[0xFFEA] == 0x23 and mem[0xFFEB] == 0x45 and
+        mem[0xFFE9] == 4 and visible(board) == "2345")
+    press(cpu, board, K['F1'])
+    chk("F1 из показа адреса - меню ACdE",
+        visible(board) == "ACdE" and mem[0xFFE9] == 0)
+
+    # ---- 12d. F2 в режиме адреса: показан ADDR, а не поле ввода ----
+    press(cpu, board, K['A'])
+    press(cpu, board, K['k9'])
+    press(cpu, board, K['F2'])
+    chk("F2 в режиме адреса: ADDR=2345, а не поле \"___9\"",
+        visible(board) == "2345", "%r" % visible(board))
+    press(cpu, board, K['F2'])
+    chk("F2 назад: поле адреса \"___9\" цело", visible(board) == "   9",
+        "%r" % visible(board))
+    press(cpu, board, K['F1'])
+
+    # ---- 12e. F2 в режиме просмотра D ----
+    press(cpu, board, K['D'])
+    chk("D: просмотр [2345]", visible(board) == "  00" and
+        mem[0xFFE9] == 3, "%r" % visible(board))
+    press(cpu, board, K['F2'])
+    chk("F2 в просмотре: адрес показан",
+        visible(board) == "2345" and mem[0xFFE9] == 4)
+    press(cpu, board, K['F2'])
+    chk("F2 назад: байт [2345] на экране", visible(board) == "  00")
+    press(cpu, board, K['ENT'])
+    chk("D: Enter после F2-круга - ADDR=2346, показ [2346]",
+        mem[0xFFEA] == 0x23 and mem[0xFFEB] == 0x46)
+    press(cpu, board, K['F1'])
 
     # ---- 13. карта клавиш: (2,2) -> '6' в адресе ----
     press(cpu, board, K['A'])
