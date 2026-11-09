@@ -1,7 +1,15 @@
 ﻿#requires -Version 5
 <#
-uart_speed.ps1 - измеритель ФАКТИЧЕСКОЙ скорости приёма UART (Windows, PowerShell 5.1+)
+uart_speed.ps1 v1.1 - измеритель ФАКТИЧЕСКОЙ скорости приёма UART (Windows, PowerShell 5.1+)
 Пара к прошивке TXSTRESS v1.0 (beta/txuart/rom/txstress, 8085 + XC95108).
+
+v1.1: ИСПРАВЛЕН критический баг v1.0 - объект порта создавался в переменную
+$port, совпадавшую с параметром $Port (PowerShell ИГНОРИРУЕТ регистр имён!).
+Параметр типизирован [string], поэтому присвоение объекта молча превращало
+его в строку "System.IO.Ports.SerialPort" - отсюда "не удается найти
+свойство PortName/BaudRate/..." и "в [System.String] нет метода Open".
+Теперь объект живёт в $sp; имя порта проверяется до открытия; для pwsh 7+
+явно загружается сборка System.IO.Ports.
 
 Без TXSTRESS тоже работает: -Mode monitor меряет чистый поток с любой прошивки.
 
@@ -238,23 +246,46 @@ function Close-Phase([int]$mkPos, [int]$mkLen) {
 }
 
 # ---------------------------------------------------------------- порт
-$port = New-Object System.IO.Ports.SerialPort
-$port.PortName = $Port
-$port.BaudRate = $Baud
-$port.DataBits = $DataBits
-$port.Parity = $Parity            # строка -> enum, PS конвертирует сам
-$port.StopBits = $StopBits
-$port.ReadBufferSize = 131072
-$port.ReadTimeout = 250
-$port.DtrEnable = $true
-$port.RtsEnable = $true
+# ВАЖНО (v1.1): переменная объекта НЕ может называться $port - в v1.0 она
+# совпадала с параметром $Port (PS игнорирует регистр), а параметр имеет
+# тип [string]: объект SerialPort молча превращался в строку
+# "System.IO.Ports.SerialPort", и все свойства/Open падали.
+if ($PSVersionTable.PSVersion.Major -ge 6) {
+    Add-Type -AssemblyName System.IO.Ports -ErrorAction SilentlyContinue   # pwsh 7+: сборка не всегда загружена
+}
 try {
-    $port.Open()
+    $names = [System.IO.Ports.SerialPort]::GetPortNames()
+}
+catch {
+    Write-Host ('ОШИБКА: System.IO.Ports недоступен в этой среде: ' + $_.Exception.Message) -ForegroundColor Red
+    Write-Host 'Запустите в Windows PowerShell 5.1 (powershell.exe).' -ForegroundColor Yellow
+    exit 1
+}
+if ($names -notcontains $Port) {
+    Write-Host ('ОШИБКА: порт ' + $Port + ' не найден. Доступны: ' + ($names -join ', ')) -ForegroundColor Red
+    exit 1
+}
+
+$sp = New-Object System.IO.Ports.SerialPort
+$sp.PortName = $Port
+$sp.BaudRate = $Baud
+$sp.DataBits = $DataBits
+$sp.Parity = $Parity            # строка -> enum, PS конвертирует сам
+$sp.StopBits = $StopBits
+$sp.ReadBufferSize = 131072
+$sp.ReadTimeout = 250
+$sp.DtrEnable = $true
+$sp.RtsEnable = $true
+try {
+    $sp.Open()
 }
 catch {
     Write-Host ('ОШИБКА: не удалось открыть ' + $Port + ': ' + $_.Exception.Message) -ForegroundColor Red
+    if ($_.Exception -is [System.UnauthorizedAccessException] -or $_.Exception -is [System.IO.IOException]) {
+        Write-Host 'Порт занят другим процессом - закройте терминал/PuTTY и повторите.' -ForegroundColor Yellow
+    }
     $names = [System.IO.Ports.SerialPort]::GetPortNames() -join ', '
-    Write-Host ('Доступны: ' + $names + '  (терминал/PuTTY закрыт?)') -ForegroundColor Yellow
+    Write-Host ('Доступны: ' + $names + '  (список: .\uart_speed.ps1 -ListPorts)') -ForegroundColor Yellow
     exit 1
 }
 Write-Host ('Читаю ' + $Port + '... (остановка: Ctrl+C)')
@@ -267,7 +298,7 @@ try {
     while ($sw.Elapsed.TotalSeconds -lt $Seconds) {
         $n = 0
         try {
-            $n = $port.BaseStream.Read($buf, 0, $buf.Length)
+            $n = $sp.BaseStream.Read($buf, 0, $buf.Length)
         }
         catch [TimeoutException] {
             continue
@@ -374,8 +405,8 @@ finally {
         Write-Host ('  CSV: ' + $Csv)
     }
 
-    if ($port.IsOpen) { $port.Close() }
-    $port.Dispose()
+    if ($sp.IsOpen) { $sp.Close() }
+    $sp.Dispose()
 }
 
 exit $exitCode
