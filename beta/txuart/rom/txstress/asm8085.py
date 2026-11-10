@@ -11,9 +11,13 @@ def parse_num(tok, sym):
     tok = tok.strip()
     if tok in sym:
         return sym[tok]
+    # SYM+конст (адреса вида FB+0006h, S_FCNT+1) — gfxstream v1
+    m = re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*)\s*\+\s*(\S+)", tok)
+    if m and m.group(1) in sym:
+        return (sym[m.group(1)] + parse_num(m.group(2), sym)) & 0xFFFF
     if re.fullmatch(r"'(.)'", tok):
         return ord(tok[1])
-    m = re.fullmatch(r"([0-9][0-9A-Fa-f]*)[Hh]", tok)
+    m = re.fullmatch(r"([0-9A-Fa-f][0-9A-Fa-f]*)[Hh]", tok)
     if m: return int(m.group(1), 16)
     m = re.fullmatch(r"([0-9]+)[Dd]?", tok)
     if m: return int(m.group(1), 10)
@@ -53,6 +57,31 @@ def enc(mn, ops, sym, pc):
     if mn == 'DCX' and len(ops) == 1:
         rp = {'B':0,'D':1,'H':2,'SP':3}[ops[0].upper()]
         return ([0x0B | (rp << 4)], 6)
+    # --- gfxstream v1: аддитивное расширение (старые источники не трогаются) ---
+    if mn == 'DAD' and len(ops) == 1:                      # HL += rp
+        rp = {'B':0,'D':1,'H':2,'SP':3}[ops[0].upper()]
+        return ([0x09 | (rp << 4)], 10)
+    if mn == 'STAX' and len(ops) == 1:                     # [rp] = A (B/D)
+        rp = {'B':0,'D':1}[ops[0].upper()]
+        return ([0x02 | (rp << 4)], 7)
+    if mn == 'LDAX' and len(ops) == 1:                     # A = [rp] (B/D)
+        rp = {'B':0,'D':1}[ops[0].upper()]
+        return ([0x0A | (rp << 4)], 7)
+    if mn == 'XCHG' and len(ops) == 0: return ([0xEB], 4)  # HL <-> DE
+    if mn == 'LDA' and len(ops) == 1:
+        v = n(0); return ([0x3A, v & 0xFF, (v >> 8) & 0xFF], 13)
+    if mn == 'STA' and len(ops) == 1:
+        v = n(0); return ([0x32, v & 0xFF, (v >> 8) & 0xFF], 13)
+    if mn == 'LHLD' and len(ops) == 1:
+        v = n(0); return ([0x2A, v & 0xFF, (v >> 8) & 0xFF], 16)
+    if mn == 'SHLD' and len(ops) == 1:
+        v = n(0); return ([0x22, v & 0xFF, (v >> 8) & 0xFF], 16)
+    if mn == 'PUSH' and len(ops) == 1:
+        rp = {'B':0,'D':1,'H':2,'PSW':3}[ops[0].upper()]
+        return ([0xC5 | (rp << 4)], 12)
+    if mn == 'POP' and len(ops) == 1:
+        rp = {'B':0,'D':1,'H':2,'PSW':3}[ops[0].upper()]
+        return ([0xC1 | (rp << 4)], 10)
     if mn in ('ORA','ANA','XRA','ADD','ADC','SUB','SBB','CMP') and len(ops) == 1:
         base = {'ADD':0x80,'ADC':0x88,'SUB':0x90,'SBB':0x98,'ANA':0xA0,
                 'XRA':0xA8,'ORA':0xB0,'CMP':0xB8}[mn]
@@ -70,7 +99,7 @@ def enc(mn, ops, sym, pc):
 
 def size_of(mn, nops):
     mn = mn.upper()
-    if mn in ('JMP','JNZ','JZ','JNC','JC','JPO','JPE','JP','JM','LXI'): return 3
+    if mn in ('JMP','JNZ','JZ','JNC','JC','JPO','JPE','JP','JM','LXI','LDA','STA','LHLD','SHLD'): return 3
     if mn in ('OUT','IN','MVI') and nops >= 1: return 2
     # ФИКС v1.1: непосредственная ALU ДВУХБАЙТОВАЯ (opcode + imm). Раньше
     # размер считался 1, а эмиссия давала 2 - все метки после первого ANI
