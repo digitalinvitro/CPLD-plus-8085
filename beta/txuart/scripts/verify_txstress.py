@@ -62,10 +62,11 @@ def audit():
     print(f"  POR-пауза: 16384 x 24T = {16384*24*T*1e3:.0f} мс")
 
 print("== Верификация TXSTRESS ==")
-check_hex('/home/z/my-project/download/txstress_v10.hex',
-          '/home/z/my-project/download/txstress_v10.bin')
-check_hex('/home/z/my-project/download/txstress_v10_p04.hex',
-          '/home/z/my-project/download/txstress_v10_p04.bin')
+for ver in ('v10', 'v11'):
+    check_hex(f'/home/z/my-project/download/txstress_{ver}.hex',
+              f'/home/z/my-project/download/txstress_{ver}.bin')
+    check_hex(f'/home/z/my-project/download/txstress_{ver}_p04.hex',
+              f'/home/z/my-project/download/txstress_{ver}_p04.bin')
 daa_check()
 audit()
 print("== ВСЁ ОК ==")

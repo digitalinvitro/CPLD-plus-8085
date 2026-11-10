@@ -1,0 +1,188 @@
+ORG=0000  код=379 байт
+0000  F3            4T          DI
+0001  11 00 00     10T          LXI D,0000h        ; пауза ~503 мс: POR CPLD, успокоение шины,
+0004  1B            6T  PORLP:  DCX D              ; запас открыть терминал/скрипт до 1-го баннера
+0005  7A            4T          MOV A,D
+0006  B3            4T          ORA E
+0007  C2 04 00     10T          JNZ PORLP
+000A  11 00 00     10T          LXI D,0000h        ; счётчик блоков FLOOD (идёт в лендмарк "B=xxxx")
+000D  0E 00         7T          MVI C,000h         ; стартовый байт паттерна
+000F  21 38 01     10T          LXI H,M_BAN
+0012  7E            7T  PBAN:   MOV A,M
+0013  B7            4T          ORA A
+0014  CA 1F 00     10T          JZ PBAND
+0017  D3 04        10T          OUT TXPORT1
+0019  D3 05        10T          OUT TXPORT2
+001B  23            6T          INX H
+001C  C3 12 00     10T          JMP PBAN
+001F  06 00         7T  FLOOD:  MVI B,000h         ; 256 байт в блоке
+0021  79            4T  FIN:    MOV A,C
+0022  D3 04        10T          OUT TXPORT1
+0024  D3 05        10T          OUT TXPORT2
+0026  0C            4T          INR C
+0027  05            4T          DCR B
+0028  C2 21 00     10T          JNZ FIN            ; блок = 42T x 256 = 10 752T
+002B  13            6T          INX D
+002C  7B            4T          MOV A,E            ; гейт лендмарка по МЛАДШЕМУ байту DE.
+002D  E6 1F         7T          ANI 01Fh           ; ФИКС v1.1: в v1.0 гейт смотрел D (старший
+002F  C2 93 00     10T          JNZ FLC            ; байт) — весь первый килоблок D=00h, лендмарк
+0032  7B            4T          MOV A,E            ; печатался КАЖДЫЙ блок. Теперь: кратен 32
+0033  B7            4T          ORA A              ; блокам (E&1F==0) и E/=0 -> ровно 7 лендмарков
+0034  CA 93 00     10T          JZ FLC             ; 0020..00E0; на выходе (DE=0100h, E=0) нет.
+0037  21 4A 01     10T          LXI H,M_EQ
+003A  7E            7T  PB2:    MOV A,M
+003B  B7            4T          ORA A
+003C  CA 47 00     10T          JZ PB2D
+003F  D3 04        10T          OUT TXPORT1
+0041  D3 05        10T          OUT TXPORT2
+0043  23            6T          INX H
+0044  C3 3A 00     10T          JMP PB2
+0047  7A            4T  PB2D:   MOV A,D            ; D, старший ниббл
+0048  0F            4T          RRC
+0049  0F            4T          RRC
+004A  0F            4T          RRC
+004B  0F            4T          RRC
+004C  E6 0F         7T          ANI 00Fh
+004E  C6 90         7T          ADI 090h
+0050  27            4T          DAA
+0051  CE 40         7T          ACI 040h
+0053  27            4T          DAA
+0054  D3 04        10T          OUT TXPORT1
+0056  D3 05        10T          OUT TXPORT2
+0058  7A            4T          MOV A,D            ; D, младший
+0059  E6 0F         7T          ANI 00Fh
+005B  C6 90         7T          ADI 090h
+005D  27            4T          DAA
+005E  CE 40         7T          ACI 040h
+0060  27            4T          DAA
+0061  D3 04        10T          OUT TXPORT1
+0063  D3 05        10T          OUT TXPORT2
+0065  7B            4T          MOV A,E            ; E, старший
+0066  0F            4T          RRC
+0067  0F            4T          RRC
+0068  0F            4T          RRC
+0069  0F            4T          RRC
+006A  E6 0F         7T          ANI 00Fh
+006C  C6 90         7T          ADI 090h
+006E  27            4T          DAA
+006F  CE 40         7T          ACI 040h
+0071  27            4T          DAA
+0072  D3 04        10T          OUT TXPORT1
+0074  D3 05        10T          OUT TXPORT2
+0076  7B            4T          MOV A,E            ; E, младший
+0077  E6 0F         7T          ANI 00Fh
+0079  C6 90         7T          ADI 090h
+007B  27            4T          DAA
+007C  CE 40         7T          ACI 040h
+007E  27            4T          DAA
+007F  D3 04        10T          OUT TXPORT1
+0081  D3 05        10T          OUT TXPORT2
+0083  21 4D 01     10T          LXI H,M_TOK2       ; токен синхронизации " TXSTRESS\r\n":
+0086  7E            7T  PB2T:   MOV A,M            ; каждые 8 КБ поток сам называет себя,
+0087  B7            4T          ORA A              ; даже если баннер цикла не пойман
+0088  CA 93 00     10T          JZ PB2TD
+008B  D3 04        10T          OUT TXPORT1
+008D  D3 05        10T          OUT TXPORT2
+008F  23            6T          INX H
+0090  C3 86 00     10T          JMP PB2T
+0093  7A            4T  FLC:    MOV A,D
+0094  FE 01         7T          CPI 001h           ; DE = 0100h -> FLOOD закончен (64 КБ)
+0096  CA 9C 00     10T          JZ FDONE
+0099  C3 1F 00     10T          JMP FLOOD
+009C  21 59 01     10T  FDONE:  LXI H,M_FLOK
+009F  7E            7T  PB4:    MOV A,M
+00A0  B7            4T          ORA A
+00A1  CA AC 00     10T          JZ PB4D
+00A4  D3 04        10T          OUT TXPORT1
+00A6  D3 05        10T          OUT TXPORT2
+00A8  23            6T          INX H
+00A9  C3 9F 00     10T          JMP PB4
+00AC  0E 55         7T          MVI C,055h
+00AE  21 40 00     10T          LXI H,0040h
+00B1  06 80         7T  SPR:    MVI B,080h         ; 128 проходов x 2 байта
+00B3  79            4T  SPIN:   MOV A,C
+00B4  D3 04        10T          OUT TXPORT1
+00B6  D3 05        10T          OUT TXPORT2
+00B8  79            4T          MOV A,C
+00B9  D3 04        10T          OUT TXPORT1
+00BB  D3 05        10T          OUT TXPORT2
+00BD  05            4T          DCR B
+00BE  C2 B3 00     10T          JNZ SPIN           ; проход = 62T -> 31T/байт
+00C1  2B            6T          DCX H
+00C2  7C            4T          MOV A,H
+00C3  B5            4T          ORA L
+00C4  C2 B1 00     10T          JNZ SPR
+00C7  21 64 01     10T          LXI H,M_SPROK
+00CA  7E            7T  PB6:    MOV A,M
+00CB  B7            4T          ORA A
+00CC  CA D7 00     10T          JZ PB6D
+00CF  D3 04        10T          OUT TXPORT1
+00D1  D3 05        10T          OUT TXPORT2
+00D3  23            6T          INX H
+00D4  C3 CA 00     10T          JMP PB6
+00D7  21 20 00     10T          LXI H,0020h
+00DA  06 10         7T  BUR:    MVI B,010h         ; 16 проходов x 16 байт
+00DC  79            4T  BUIN:   MOV A,C
+00DD  D3 04        10T          OUT TXPORT1
+00DF  79            4T          MOV A,C
+00E0  D3 04        10T          OUT TXPORT1
+00E2  79            4T          MOV A,C
+00E3  D3 04        10T          OUT TXPORT1
+00E5  79            4T          MOV A,C
+00E6  D3 04        10T          OUT TXPORT1
+00E8  79            4T          MOV A,C
+00E9  D3 04        10T          OUT TXPORT1
+00EB  79            4T          MOV A,C
+00EC  D3 04        10T          OUT TXPORT1
+00EE  79            4T          MOV A,C
+00EF  D3 04        10T          OUT TXPORT1
+00F1  79            4T          MOV A,C
+00F2  D3 04        10T          OUT TXPORT1
+00F4  79            4T          MOV A,C
+00F5  D3 04        10T          OUT TXPORT1
+00F7  79            4T          MOV A,C
+00F8  D3 04        10T          OUT TXPORT1
+00FA  79            4T          MOV A,C
+00FB  D3 04        10T          OUT TXPORT1
+00FD  79            4T          MOV A,C
+00FE  D3 04        10T          OUT TXPORT1
+0100  79            4T          MOV A,C
+0101  D3 04        10T          OUT TXPORT1
+0103  79            4T          MOV A,C
+0104  D3 04        10T          OUT TXPORT1
+0106  79            4T          MOV A,C
+0107  D3 04        10T          OUT TXPORT1
+0109  79            4T          MOV A,C
+010A  D3 04        10T          OUT TXPORT1
+010C  05            4T          DCR B
+010D  C2 DC 00     10T          JNZ BUIN           ; проход = 238T -> 14.875T/байт
+0110  2B            6T          DCX H
+0111  7C            4T          MOV A,H
+0112  B5            4T          ORA L
+0113  C2 DA 00     10T          JNZ BUR
+0116  06 20         7T          MVI B,020h         ; пауза ~143 мкс (слить искорёженный кадр)
+0118  05            4T  SDL:    DCR B
+0119  C2 18 01     10T          JNZ SDL
+011C  21 70 01     10T          LXI H,M_BROK
+011F  7E            7T  PB8:    MOV A,M
+0120  B7            4T          ORA A
+0121  CA 2C 01     10T          JZ PB8D
+0124  D3 04        10T          OUT TXPORT1
+0126  D3 05        10T          OUT TXPORT2
+0128  23            6T          INX H
+0129  C3 1F 01     10T          JMP PB8
+012C  11 00 0A     10T  PB8D:   LXI D,0A00h        ; пауза ~19.7 мс тишины: баннер нового цикла
+012F  1B            6T  GAPLP:  DCX D              ; выходит из чистого idle — PC-стороне легче
+0130  7A            4T          MOV A,D            ; поймать старт цикла; байтов в хвосте нет
+0131  B3            4T          ORA E
+0132  C2 2F 01     10T          JNZ GAPLP
+0135  C3 0A 00     10T          JMP FOREVER
+0138  0D 0A             M_BAN:  DB 00Dh,00Ah
+013A  54 58 53 54 52 45 53 53 20 76 31 2E 31              DB "TXSTRESS v1.1"
+0147  0D 0A 00                  DB 00Dh,00Ah,000h
+014A  42 3D 00          M_EQ:   DB "B=",000h
+014D  20 54 58 53 54 52 45 53 53 0D 0A 00      M_TOK2: DB " TXSTRESS",00Dh,00Ah,000h
+0159  46 4C 4F 4F 44 20 4F 4B 0D 0A 00      M_FLOK: DB "FLOOD OK",00Dh,00Ah,000h
+0164  53 50 52 49 4E 54 20 4F 4B 0D 0A 00      M_SPROK: DB "SPRINT OK",00Dh,00Ah,000h
+0170  42 55 52 53 54 20 4F 4B 0D 0A 00      M_BROK: DB "BURST OK",00Dh,00Ah,000h
+OK: txstress_v11.bin/.hex

@@ -72,6 +72,11 @@ def size_of(mn, nops):
     mn = mn.upper()
     if mn in ('JMP','JNZ','JZ','JNC','JC','JPO','JPE','JP','JM','LXI'): return 3
     if mn in ('OUT','IN','MVI') and nops >= 1: return 2
+    # ФИКС v1.1: непосредственная ALU ДВУХБАЙТОВАЯ (opcode + imm). Раньше
+    # размер считался 1, а эмиссия давала 2 - все метки после первого ANI
+    # уезжали на +N (v1.0: +13 к FLC, +14 к строкам -> баннер грузил
+    # M_BAN-14 и печатал байты КОДА, прыжки SPIN/BUIN вели в чужой код).
+    if mn in ('ANI','ADI','ACI','SUI','SBI','XRI','ORI','CPI') and nops >= 1: return 2
     if mn in ('DB',): return None
     return 1
 
