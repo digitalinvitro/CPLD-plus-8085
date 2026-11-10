@@ -1,0 +1,432 @@
+ORG=0000  код=744 байт
+0000  F3            4T          DI
+0001  31 F8 FF     10T          LXI SP,FFF8h
+0004  11 00 00     10T          LXI D,0000h        ; пауза ~503 мс: POR CPLD, запас открыть
+0007  1B            6T  PORLP:  DCX D              ; вьюер до баннера (прецедент TXSTRESS)
+0008  7A            4T          MOV A,D
+0009  B3            4T          ORA E
+000A  C2 07 00     10T          JNZ PORLP
+000D  21 D7 02     10T          LXI H,M_BAN
+0010  7E            7T  PBAN:   MOV A,M
+0011  B7            4T          ORA A
+0012  CA 1B 00     10T          JZ PBAND
+0015  D3 04        10T          OUT TXPORT
+0017  23            6T          INX H
+0018  C3 10 00     10T          JMP PBAN
+001B  21 06 80     10T          LXI H,FB+0006h
+001E  1E 00         7T          MVI E,000h         ; номер строки 0..99
+0020  7B            4T  IRLP:   MOV A,E
+0021  E6 07         7T          ANI 007h
+0023  CA 31 00     10T          JZ IGRID
+0026  7B            4T          MOV A,E
+0027  FE 63         7T          CPI 063h
+0029  CA 31 00     10T          JZ IGRID
+002C  0E 80         7T          MVI C,080h
+002E  C3 33 00     10T          JMP IROK
+0031  0E FF         7T  IGRID:  MVI C,0FFh
+0033  16 13         7T  IROK:   MVI D,013h         ; 19 обычных байт строки
+0035  79            4T  IJLP:   MOV A,C
+0036  77            7T          MOV M,A
+0037  23            6T          INX H
+0038  15            4T          DCR D
+0039  C2 35 00     10T          JNZ IJLP
+003C  79            4T          MOV A,C            ; байт 19: правый край
+003D  F6 01         7T          ORI 001h
+003F  77            7T          MOV M,A
+0040  23            6T          INX H
+0041  1C            4T          INR E
+0042  7B            4T          MOV A,E
+0043  FE 64         7T          CPI 064h
+0045  C2 20 00     10T          JNZ IRLP
+0048  21 00 80     10T          LXI H,FB
+004B  3E A5         7T          MVI A,0A5h
+004D  77            7T          MOV M,A
+004E  23            6T          INX H
+004F  3E 5A         7T          MVI A,05Ah
+0051  77            7T          MOV M,A
+0052  23            6T          INX H
+0053  3E 01         7T          MVI A,001h
+0055  77            7T          MOV M,A
+0056  23            6T          INX H
+0057  3E D0         7T          MVI A,0D0h         ; N_LO: 2 000 = 07D0h
+0059  77            7T          MOV M,A
+005A  23            6T          INX H
+005B  3E 07         7T          MVI A,007h         ; N_HI
+005D  77            7T          MOV M,A
+005E  21 00 90     10T          LXI H,SCRAP
+0061  3E FF         7T          MVI A,0FFh
+0063  01 D6 07     10T          LXI B,07D6h
+0066  3E FF         7T  IFILL:  MVI A,0FFh         ; A портится тестом счётчика — перезагрузка
+0068  77            7T          MOV M,A
+0069  23            6T          INX H
+006A  0B            6T          DCX B
+006B  78            4T          MOV A,B
+006C  B1            4T          ORA C
+006D  C2 66 00     10T          JNZ IFILL
+0070  21 00 90     10T          LXI H,SCRAP
+0073  3E A5         7T          MVI A,0A5h
+0075  77            7T          MOV M,A
+0076  23            6T          INX H
+0077  3E 5A         7T          MVI A,05Ah
+0079  77            7T          MOV M,A
+007A  23            6T          INX H
+007B  3E 02         7T          MVI A,002h
+007D  77            7T          MOV M,A
+007E  23            6T          INX H
+007F  3E CA         7T          MVI A,0CAh         ; N_LO
+0081  77            7T          MOV M,A
+0082  23            6T          INX H
+0083  3E 00         7T          MVI A,000h         ; N_HI
+0085  77            7T          MOV M,A
+0086  AF            4T          XRA A
+0087  32 04 98     13T          STA S_C
+008A  32 05 98     13T          STA S_R
+008D  32 08 98     13T          STA S_PC
+0090  32 09 98     13T          STA S_PR
+0093  32 01 98     13T          STA S_DPH
+0096  32 02 98     13T          STA S_FCNT         ; lo
+0099  32 03 98     13T          STA S_FC1          ; hi
+009C  32 0A 98     13T          STA S_MODE
+009F  3E 01         7T          MVI A,001h
+00A1  32 06 98     13T          STA S_DC
+00A4  32 07 98     13T          STA S_DR
+00A7  3E FF         7T          MVI A,0FFh
+00A9  32 00 98     13T          STA S_SEQ
+00AC  3A 06 98     13T          LDA S_DC
+00AF  47            4T          MOV B,A            ; B = dc
+00B0  3A 04 98     13T          LDA S_C
+00B3  4F            4T          MOV C,A            ; C = старый col
+00B4  79            4T          MOV A,C
+00B5  80            4T          ADD B              ; A = c', флаги по c'
+00B6  CA C1 00     10T          JZ CFL0
+00B9  FE 13         7T          CPI 013h
+00BB  CA C6 00     10T          JZ CFL19
+00BE  C3 C8 00     10T          JMP COK1
+00C1  06 01         7T  CFL0:   MVI B,001h
+00C3  C3 C8 00     10T          JMP COK1
+00C6  06 FF         7T  CFL19:  MVI B,0FFh
+00C8  5F            4T  COK1:   MOV E,A            ; E = c' (A не тронут ветками)
+00C9  78            4T          MOV A,B            ; новый dc
+00CA  32 06 98     13T          STA S_DC
+00CD  79            4T          MOV A,C            ; старый col -> S_PC
+00CE  32 08 98     13T          STA S_PC
+00D1  7B            4T          MOV A,E            ; новый col -> S_C
+00D2  32 04 98     13T          STA S_C
+00D5  3A 07 98     13T          LDA S_DR
+00D8  47            4T          MOV B,A            ; B = dr
+00D9  3A 05 98     13T          LDA S_R
+00DC  4F            4T          MOV C,A            ; C = старый row
+00DD  79            4T          MOV A,C
+00DE  80            4T          ADD B              ; A = r', флаги по r'
+00DF  CA EA 00     10T          JZ RFL0
+00E2  FE 5C         7T          CPI 05Ch
+00E4  CA EF 00     10T          JZ RFL92
+00E7  C3 F1 00     10T          JMP ROK1
+00EA  06 01         7T  RFL0:   MVI B,001h
+00EC  C3 F1 00     10T          JMP ROK1
+00EF  06 FF         7T  RFL92:  MVI B,0FFh
+00F1  5F            4T  ROK1:   MOV E,A            ; E = r' (A не тронут ветками)
+00F2  78            4T          MOV A,B            ; новый dr
+00F3  32 07 98     13T          STA S_DR
+00F6  79            4T          MOV A,C            ; старый row -> S_PR
+00F7  32 09 98     13T          STA S_PR
+00FA  7B            4T          MOV A,E            ; новый row -> S_R
+00FB  32 05 98     13T          STA S_R
+00FE  3A 08 98     13T          LDA S_PC
+0101  FE 13         7T          CPI 013h           ; флаг "col==19" -> в сетке 81h
+0103  0E 00         7T          MVI C,000h
+0105  CA 0B 01     10T          JZ EFLG
+0108  C3 0D 01     10T          JMP EFLG0
+010B  0E 01         7T  EFLG:   MVI C,001h
+010D  3A 09 98     13T  EFLG0:  LDA S_PR
+0110  6F            4T          MOV L,A            ; HL = 20*r_old
+0111  26 00         7T          MVI H,000h
+0113  29           10T          DAD H
+0114  29           10T          DAD H
+0115  54            4T          MOV D,H
+0116  5D            4T          MOV E,L
+0117  29           10T          DAD H
+0118  29           10T          DAD H
+0119  19           10T          DAD D              ; HL = 20*r_old
+011A  11 06 80     10T          LXI D,FB+0006h
+011D  19           10T          DAD D              ; + база FB+6
+011E  3A 08 98     13T          LDA S_PC
+0121  5F            4T          MOV E,A
+0122  16 00         7T          MVI D,000h
+0124  19           10T          DAD D              ; + c_old
+0125  11 14 00     10T          LXI D,0014h        ; DE = шаг строки 20 (в цикле НЕ трогается!)
+0128  06 00         7T          MVI B,000h         ; i = 0..7
+012A  3A 09 98     13T  ERL:    LDA S_PR
+012D  80            4T          ADD B              ; A = номер строки r_old + i
+012E  E6 07         7T          ANI 007h
+0130  CA 46 01     10T          JZ EGR
+0133  3A 09 98     13T          LDA S_PR           ; ANI испортил A — перезагрузка (E занят шагом!)
+0136  80            4T          ADD B
+0137  FE 63         7T          CPI 063h
+0139  CA 46 01     10T          JZ EGR
+013C  79            4T          MOV A,C
+013D  B7            4T          ORA A
+013E  CA 4B 01     10T          JZ E80
+0141  3E 81         7T          MVI A,081h
+0143  C3 4D 01     10T          JMP EST
+0146  3E FF         7T  EGR:    MVI A,0FFh
+0148  C3 4D 01     10T          JMP EST
+014B  3E 80         7T  E80:    MVI A,080h
+014D  77            7T  EST:    MOV M,A
+014E  19           10T          DAD D
+014F  04            4T          INR B
+0150  78            4T          MOV A,B
+0151  FE 08         7T          CPI 008h
+0153  C2 2A 01     10T          JNZ ERL
+0156  3A 05 98     13T          LDA S_R
+0159  6F            4T          MOV L,A            ; HL = 20*r_new
+015A  26 00         7T          MVI H,000h
+015C  29           10T          DAD H
+015D  29           10T          DAD H
+015E  54            4T          MOV D,H
+015F  5D            4T          MOV E,L
+0160  29           10T          DAD H
+0161  29           10T          DAD H
+0162  19           10T          DAD D
+0163  11 06 80     10T          LXI D,FB+0006h
+0166  19           10T          DAD D              ; + база FB+6
+0167  3A 04 98     13T          LDA S_C
+016A  5F            4T          MOV E,A
+016B  16 00         7T          MVI D,000h
+016D  19           10T          DAD D              ; + c_new
+016E  11 14 00     10T          LXI D,0014h
+0171  3E FF         7T          MVI A,0FFh
+0173  06 08         7T          MVI B,008h
+0175  77            7T  DRL:    MOV M,A
+0176  19           10T          DAD D
+0177  05            4T          DCR B
+0178  C2 75 01     10T          JNZ DRL
+017B  21 00 98     10T          LXI H,S_SEQ
+017E  34            4T          INR M
+017F  21 02 98     10T          LXI H,S_FCNT
+0182  34            4T          INR M
+0183  C2 88 01     10T          JNZ FOK
+0186  23            6T          INX H
+0187  34            4T          INR M
+0188  3A 01 98     13T  FOK:    LDA S_DPH
+018B  3C            4T          INR A
+018C  0E 00         7T          MVI C,000h         ; C = признак ресурсинка
+018E  FE 64         7T          CPI 064h
+0190  DA 9C 01     10T          JC DOK
+0193  AF            4T          XRA A              ; DPH достиг 100 -> 0, кадр = полный
+0194  32 01 98     13T          STA S_DPH
+0197  0E 01         7T          MVI C,001h
+0199  C3 9F 01     10T          JMP DMOD
+019C  32 01 98     13T  DOK:    STA S_DPH
+019F  79            4T  DMOD:   MOV A,C
+01A0  B7            4T          ORA A
+01A1  C2 BB 01     10T          JNZ FULLM
+01A4  3A 03 98     13T          LDA S_FC1          ; FCNT (hi): 0 -> ещё первый этап
+01A7  B7            4T          ORA A
+01A8  C2 B3 01     10T          JNZ DELTAM
+01AB  3A 02 98     13T          LDA S_FCNT         ; hi=0: полный, пока lo <= 75
+01AE  FE 4C         7T          CPI 04Ch
+01B0  DA BB 01     10T          JC FULLM
+01B3  3E 01         7T  DELTAM: MVI A,001h
+01B5  32 0A 98     13T          STA S_MODE
+01B8  C3 BF 01     10T          JMP MOK
+01BB  AF            4T  FULLM:  XRA A
+01BC  32 0A 98     13T          STA S_MODE
+01BF  3A 0A 98     13T          LDA S_MODE
+01C2  B7            4T          ORA A
+01C3  C2 E1 01     10T          JNZ DELTAP
+01C6  01 05 01     10T          LXI B,PADF         ; выравнивание работы полного пути под дельту:
+01C9  0B            6T  PADFL:  DCX B              ; период кадра = посылка + ожидание + РАБОТА
+01CA  78            4T          MOV A,B            ; СЛЕДУЮЩЕГО кадра — она должна быть одинакова
+01CB  B1            4T          ORA C              ; в обоих режимах, иначе полные кадры перед
+01CC  C2 C9 01     10T          JNZ PADFL          ; дельтами растягиваются на +2 мс (см. DEVLOG)
+01CF  00            4T          NOP                ; PAD-FULL точная доводка (калибровка по симу)
+01D0  00            4T          NOP
+01D1  21 05 80     10T          LXI H,FB+0005h
+01D4  3A 00 98     13T          LDA S_SEQ
+01D7  77            7T          MOV M,A            ; SEQ в заголовок
+01D8  21 00 80     10T          LXI H,FB
+01DB  01 D6 07     10T          LXI B,07D6h        ; 2 006 Б
+01DE  C3 B2 02     10T          JMP SENDLP
+01E1  21 06 90     10T          LXI H,SCRAP+0006h
+01E4  06 0D         7T          MVI B,00Dh
+01E6  3E 00         7T          MVI A,000h
+01E8  77            7T  ZML:    MOV M,A
+01E9  23            6T          INX H
+01EA  05            4T          DCR B
+01EB  C2 E8 01     10T          JNZ ZML
+01EE  3A 09 98     13T          LDA S_PR
+01F1  47            4T          MOV B,A
+01F2  3A 05 98     13T          LDA S_R
+01F5  B8            4T          CMP B
+01F6  D2 FC 01     10T          JNC RMP
+01F9  C3 FD 01     10T          JMP RMR
+01FC  78            4T  RMP:    MOV A,B
+01FD  4F            4T  RMR:    MOV C,A            ; C = RMIN
+01FE  79            4T          MOV A,C
+01FF  0F            4T          RRC
+0200  0F            4T          RRC
+0201  0F            4T          RRC
+0202  E6 1F         7T          ANI 01Fh
+0204  5F            4T          MOV E,A
+0205  16 00         7T          MVI D,000h
+0207  21 06 90     10T          LXI H,SCRAP+0006h
+020A  19           10T          DAD D              ; HL -> байт маски
+020B  79            4T          MOV A,C
+020C  E6 07         7T          ANI 007h
+020E  5F            4T          MOV E,A
+020F  16 00         7T          MVI D,000h
+0211  21 CF 02     10T          LXI H,TBL
+0214  19           10T          DAD D
+0215  46            7T          MOV B,M          ; B = бит
+0216  79            4T          MOV A,C
+0217  0F            4T          RRC
+0218  0F            4T          RRC
+0219  0F            4T          RRC
+021A  E6 1F         7T          ANI 01Fh
+021C  5F            4T          MOV E,A
+021D  16 00         7T          MVI D,000h
+021F  21 06 90     10T          LXI H,SCRAP+0006h
+0222  19           10T          DAD D            ; HL -> байт маски
+0223  50            4T          MOV D,B          ; D = бит
+0224  06 09         7T  SBPD:   MVI B,009h         ; 9 строк
+0226  7E            7T  WLK:    MOV A,M
+0227  B2            4T          ORA D
+0228  77            7T          MOV M,A
+0229  7A            4T          MOV A,D
+022A  07            4T          RLC
+022B  57            4T          MOV D,A
+022C  D2 32 02     10T          JNC WNB
+022F  16 01         7T          MVI D,001h
+0231  23            6T          INX H
+0232  05            4T  WNB:    DCR B
+0233  C2 26 02     10T          JNZ WLK
+0236  79            4T          MOV A,C
+0237  6F            4T          MOV L,A
+0238  26 00         7T          MVI H,000h
+023A  29           10T          DAD H
+023B  29           10T          DAD H
+023C  54            4T          MOV D,H
+023D  5D            4T          MOV E,L
+023E  29           10T          DAD H
+023F  29           10T          DAD H
+0240  19           10T          DAD D              ; HL = 20*RMIN
+0241  11 06 80     10T          LXI D,FB+0006h
+0244  19           10T          DAD D              ; + база FB+6
+0245  11 13 90     10T          LXI D,SCRAP+0013h  ; DE = SCRAP+19
+0248  06 09         7T          MVI B,009h
+024A  79            4T  CRL:    MOV A,C
+024B  12            7T          STAX D             ; номер строки
+024C  13            6T          INX D
+024D  0C            4T          INR C
+024E  7E            7T          MOV A,M
+024F  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0250  23            6T          INX H
+0251  13            6T          INX D
+0252  7E            7T          MOV A,M
+0253  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0254  23            6T          INX H
+0255  13            6T          INX D
+0256  7E            7T          MOV A,M
+0257  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0258  23            6T          INX H
+0259  13            6T          INX D
+025A  7E            7T          MOV A,M
+025B  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+025C  23            6T          INX H
+025D  13            6T          INX D
+025E  7E            7T          MOV A,M
+025F  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0260  23            6T          INX H
+0261  13            6T          INX D
+0262  7E            7T          MOV A,M
+0263  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0264  23            6T          INX H
+0265  13            6T          INX D
+0266  7E            7T          MOV A,M
+0267  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0268  23            6T          INX H
+0269  13            6T          INX D
+026A  7E            7T          MOV A,M
+026B  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+026C  23            6T          INX H
+026D  13            6T          INX D
+026E  7E            7T          MOV A,M
+026F  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0270  23            6T          INX H
+0271  13            6T          INX D
+0272  7E            7T          MOV A,M
+0273  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0274  23            6T          INX H
+0275  13            6T          INX D
+0276  7E            7T          MOV A,M
+0277  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0278  23            6T          INX H
+0279  13            6T          INX D
+027A  7E            7T          MOV A,M
+027B  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+027C  23            6T          INX H
+027D  13            6T          INX D
+027E  7E            7T          MOV A,M
+027F  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0280  23            6T          INX H
+0281  13            6T          INX D
+0282  7E            7T          MOV A,M
+0283  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0284  23            6T          INX H
+0285  13            6T          INX D
+0286  7E            7T          MOV A,M
+0287  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0288  23            6T          INX H
+0289  13            6T          INX D
+028A  7E            7T          MOV A,M
+028B  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+028C  23            6T          INX H
+028D  13            6T          INX D
+028E  7E            7T          MOV A,M
+028F  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0290  23            6T          INX H
+0291  13            6T          INX D
+0292  7E            7T          MOV A,M
+0293  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0294  23            6T          INX H
+0295  13            6T          INX D
+0296  7E            7T          MOV A,M
+0297  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+0298  23            6T          INX H
+0299  13            6T          INX D
+029A  7E            7T          MOV A,M
+029B  12            7T          STAX D            ; [DE] = A (в SCRAP, НЕ MOV M,A!)
+029C  23            6T          INX H
+029D  13            6T          INX D
+029E  05            4T          DCR B
+029F  C2 4A 02     10T          JNZ CRL
+02A2  21 05 90     10T          LXI H,SCRAP+0005h
+02A5  3A 00 98     13T          LDA S_SEQ
+02A8  77            7T          MOV M,A
+02A9  21 00 90     10T          LXI H,SCRAP
+02AC  01 D6 07     10T          LXI B,07D6h        ; конверт тоже 2 006 Б (хвост FFh)
+02AF  C3 B2 02     10T          JMP SENDLP
+02B2  7E            7T  SENDLP: MOV A,M
+02B3  D3 04        10T          OUT TXPORT
+02B5  23            6T          INX H
+02B6  0B            6T          DCX B
+02B7  78            4T          MOV A,B
+02B8  B1            4T          ORA C
+02B9  C2 B2 02     10T          JNZ SENDLP
+02BC  01 A2 03     10T          LXI B,W_FRAME
+02BF  0B            6T  WLP:    DCX B
+02C0  78            4T          MOV A,B
+02C1  B1            4T          ORA C
+02C2  C2 BF 02     10T          JNZ WLP
+02C5  F6 00         7T          ORI 000h           ; PAD-W (калибровка по симу): 7+7+4+4+4 = 22T
+02C7  F6 00         7T          ORI 000h
+02C9  00            4T          NOP
+02CA  00            4T          NOP
+02CB  00            4T          NOP
+02CC  C3 AC 00     10T          JMP FRAME
+02CF  01 02 04 08 10 20 40 80      TBL:    DB 001h,002h,004h,008h,010h,020h,040h,080h
+02D7  0D 0A             M_BAN:  DB 00Dh,00Ah
+02D9  47 46 58 53 54 52 45 41 4D 20 76 31              DB "GFXSTREAM v1"
+02E5  0D 0A 00                  DB 00Dh,00Ah,000h
+OK: gfxstream_v1.bin/.hex
