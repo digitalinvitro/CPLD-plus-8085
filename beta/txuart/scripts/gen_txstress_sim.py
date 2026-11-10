@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Генератор эталонных потоков для самотеста uart_speed.ps1 v1.2.
+"""Генератор эталонных потоков для самотеста uart_speed.ps1 (v1.2/v1.3).
 
 Структура цикла - строго по txstress_v11.asm (проверена симуляцией по hex,
 sim_txstress_v11.py: баннер 4/4, 7 лендмарков B=xxxx TXSTRESS, SPRINT 8192,

@@ -1,8 +1,21 @@
 ﻿#requires -Version 5
 <#
-uart_speed.ps1 v1.2 - измеритель ФАКТИЧЕСКОЙ скорости приёма UART (Windows, PowerShell 5.1+)
+uart_speed.ps1 v1.3 - измеритель ФАКТИЧЕСКОЙ скорости приёма UART (Windows, PowerShell 5.1+)
 Пара к прошивке TXSTRESS v1.1 (beta/txuart/rom/txstress, 8085 + XC95108).
 Совместима и с v1.0 hex: баннер "TXSTRESS v1.0" и "TXSTRESS v1.1" принимаются оба.
+
+v1.3 - ФИКС ЕДИНИЦ СКОРОСТИ (по живому прогону 11-10: COM13 1М, ПЗУ TXSTRESS v1.1):
+  ПРОШИВКА v1.1 ПОДТВЕРЖДЕНА ЖЕЛЕЗОМ: 8 циклов в пасте владельца - баннер ловится,
+  FLOOD 65 536 Б/цикл, паттерн +1 ЦЕЛ, B= 7/7 (токены +7/цикл), SPRINT U=8192 чужих 0,
+  BURST U=2816 чужих 0 (ровно ожидание), цикл 1.097-1.100 с = теории. ОСТАЛСЯ БАГ
+  ЕДИНИЦ v1.2: скорость считалась как байты/dt(мс) = БАЙТ/МС, а печаталась "Б/с" -
+  занижение ровно x1000 (цикл 76 711 Б за 1097 мс = 69 928 Б/с показался как
+  "70 Б/с (0,1% линии)"). ИСПРАВЛЕНЫ ВСЕ 8 ВЫЧИСЛЕНИЙ (цикл+%, FLOOD, SPRINT/BURST,
+  ИТОГ: цикл/FLOOD/SPRINT/BURST) через Get-Rate(байты, dt_мс) = 1000*байты/dt.
+  БОНУС: чанк чтения 65536 -> 4096 Б - плотная сетка (время,позиция) для
+  интерполяции Get-TimeAtPos, чанк теперь короче фазы, bias коротких фаз
+  SPRINT/BURST ~+15% -> единицы % (FLOOD и так был +1.4%). ReadBufferSize 128 КБ
+  НЕ тронут (драйверный буфер против пульсаций USB).
 
 v1.2 - ДИАГНОСТИЧЕСКИЙ РЕЛИЗ (по итогам трёх прогонов 11-10, COM13 1М):
   КОРЕНЬ НАЙДЕН И ИСПРАВЛЕН на стороне прошивки: ассемблер asm8085.py считал
@@ -51,8 +64,9 @@ v1.2 - ДИАГНОСТИЧЕСКИЙ РЕЛИЗ (по итогам трёх п�
   .\uart_speed.ps1 -Port COM13 -SaveRaw raw.bin      # сырой поток в файл
 
 ВНИМАНИЕ: закройте PuTTY/терминал - COM-порт не должен быть занят.
-Точность: счётчики байтов точные; скорости фаз - интерполяция по чанкам
-приёма (единицы процентов); средняя по циклам/окну - самая точная.
+Точность: счётчики байтов точные; скорости фаз - оценка по интерполяции
+времени между чанками приёма (единицы процентов, у коротких фаз до ~10%);
+средняя по циклам/окну - точная (время цикла меряется баннер->баннер).
 #>
 param(
     [string]$Port = '',
@@ -76,6 +90,13 @@ $script:CRLF = "`r`n"
 $script:Tns = 320e-9                                  # такт 8085 @ 3.125 МГц
 
 function Format-N([double]$v) { return ('{0:N0}' -f $v) }
+
+# Скорость Б/с из счётчика байтов и dt в МИЛЛИСЕКУНДАХ (Stopwatch).
+# Урок v1.2: байты/мс печатались как "Б/с" - занижение ровно x1000.
+function Get-Rate([double]$nBytes, [double]$dtMs) {
+    if ($dtMs -le 0) { return 0.0 }
+    return 1000.0 * $nBytes / $dtMs
+}
 
 if ($ListPorts) {
     Write-Host 'Доступные COM-порты:'
@@ -299,8 +320,8 @@ function Close-Phase([int]$mkPos, [int]$mkLen) {
             $cd = $t1 - (Get-TimeAtPos $script:cycleStartPos)
             $script:cycleCount++
             $script:cycBytes += $cb; $script:cycDt += $cd
-            $rate = 0.0; if ($cd -gt 0) { $rate = $cb / $cd }
-            $pct = 0.0; if ($cd -gt 0) { $pct = 100.0 * $rate / $lineRate }
+            $rate = Get-Rate $cb $cd
+            $pct = 0.0; if ($lineRate -gt 0) { $pct = 100.0 * $rate / $lineRate }
             Write-Host ('=== ЦИКЛ ' + $script:cycleCount + ': ' + (Format-N $cb) + ' Б за ' + ('{0:F0}' -f $cd) + ' мс -> ' + (Format-N $rate) + ' Б/с (' + ('{0:F1}' -f $pct) + '% линии)')
         }
         $script:cycleStartPos = $mkPos
@@ -331,7 +352,7 @@ function Close-Phase([int]$mkPos, [int]$mkLen) {
         $script:rBreaks += $breaks
         $script:rLm += $lmVals.Count
         $script:rLmBad += $badLm
-        $rate = 0.0; if ($dt -gt 0) { $rate = $data.Length / $dt }
+        $rate = Get-Rate $data.Length $dt
         if ($breaks -eq 0 -and $badLm -eq 0 -and $lmVals.Count -eq 7) {
             Write-Host ('  FLOOD : ' + (Format-N $data.Length) + ' Б, паттерн +1 ЦЕЛ, B= ' + $lmVals.Count + '/7 (токенов ' + $script:rLmTok + '), ' + (Format-N $rate) + ' Б/с') -ForegroundColor Green
         }
@@ -352,7 +373,7 @@ function Close-Phase([int]$mkPos, [int]$mkLen) {
             $script:rBurU += $u; $script:rBurNon += $nonU; $script:rBurDt += $dt
             $tag = 'BURST '
         }
-        $rate = 0.0; if ($dt -gt 0) { $rate = $len / $dt }
+        $rate = Get-Rate $len $dt
         if ($nonU -eq 0) {
             Write-Host ('  ' + $tag + ': ' + (Format-N $len) + ' Б, U=' + (Format-N $u) + ', чужих 0, ' + (Format-N $rate) + ' Б/с') -ForegroundColor Green
         }
@@ -410,7 +431,10 @@ catch {
 Write-Host ('Читаю ' + $Port + '... (остановка: Ctrl+C)')
 
 $sw = [System.Diagnostics.Stopwatch]::StartNew()
-$buf = New-Object byte[] 65536
+# Чанк 4096 (v1.3, было 65536): плотная сетка (время,позиция) для интерполяции
+# Get-TimeAtPos - чанк короче фазы, оценка скорости фаз точнее. Драйверный
+# ReadBufferSize 131072 НЕ тронут (гасит пульсации USB).
+$buf = New-Object byte[] 4096
 $exitCode = 0
 
 try {
@@ -506,10 +530,10 @@ finally {
     Write-Host ('  Окно: ' + ('{0:F1}' -f $elapsed) + ' c, принято ' + (Format-N $script:totalBytes) + ' байт -> средняя ' + (Format-N $avgAll) + ' Б/с (' + ('{0:F1}' -f (100.0 * $avgAll / $lineRate)) + '% линии ' + (Format-N $lineRate) + ' Б/с)')
 
     if ($Mode -eq 'txstress' -and $script:cycleCount -gt 0) {
-        $avgCyc = 0.0; if ($script:cycDt -gt 0) { $avgCyc = $script:cycBytes / $script:cycDt }
-        $avgFl = 0.0; if ($script:rFlDt -gt 0) { $avgFl = $script:rFlData / $script:rFlDt }
-        $avgSp = 0.0; if ($script:rSprDt -gt 0) { $avgSp = ($script:rSprU + $script:rSprNon) / $script:rSprDt }
-        $avgBu = 0.0; if ($script:rBurDt -gt 0) { $avgBu = ($script:rBurU + $script:rBurNon) / $script:rBurDt }
+        $avgCyc = Get-Rate $script:cycBytes $script:cycDt
+        $avgFl = Get-Rate $script:rFlData $script:rFlDt
+        $avgSp = Get-Rate ($script:rSprU + $script:rSprNon) $script:rSprDt
+        $avgBu = Get-Rate ($script:rBurU + $script:rBurNon) $script:rBurDt
         Write-Host ('  Циклов: ' + $script:cycleCount + '; средний цикл ' + (Format-N ($script:cycBytes / $script:cycleCount)) + ' Б за ' + ('{0:F0}' -f ($script:cycDt / $script:cycleCount)) + ' мс -> ' + (Format-N $avgCyc) + ' Б/с')
         Write-Host ('  FLOOD : ср. ' + (Format-N $avgFl) + ' Б/с (ожидание ' + (Format-N $floodAcc) + '), разрывов +1: ' + $script:rBreaks + ', лендмарков B=: ' + $script:rLm + ' (плохих ' + $script:rLmBad + '), токенов TXSTRESS: ' + $script:rLmTok)
         Write-Host ('  SPRINT: ср. ' + (Format-N $avgSp) + ' Б/с, U=' + (Format-N $script:rSprU) + ' (ожидание ' + (Format-N ($sprintUExp * $script:cycleCount)) + '), ЧУЖИХ ' + (Format-N $script:rSprNon))

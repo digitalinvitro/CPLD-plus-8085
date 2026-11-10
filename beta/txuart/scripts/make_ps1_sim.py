@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Хирургия uart_speed.ps1 (v1.2) -> /tmp/test_uart_speed.ps1: COM-порт
+"""Хирургия uart_speed.ps1 (v1.2/v1.3) -> /tmp/test_uart_speed.ps1: COM-порт
 заменён синтетическим фидером из файла. Код Close-Phase/Get-TimeAtPos/
 цикла чтения остаётся 1-в-1 оригиналом."""
 import sys
