@@ -1,5 +1,5 @@
 ﻿# ======================================================================
-#  gfx_view.ps1 v1.3 — PC-вьюер GFXSTREAM v1 (COM 1М 8N1, 160x100 1bpp)
+#  gfx_view.ps1 v1.4 — PC-вьюер GFXSTREAM v1 (COM 1М 8N1, 160x100 1bpp)
 #  Пара к прошивке rom/gfxstream/gfxstream_v1.hex (SPEC beta/gfxstream/SPEC.md)
 #
 #  ЧТО ДЕЛАЕТ:
@@ -42,6 +42,24 @@
 #  31/47. Плюс инструментация в статусе: инт ср/макс мс между декодами
 #  (Stopwatch, монотонный), буф макс (BytesToRead); -Log <файл> пишет CSV
 #  по кадру (utc,seq,type,dt_ms,buf) — по логу видно, ровный ли эфир.
+#
+#  v1.4 — ФИКС-5 (дорогая краска полного кадра, доклад владельца с логом
+#  gfx_log.csv, 419 кадров): самотест 12/12; ПОТОК ЦЕЛ (2 разрыва SEQ =
+#  два сброса владельца, dt 866/952 мс); ВСЕ фазы дают ср. 25,1-25,4 FPS —
+#  плата/провод подтверждены ЖЕЛЕЗОМ. Но в полных фазах (TYPE 01 после
+#  сброса) декод шёл ПАЧКАМИ: 5 и 9 пар с dt 0-5 мс (2 кадра за один тик)
+#  с паузами 60-82 мс, при том что в дельтах пары единичны. Единственная
+#  разница фаз на ПК — краска: полный кадр = 100 строк = 16 000 интерпре-
+#  тируемых итераций (~30-70 мс на 5.1) ВНУТРИ обработчика тика, т.е. В
+#  ПОТОКЕ ЧТЕНИЯ ПОРТА: на время краски порт копится, следующий тик вычиты-
+#  вает 2 кадра разом — «быстрый шар» после сброса (прыжки по 2 клетки).
+#  Фикс: краска = LUT байт -> 32 Б BGRA + [Array]::Copy на каждый байт FB
+#  (2000 memcpy на полный кадр вместо 16 000 итераций, ~10-20x дешевле),
+#  один LockBits + Marshal.Copy на кадр. После фикса все фазы декодируются
+#  ровно (31/47 мс), гейт красит равномерно ~40-47 мс — «быстрый режим»
+#  после сброса исчезает: шар идёт ЧЕСТНЫЕ равномерные 25 FPS везде.
+#  (Реальное ускорение шара — только правкой прошивки: шаг 2 клетки/кадр;
+#  канал загружен на 50%, запас есть.)
 #
 #  РЕЖИМЫ:
 #   .\gfx_view.ps1 -Port COM13              # окно
@@ -93,15 +111,25 @@ $script:GfxBufMax    = 0       # макс буфер за окно
 $script:GfxLogPath   = ''
 $script:GfxLogLines  = $null   # List[string]: буфер CSV, слив каждые 250 мс
 
-# --- предрасчёт: байт -> 8 пикселей (int 0..1), MSB = левый пиксель ---
-$script:GfxBytePix = New-Object 'object[]' 256
+# --- предрасчёт: байт -> 32 Б BGRA (8 пикселей x 4 Б, MSB = левый пиксель).
+# v1.4: краска кадра = 2000 memcpy по 32 Б ([Array]::Copy) вместо 16 000
+# интерпретируемых итераций — полная перерисовка ~10-20x дешевле и не
+# блокирует чтение порта (причина парного декода в полных фазах, см. шапку).
+$script:GfxByteBgra = New-Object 'object[]' 256
 for ($v = 0; $v -lt 256; $v++) {
-    $row = New-Object 'int[]' 8
+    $a = New-Object 'byte[]' 32
     for ($b = 0; $b -lt 8; $b++) {
-        $row[$b] = if (($v -band (1 -shl (7 - $b))) -ne 0) { 1 } else { 0 }
+        $off = $b * 4
+        if (($v -band (1 -shl (7 - $b))) -ne 0) {
+            $a[$off] = 230; $a[$off + 1] = 230; $a[$off + 2] = 230   # BGRA: светлая
+        } else {
+            $a[$off] = 16; $a[$off + 1] = 16; $a[$off + 2] = 16      # BGRA: тёмная
+        }
+        $a[$off + 3] = 255                                            # альфа
     }
-    $script:GfxBytePix[$v] = $row
+    $script:GfxByteBgra[$v] = $a
 }
+$script:GfxPixBuf = New-Object 'byte[]' (160 * 100 * 4)   # буфер кадра 64 000 Б
 
 function Reset-GfxParser {
     $script:GfxAcc.Clear()
@@ -433,26 +461,26 @@ if ($Log -ne '') {
 }
 
 # --- рендер-примитивы ---
-$pixS = New-Object 'int[]' (160 * 100)
 $bmpS = New-Object System.Drawing.Bitmap 160, 100
 $rectS = New-Object System.Drawing.Rectangle 0, 0, 160, 100
 $bmpB = New-Object System.Drawing.Bitmap (160 * $Scale), (100 * $Scale)
-$colDark = [System.Drawing.Color]::FromArgb(16, 16, 16).ToArgb()
-$colLite = [System.Drawing.Color]::FromArgb(230, 230, 230).ToArgb()
 
 function Update-GfxBitmap {
+    # v1.4: только ГРЯЗНЫЕ строки перекрашиваются в GfxPixBuf одним memcpy
+    # на байт FB (32 Б BGRA из LUT); LockBits + Marshal.Copy + масштаб — как
+    # раньше. На дельте это 9 копий, на полном кадре 2000 (было 16 000
+    # интерпретируемых итераций — блокировало чтение порта, см. шапку v1.4).
     for ($r = 0; $r -lt 100; $r++) {
         if (-not $script:GfxDirty.ContainsKey($r)) { continue }
-        $base = $r * 20; $pixBase = $r * 160
+        $base = $r * 20; $dst = $r * 640   # 160 px x 4 Б = 640 Б/строку
         for ($j = 0; $j -lt 20; $j++) {
-            $row = $script:GfxBytePix[$script:GfxFb[$base + $j]]
-            $p = $pixBase + $j * 8
-            for ($k = 0; $k -lt 8; $k++) { $pixS[$p + $k] = if ($row[$k] -eq 1) { $colLite } else { $colDark } }
+            [Array]::Copy($script:GfxByteBgra[$script:GfxFb[$base + $j]], 0, $script:GfxPixBuf, $dst, 32)
+            $dst += 32
         }
     }
     $script:GfxDirty.Clear()
     $bd = $bmpS.LockBits($rectS, [System.Drawing.Imaging.ImageLockMode]::WriteOnly, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
-    [System.Runtime.InteropServices.Marshal]::Copy($pixS, 0, $bd.Scan0, $pixS.Length)
+    [System.Runtime.InteropServices.Marshal]::Copy($script:GfxPixBuf, 0, $bd.Scan0, $script:GfxPixBuf.Length)
     $bmpS.UnlockBits($bd)
     $g = [System.Drawing.Graphics]::FromImage($bmpB)
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::NearestNeighbor
