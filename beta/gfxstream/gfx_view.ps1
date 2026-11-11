@@ -1,11 +1,11 @@
 ﻿# ======================================================================
-#  gfx_view.ps1 v1.2 — PC-вьюер GFXSTREAM v1 (COM 1М 8N1, 160x100 1bpp)
+#  gfx_view.ps1 v1.3 — PC-вьюер GFXSTREAM v1 (COM 1М 8N1, 160x100 1bpp)
 #  Пара к прошивке rom/gfxstream/gfxstream_v1.hex (SPEC beta/gfxstream/SPEC.md)
 #
 #  ЧТО ДЕЛАЕТ:
 #   - GUI-окно WinForms: кадр 160x100 в масштабе x3 (480x300, пиксели
-#     чёткие — NearestNeighbor), статус: FPS, SEQ, кадры, пропуски SEQ,
-#     ресинки, Б/с;
+#     чёткие — NearestNeighbor), статус (2 строки): FPS, SEQ, кадры;
+#     инт ср/макс мс между декодами, пропуски SEQ, ресинки, буф макс, Б/с;
 #   - ресинк по магии A5 5A (прецедент лендмарков TXSTRESS): мусор и
 #     FFh-добивка дельты пропускаются сами;
 #   - TYPE 01 (полный 2000 Б) и TYPE 02 (дельта-строки 202 Б) — рендер;
@@ -27,9 +27,26 @@
 #  поточечные копии payload/FB заменены на .NET-батчи; в самотест добавлен
 #  INFO-замер времени декода.
 #
+#  v1.3 — ФИКС-4 (каденс отрисовки, доклад владельца «всё так же»): после
+#  v1.2 рывки на дельтах остались (граница ~кадр 75-80 та же). Провод целый:
+#  по цифрам владельца (кадры 1504, SEQ 171, пропуски SEQ 1) после сброса
+#  потерянных кадров НЕТ — единственный «пропуск» это сам сброс (SEQ прыгнул
+#  на 0), дальше поток непрерывен. Остался каденс ПАНЕЛИ: WM_TIMER таймера
+#  WinForms ~15,6 мс, кадр 40 мс завершается на 2-м или 3-м тике — попере-
+#  менные интервалы декода/рисования 31/47 мс; на дельтах декод и перерисовка
+#  дешёвые (v1.2) и ничто больше не выравнивает такт (на полных кадрах до-
+#  рогая перерисовка 100 строк случайно работала метрономом — потому начало
+#  было «плавным»). Фикс: рисовать не чаще раза в 36 мс (Stopwatch-гейт),
+#  всегда самый свежий FB (просроченные отбрасываются — по SPEC); гейт +
+#  сетка таймера дают равномерные ~40-47 мс (~21-25 FPS) вместо дёрганья
+#  31/47. Плюс инструментация в статусе: инт ср/макс мс между декодами
+#  (Stopwatch, монотонный), буф макс (BytesToRead); -Log <файл> пишет CSV
+#  по кадру (utc,seq,type,dt_ms,buf) — по логу видно, ровный ли эфир.
+#
 #  РЕЖИМЫ:
 #   .\gfx_view.ps1 -Port COM13              # окно
 #   .\gfx_view.ps1 -Port COM13 -Scale 4     # крупнее
+#   .\gfx_view.ps1 -Port COM13 -Log gfx_log.csv   # + CSV-лог по кадрам
 #   .\gfx_view.ps1 -SelfTest                # самотест без железа (exit 0/1)
 #
 #  САМОТЕСТ (pwsh 7/Windows PowerShell 5.1): синтетический поток = точная
@@ -41,6 +58,7 @@ param(
     [string]$Port = 'COM13',
     [int]$Baud = 1000000,
     [int]$Scale = 3,
+    [string]$Log = '',
     [switch]$SelfTest
 )
 
@@ -64,6 +82,16 @@ $script:GfxFillLeft  = 0   # ожидаемая FFh-добивка дельты 
 $script:GfxBps       = 0
 $script:GfxBpsAcc    = 0
 $script:GfxBpsT0     = $null
+# --- v1.3: инструментация каденса + CSV-лог ---
+$script:GfxSw        = $null   # Stopwatch межкадровых интервалов (монотонный)
+$script:GfxIvPrev    = 0.0     # отметка прошлого декода по Stopwatch
+$script:GfxIvSum     = 0.0     # сумма интервалов в окне статистики (250 мс)
+$script:GfxIvMax     = 0.0     # макс интервал в окне
+$script:GfxIvN       = 0       # декодов в окне
+$script:GfxBufLast   = -1      # BytesToRead на тике последнего декода
+$script:GfxBufMax    = 0       # макс буфер за окно
+$script:GfxLogPath   = ''
+$script:GfxLogLines  = $null   # List[string]: буфер CSV, слив каждые 250 мс
 
 # --- предрасчёт: байт -> 8 пикселей (int 0..1), MSB = левый пиксель ---
 $script:GfxBytePix = New-Object 'object[]' 256
@@ -81,6 +109,8 @@ function Reset-GfxParser {
     $script:GfxResync = 0; $script:GfxResyncB = 0
     $script:GfxLastSeq = -1; $script:GfxLastType = 0
     $script:GfxFillLeft = 0
+    $script:GfxIvSum = 0.0; $script:GfxIvMax = 0.0; $script:GfxIvN = 0
+    $script:GfxBufMax = 0
 }
 
 # Применить один кадр (заголовок уже проверен) к FB.
@@ -109,7 +139,11 @@ function Invoke-GfxFrame {
 function Invoke-GfxChunk {
     param([byte[]]$Chunk)
     if ($Chunk.Length -eq 0) { return }
-    if ($null -eq $script:GfxBpsT0) { $script:GfxBpsT0 = [DateTime]::UtcNow }
+    if ($null -eq $script:GfxBpsT0) {
+        $script:GfxBpsT0 = [DateTime]::UtcNow
+        $script:GfxSw = [System.Diagnostics.Stopwatch]::StartNew()
+        $script:GfxIvPrev = 0.0
+    }
     $script:GfxBpsAcc += $Chunk.Length
     $now = [DateTime]::UtcNow
     if (($now - $script:GfxBpsT0).TotalMilliseconds -ge 1000) {
@@ -174,6 +208,19 @@ function Invoke-GfxChunk {
         $script:GfxLastSeq = $seq
         Invoke-GfxFrame -Payload $payload -Type $type -Seq $seq
         $script:GfxFrames++
+        # v1.3: каденс — интервал между декодами (Stopwatch, монотонный) в
+        # окно статистики + строка CSV-лога (если лог включён; в самотесте
+        # GfxLogLines = null и BufLast = -1 — ветки не мешают)
+        $ivNow = $script:GfxSw.Elapsed.TotalMilliseconds
+        $ivDt = $ivNow - $script:GfxIvPrev
+        $script:GfxIvPrev = $ivNow
+        $script:GfxIvSum += $ivDt; $script:GfxIvN++
+        if ($ivDt -gt $script:GfxIvMax) { $script:GfxIvMax = $ivDt }
+        if ($null -ne $script:GfxLogLines) {
+            $script:GfxLogLines.Add(("{0},{1},{2},{3},{4}" -f `
+                [DateTime]::Now.ToString('HH:mm:ss.fff'), $seq, $type, `
+                [int][Math]::Round($ivDt), $script:GfxBufLast))
+        }
         $script:GfxLastType = $type
         $script:GfxResync++   # счётчик успешных ресинков-кадров подряд
     }
@@ -369,6 +416,22 @@ try { $sp.Open() } catch {
 }
 Write-Host "COM открыт: $Port $Baud 8N1. Окно gfx_view запускается... (закрыть окно = выход)"
 
+# --- v1.3: гейт отрисовки, инструментация, CSV-лог ---
+$script:paintSw    = [System.Diagnostics.Stopwatch]::StartNew()   # гейт 36 мс
+$script:GfxBufLast = -1
+$script:GfxBufMax  = 0
+$script:GfxLogPath = $Log
+if ($Log -ne '') {
+    try {
+        [System.IO.File]::WriteAllText($Log, "utc,seq,type,dt_ms,buf`r`n", [System.Text.Encoding]::UTF8)
+        $script:GfxLogLines = New-Object System.Collections.Generic.List[string]
+        Write-Host "Лог кадров: $Log"
+    } catch {
+        Write-Host "Лог недоступен ($Log): $($_.Exception.Message) — работаю без лога"
+        $script:GfxLogLines = $null
+    }
+}
+
 # --- рендер-примитивы ---
 $pixS = New-Object 'int[]' (160 * 100)
 $bmpS = New-Object System.Drawing.Bitmap 160, 100
@@ -433,6 +496,8 @@ $timer.Interval = 15
 $timer.Add_Tick({
     try {
         $avail = $sp.BytesToRead
+        $script:GfxBufLast = $avail
+        if ($avail -gt $script:GfxBufMax) { $script:GfxBufMax = $avail }
         if ($avail -gt 0) {
             $chunk = New-Object 'byte[]' $avail
             try { $n = $sp.BaseStream.Read($chunk, 0, $avail) } catch { $n = 0 }
@@ -441,18 +506,43 @@ $timer.Add_Tick({
                 Invoke-GfxChunk -Chunk $chunk
             }
         }
-        if ($script:GfxDirty.Count -gt 0) { Update-GfxBitmap; $pbox.Image = $bmpB }
+        # v1.3: гейт каденса — не чаще 36 мс, всегда самый свежий FB (SPEC:
+        # просроченные кадры отбрасываются). Гейт + сетка таймера ~15,6 мс
+        # дают равномерные ~40-47 мс вместо попеременных 31/47 (рывки).
+        if ($script:GfxDirty.Count -gt 0 -and $script:paintSw.ElapsedMilliseconds -ge 36) {
+            Update-GfxBitmap; $pbox.Image = $bmpB
+            $script:paintSw.Restart()
+        }
         $now = [DateTime]::UtcNow
         if (($now - $script:statT0).TotalMilliseconds -ge 250) {
             $dt = ($now - $script:statT0).TotalSeconds
             $script:fpsShown = [Math]::Round(($script:GfxFrames - $script:framesShown) / $dt, 1)
             $script:framesShown = $script:GfxFrames
             $script:statT0 = $now
-            $lbl.Text = "FPS {0,5:N1}  SEQ {1,3}  кадры {2}  пропуски SEQ {3}  ресинк {4} Б  {5} Б/с" -f `
-                $script:fpsShown, $script:GfxLastSeq, $script:GfxFrames, $script:GfxGaps, $script:GfxResyncB, $script:GfxBps
+            $ivAvg = 0.0; $ivMax = 0.0
+            if ($script:GfxIvN -gt 0) {
+                $ivAvg = [Math]::Round($script:GfxIvSum / $script:GfxIvN, 0)
+                $ivMax = [Math]::Round($script:GfxIvMax, 0)
+            }
+            $lbl.Text = "FPS {0,5:N1}  SEQ {1,3}  кадры {2}`nинт {3}/{4} мс  пропуски SEQ {5}  ресинк {6} Б  буф {7} Б  {8} Б/с" -f `
+                $script:fpsShown, $script:GfxLastSeq, $script:GfxFrames, `
+                $ivAvg, $ivMax, $script:GfxGaps, $script:GfxResyncB, $script:GfxBufMax, $script:GfxBps
+            # v1.3: слив CSV-лога (файл открыт/закрыт на каждый слив — краш-
+            # безопасно: в файле всегда хвост ≤250 мс) + сброс окна
+            if ($null -ne $script:GfxLogLines -and $script:GfxLogLines.Count -gt 0) {
+                try { [System.IO.File]::AppendAllLines($script:GfxLogPath, $script:GfxLogLines) } catch { }
+                $script:GfxLogLines.Clear()
+            }
+            $script:GfxIvSum = 0.0; $script:GfxIvMax = 0.0; $script:GfxIvN = 0
+            $script:GfxBufMax = 0
         }
     } catch { $lbl.Text = "ошибка: $($_.Exception.Message)" }
 })
 $form.Add_Shown({ $timer.Start() })
-$form.Add_FormClosed({ $timer.Stop(); $sp.Close() })
+$form.Add_FormClosed({
+    $timer.Stop(); $sp.Close()
+    if ($null -ne $script:GfxLogLines -and $script:GfxLogLines.Count -gt 0) {
+        try { [System.IO.File]::AppendAllLines($script:GfxLogPath, $script:GfxLogLines) } catch { }
+    }
+})
 [void]$form.ShowDialog()
