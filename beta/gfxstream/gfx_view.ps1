@@ -1,5 +1,5 @@
 ﻿# ======================================================================
-#  gfx_view.ps1 v1.0 — PC-вьюер GFXSTREAM v1 (COM 1М 8N1, 160x100 1bpp)
+#  gfx_view.ps1 v1.1 — PC-вьюер GFXSTREAM v1 (COM 1М 8N1, 160x100 1bpp)
 #  Пара к прошивке rom/gfxstream/gfxstream_v1.hex (SPEC beta/gfxstream/SPEC.md)
 #
 #  ЧТО ДЕЛАЕТ:
@@ -11,6 +11,13 @@
 #   - TYPE 01 (полный 2000 Б) и TYPE 02 (дельта-строки 202 Б) — рендер;
 #     TYPE 03/04 — пропускаются (зарезервированы SPEC);
 #   - FPS-метр по декодированным кадрам за скользящую 1 с.
+#
+#  v1.1 — ФИКС 5.1 №2 (рантайм, доклад владельца): строка 374 падала
+#  «op_Addition» на [System.Object[]]: New-Object Size с арифметикой и
+#  запятой в ОДНИХ скобках — запятая в PS связывает крепче '+', «(a)+24,
+#  (b)+70» = «(a) + @(24,(b))» = int + массив. Оба места (ClientSize,
+#  lbl.Size) переведены на [System.Drawing.Size]::new(): в вызове метода
+#  запятая = разделитель аргументов.
 #
 #  РЕЖИМЫ:
 #   .\gfx_view.ps1 -Port COM13              # окно
@@ -371,7 +378,10 @@ function Update-GfxBitmap {
 # --- окно ---
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "GFXSTREAM v1 - $Port $Baud 8N1 (160x100 x$Scale)"
-$form.ClientSize = New-Object System.Drawing.Size ((160 * $Scale) + 24, (100 * $Scale) + 70)
+# УРОК PS 5.1: запятая крепче '+' — «Size ((a)+24, (b)+70)» группируется как
+# «(a) + @(24,(b))» → op_Addition на Object[] (доклад владельца 11-11).
+# ::new() — вызов метода: запятая там = разделитель аргументов, '+' безопасен.
+$form.ClientSize = [System.Drawing.Size]::new((160 * $Scale) + 24, (100 * $Scale) + 70)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedSingle'
 $form.MaximizeBox = $false
@@ -385,7 +395,7 @@ $form.Controls.Add($pbox)
 
 $lbl = New-Object System.Windows.Forms.Label
 $lbl.Location = New-Object System.Drawing.Point 12, ((100 * $Scale) + 22)
-$lbl.Size = New-Object System.Drawing.Size ((160 * $Scale) + 4, 34)
+$lbl.Size = [System.Drawing.Size]::new((160 * $Scale) + 4, 34)   # тот же фикс, что и ClientSize
 $lbl.ForeColor = [System.Drawing.Color]::FromArgb(200, 210, 200)
 $lbl.Font = New-Object System.Drawing.Font 'Consolas', 9
 $lbl.Text = 'инициализация...'
