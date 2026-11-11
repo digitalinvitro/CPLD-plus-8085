@@ -1,5 +1,5 @@
 ﻿# ======================================================================
-#  gfx_view.ps1 v1.1 — PC-вьюер GFXSTREAM v1 (COM 1М 8N1, 160x100 1bpp)
+#  gfx_view.ps1 v1.2 — PC-вьюер GFXSTREAM v1 (COM 1М 8N1, 160x100 1bpp)
 #  Пара к прошивке rom/gfxstream/gfxstream_v1.hex (SPEC beta/gfxstream/SPEC.md)
 #
 #  ЧТО ДЕЛАЕТ:
@@ -18,6 +18,14 @@
 #  (b)+70» = «(a) + @(24,(b))» = int + массив. Оба места (ClientSize,
 #  lbl.Size) переведены на [System.Drawing.Size]::new(): в вызове метода
 #  запятая = разделитель аргументов.
+#
+#  v1.2 — ФИКС 5.1 №3 (рывки, доклад владельца): первые 3 с (75 полных
+#  кадров TYPE 01, добивки нет) шар шёл ровно, на дельтах TYPE 02 дёргался:
+#  FFh-добивка (1798 Б на кадр) пропускалась RemoveAt(0) ПО ОДНОМУ байту
+#  (~45 000 вызовов/с) — GUI-поток на 5.1 голодал, декод шёл пачками.
+#  Фикс: серия FFh срезается ОДНИМ RemoveRange (семантика прежняя);
+#  поточечные копии payload/FB заменены на .NET-батчи; в самотест добавлен
+#  INFO-замер времени декода.
 #
 #  РЕЖИМЫ:
 #   .\gfx_view.ps1 -Port COM13              # окно
@@ -79,7 +87,7 @@ function Reset-GfxParser {
 function Invoke-GfxFrame {
     param([byte[]]$Payload, [byte]$Type, [byte]$Seq)
     if ($Type -eq 1) {
-        for ($i = 0; $i -lt 2000; $i++) { $script:GfxFb[$i] = $Payload[$i] }
+        [Array]::Copy($Payload, $script:GfxFb, 2000)   # УРОК 7: батч вместо поточечного цикла
         for ($r = 0; $r -lt 100; $r++) { $script:GfxDirty[$r] = 1 }
     }
     elseif ($Type -eq 2) {
@@ -115,9 +123,18 @@ function Invoke-GfxChunk {
         # Первый не-FF байт = сбой добивки -> обычный скан (честный мусор).
         # Пропуск байтов вне кадров (баннер, мусор) идёт в GfxResyncB.
         if ($script:GfxFillLeft -gt 0) {
+            # УРОК 7 (рывки у владельца, v1.2): добивку срезать СЕРИЕЙ одним
+            # RemoveRange — RemoveAt(0) по байту давал ~45 000 вызовов/с на
+            # дельтах, PS 5.1 не тянул (декод пачками = мяч дёргается; TYPE 01
+            # без добивки потому и шёл ровно). Семантика 1-в-1: серию FFh в
+            # пределах ожидаемой добивки пропускаем (не дальше), первый не-FF —
+            # сбой добивки -> FillLeft=0, обычный скан (честный мусор).
             if ($script:GfxAcc[0] -eq 0xFF) {
-                $script:GfxAcc.RemoveAt(0)
-                $script:GfxFillLeft--
+                $skip = [Math]::Min($script:GfxAcc.Count, $script:GfxFillLeft)
+                $i = 1
+                while ($i -lt $skip -and $script:GfxAcc[$i] -eq 0xFF) { $i++ }
+                $script:GfxAcc.RemoveRange(0, $i)
+                $script:GfxFillLeft -= $i
                 continue
             }
             $script:GfxFillLeft = 0
@@ -145,7 +162,8 @@ function Invoke-GfxChunk {
         }
         if ($script:GfxAcc.Count -lt 6 + $n) { break }   # кадр ещё не доехал
         $payload = New-Object 'byte[]' $n
-        for ($i = 0; $i -lt $n; $i++) { $payload[$i] = $script:GfxAcc[6 + $i] }
+        # УРОК 7: пакетная копия одним .NET-вызовом вместо n итераций PS
+        $script:GfxAcc.CopyTo(6, $payload, 0, $n)
         $script:GfxAcc.RemoveRange(0, 6 + $n)
         # после дельты ожидаем 1798 Б FFh-добивки (тихий пропуск в сканере)
         if ($type -eq 2) { $script:GfxFillLeft = 2006 - 6 - $n }
@@ -225,12 +243,18 @@ function Invoke-GfxSelfTest {
     # --- тест A: чистый поток 130 кадров ---
     Reset-GfxParser
     $s = New-GfxModelStream -Frames 130
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
     for ($off = 0; $off -lt $s.Length; $off += 4096) {
         $len = [Math]::Min(4096, $s.Length - $off)
         $chunk = New-Object 'byte[]' $len
         [Array]::Copy($s, $off, $chunk, 0, $len)
         Invoke-GfxChunk -Chunk $chunk
     }
+    $sw.Stop()
+    # INFO (не Req): чтобы поспевать за живым эфиром (2006 Б x 25 = 50 150 Б/с),
+    # декод этого потока (130 конвертов x 2006 Б) должен уложиться в бюджет ниже.
+    $budgetMs = [int]($s.Length / 50150.0 * 1000)
+    Write-Host ("  INFO декод {0} Б за {1} мс (бюджет {2} мс = темп живого 25 FPS)" -f $s.Length, $sw.ElapsedMilliseconds, $budgetMs)
     Req ($script:GfxFrames -eq 130) "кадров декодировано 130 (факт $($script:GfxFrames))"
     Req ($script:GfxGaps -eq 0) "пропусков SEQ 0"
     Req ($script:GfxLastSeq -eq 129) "последний SEQ 129 (факт $($script:GfxLastSeq))"
