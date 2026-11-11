@@ -21,9 +21,11 @@ import sys
 from datetime import datetime
 
 BASE = '/home/z/my-project/CPLD-plus-8085/beta/txuart/rom/gfxstream'
+HEXNAME = 'gfxstream_v21.hex'   # прошивка под тест
+T_FRAME = 146_484                # целевой период кадра, T (46,875 мс = 3 тика дисплея)
 T_NS = 320.0
 FRAME_T = 31.25
-BAN = b"\r\nGFXSTREAM v2\r\n"
+BAN = b"\r\nGFXSTREAM v2.1\r\n"
 ENV = 2006
 
 # ---- таблицы (копии asm; расхождение поймает побайтовая сверка) ----
@@ -461,21 +463,21 @@ def fb_from_delta(prev_fb, fr):
 
 def main():
     nframes = int(sys.argv[1]) if len(sys.argv) > 1 else 940
-    print(f"== Симуляция GFXSTREAM v2 по реальному hex, {nframes} кадров ==")
+    print(f"== Симуляция {HEXNAME} по реальному hex, {nframes} кадров, целевой период {T_FRAME}T ==")
     ok = True
     def req(cond, msg):
         nonlocal ok
         print(('  OK   ' if cond else '  FAIL ') + msg)
         if not cond: ok = False
 
-    cpu = CPU(load_hex(f'{BASE}/gfxstream_v2.hex'))
+    cpu = CPU(load_hex(f'{BASE}/{HEXNAME}'))
     T_POR = 1_572_864 + 200_000
-    T_RUN = T_POR + nframes * 140_000 + 500_000   # запас на некалиброванные пады
+    T_RUN = T_POR + nframes * int(T_FRAME * 1.15) + 500_000   # запас на некалиброванные пады
     s = cpu.run(T_RUN)
 
     # 1. баннер
     bi = s.find(BAN)
-    req(s.count(BAN) == 1, f"баннер \"GFXSTREAM v2\" ровно 1 ({s.count(BAN)})")
+    req(s.count(BAN) == 1, f"баннер ровно 1 ({s.count(BAN)})")
     if bi < 0:
         raise SystemExit("баннер не найден")
     t_ban = cpu.wtimes[0] * T_NS / 1e6
@@ -531,24 +533,24 @@ def main():
         print(f"    {g:4s}: n={len(v):4d} мед {med:6d} мин {pmin:6d} макс {pmax:6d} "
               f"({pmin*T_NS/1000:.3f}..{pmax*T_NS/1000:.3f} мс)")
         if g != 'ENTR':
-            dev = max(abs(pmin - 125_000), abs(pmax - 125_000))
+            dev = max(abs(pmin - T_FRAME), abs(pmax - T_FRAME))
             devmax = max(devmax, dev)
-            need = 125_000 - med
+            need = T_FRAME - med
             if need:
                 print(f"           -> коррекция пада: {'+' if need>0 else ''}{need}T = "
                       f"{need//24:+d} итераций (+остаток {need - 24*(need//24)}T = "
                       f"{(need - 24*(need//24))//4} NOP)")
     if devmax == 0:
-        print("  OK   период обычных путей = ровно 125 000T = 40.000 мс (25.000 FPS)")
+        print(f"  OK   период обычных путей = ровно {T_FRAME}T = {T_FRAME*T_NS/1000:.3f} мс")
     elif devmax <= 120:
-        print(f"  OK   период обычных путей 125 000T ±{devmax}T (±{devmax*T_NS/1000:.0f} мкс)")
+        print(f"  OK   период обычных путей {T_FRAME}T ±{devmax}T (±{devmax*T_NS/1000:.0f} мкс)")
     else:
-        req(False, f"период обычных путей 125 000T ±120T: отклонение {devmax}T")
+        req(False, f"период обычных путей {T_FRAME}T ±120T: отклонение {devmax}T")
     entr = groups.get('ENTR', [])
     if entr:
         print(f"    ENTR: n={len(entr)} периоды {[int(x) for x in sorted(entr)]} "
               f"({min(entr)*T_NS/1000:.2f}..{max(entr)*T_NS/1000:.2f} мс — switch-блок/копия битмапа)")
-        req(max(entr) <= 145_000, f"кадры входа в сцену <= 145 000T (46,4 мс): макс {int(max(entr))}")
+        req(max(entr) <= T_FRAME + 21_000, f"кадры входа в сцену <= {T_FRAME+21_000}T: макс {int(max(entr))}")
 
     # 7. FPS
     fps = (nframes - 1) * 1e6 / ((w[idx0 + (nframes - 1) * ENV] - w[idx0]) * T_NS / 1e3)
