@@ -36,6 +36,10 @@ def enc(mn, ops, sym, pc):
     if mn == 'HLT': return ([0x76], 5)
     if mn == 'RRC': return ([0x0F], 4)
     if mn == 'RLC': return ([0x07], 4)
+    if mn == 'RAR': return ([0x1F], 4)
+    if mn == 'RAL': return ([0x17], 4)
+    if mn == 'RAR': return ([0x1F], 4)
+    if mn == 'RAL': return ([0x17], 4)
     if mn == 'DAA': return ([0x27], 4)
     if mn == 'CMA': return ([0x2F], 4)
     if mn == 'MOV' and len(ops) == 2:
