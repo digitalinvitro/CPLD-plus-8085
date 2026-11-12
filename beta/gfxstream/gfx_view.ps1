@@ -1,6 +1,6 @@
 ﻿# ======================================================================
-#  gfx_view.ps1 v1.4 — PC-вьюер GFXSTREAM v1 (COM 1М 8N1, 160x100 1bpp)
-#  Пара к прошивке rom/gfxstream/gfxstream_v1.hex (SPEC beta/gfxstream/SPEC.md)
+#  gfx_view.ps1 v1.5 — PC-вьюер GFXSTREAM (COM 1М 8N1, 160x100 1bpp)
+#  Пара к прошивке rom/gfxstream/gfxstream_v22.hex (SPEC beta/gfxstream/SPEC.md)
 #
 #  ЧТО ДЕЛАЕТ:
 #   - GUI-окно WinForms: кадр 160x100 в масштабе x3 (480x300, пиксели
@@ -61,6 +61,32 @@
 #  (Реальное ускорение шара — только правкой прошивки: шаг 2 клетки/кадр;
 #  канал загружен на 50%, запас есть.)
 #
+#  v1.5 — ДИАГНОСТИКА + ФИКС СКОЛЬЗЯЩЕЙ ФАЗЫ (доклад владельца «мячик не
+#  плавно и скачет» на v2.1, лог gfx_log.csv: 2606 кадров / 120,5 с).
+#  Форензика лога: провод ЦЕЛ (0 разрывов SEQ, потерь нет), НО реальный
+#  период платы 46,348 мс вместо 46,875 (-1,124%) — фаза кадра СКОЛЬЗИТ
+#  по сетке WM_TIMER 15,6 мс: dt размазан 31/47/62 мс, гейт 36 мс режет
+#  краску структурно (модель: 3,37% кадров = шар прыгает на 2 шага раз в
+#  ~1,4 с) плюс стартовый бэклог 10461 Б (5 кадров прокрасились teleport-ом).
+#  УРОК 14: краска не должна жить на сетке WM_TIMER — при скользящей фазе
+#  провода гейт рано или поздно отрезает кадр всегда; каденс краски =
+#  каденс ПРОВОДА. Фиксы:
+#   1) таймер 15 -> 2 мс + timeBeginPeriod(1) (winmm): тик реально ~2 мс;
+#      гейт 36 мс УДАЛЁН — краска СРАЗУ в тике декода: интервал краски =
+#      интервал провода ± 2 мс, ни одна позиция не теряется (кроме 2+
+#      кадров в одном тике — считаются как «пропуск»);
+#   2) бэклог > 3000 Б (старт окна, батчинг CH340) сбрасывается целиком
+#      (DiscardInBuffer + ресинк парсера, событие «флеш» в CSV) — вместо
+#      прокрутки устаревших кадров скачком экран ждёт свежий кадр;
+#   3) CSV v1.5: колонка kind: D=декод (seq,type,dt_ms,buf), P=краска
+#      (seq=покрашенный, type=0, dt_ms=интервал краски, buf=пропуски этой
+#      краски), F=флеш (buf=сброшено Б). Старые логи совместимы — анализатор
+#      различает по шапке;
+#   4) статус: краска ср/макс мс, пропуски, флеш; сводка при закрытии окна.
+#   (Калибровка периода платы до ровных 46,875 мс = 3 тика — в ROM v2.2:
+#   W_V2 2194->2262 +3 NOP = +1644T; вьюеру это не требуется — он более
+#   не зависит от совпадения фаз.)
+#
 #  РЕЖИМЫ:
 #   .\gfx_view.ps1 -Port COM13              # окно
 #   .\gfx_view.ps1 -Port COM13 -Scale 4     # крупнее
@@ -110,6 +136,15 @@ $script:GfxBufLast   = -1      # BytesToRead на тике последнего 
 $script:GfxBufMax    = 0       # макс буфер за окно
 $script:GfxLogPath   = ''
 $script:GfxLogLines  = $null   # List[string]: буфер CSV, слив каждые 250 мс
+# --- v1.5: краска без гейта + пропуски + флеш бэклога ---
+$script:GfxPaintSw    = $null   # Stopwatch интервала краски (создаётся в GUI-ветке)
+$script:GfxPaintSum   = 0.0     # окно 250 мс: сумма интервалов краски
+$script:GfxPaintN     = 0       # окно 250 мс: красок
+$script:GfxPaintMax   = 0.0     # окно 250 мс: макс интервал краски
+$script:GfxPaintTotal = 0       # красок за сеанс
+$script:GfxSincePaint = 0       # кадров декодировано с последней краски
+$script:GfxSkipN      = 0       # позиций, не попавших на экран (>1 декода на краску)
+$script:GfxFlushN     = 0       # сбросов бэклога > 3000 Б
 
 # --- предрасчёт: байт -> 32 Б BGRA (8 пикселей x 4 Б, MSB = левый пиксель).
 # v1.4: краска кадра = 2000 memcpy по 32 Б ([Array]::Copy) вместо 16 000
@@ -245,10 +280,11 @@ function Invoke-GfxChunk {
         $script:GfxIvSum += $ivDt; $script:GfxIvN++
         if ($ivDt -gt $script:GfxIvMax) { $script:GfxIvMax = $ivDt }
         if ($null -ne $script:GfxLogLines) {
-            $script:GfxLogLines.Add(("{0},{1},{2},{3},{4}" -f `
+            $script:GfxLogLines.Add(("{0},D,{1},{2},{3},{4}" -f `
                 [DateTime]::Now.ToString('HH:mm:ss.fff'), $seq, $type, `
                 [int][Math]::Round($ivDt), $script:GfxBufLast))
         }
+        $script:GfxSincePaint++   # v1.5: кадр ждёт краски (пропуск = >1 на краску)
         $script:GfxLastType = $type
         $script:GfxResync++   # счётчик успешных ресинков-кадров подряд
     }
@@ -444,14 +480,19 @@ try { $sp.Open() } catch {
 }
 Write-Host "COM открыт: $Port $Baud 8N1. Окно gfx_view запускается... (закрыть окно = выход)"
 
-# --- v1.3: гейт отрисовки, инструментация, CSV-лог ---
-$script:paintSw    = [System.Diagnostics.Stopwatch]::StartNew()   # гейт 36 мс
+# --- v1.5: разрешение системного таймера ~1 мс — тик 2 мс реально ~2 мс
+# (без этого WM_TIMER живёт на сетке ~15,6 мс и краска квантуется 31/47/62)
+Add-Type -Namespace GfxNative -Name WinMM -MemberDefinition '[DllImport("winmm.dll")] public static extern uint timeBeginPeriod(uint ms); [DllImport("winmm.dll")] public static extern uint timeEndPeriod(uint ms);' | Out-Null
+[void][GfxNative.WinMM]::timeBeginPeriod(1)
+
+# --- v1.5: инструментация краски (гейта 36 мс больше НЕТ) ---
+$script:GfxPaintSw = [System.Diagnostics.Stopwatch]::StartNew()
 $script:GfxBufLast = -1
 $script:GfxBufMax  = 0
 $script:GfxLogPath = $Log
 if ($Log -ne '') {
     try {
-        [System.IO.File]::WriteAllText($Log, "utc,seq,type,dt_ms,buf`r`n", [System.Text.Encoding]::UTF8)
+        [System.IO.File]::WriteAllText($Log, "utc,kind,seq,type,dt_ms,buf`r`n", [System.Text.Encoding]::UTF8)
         $script:GfxLogLines = New-Object System.Collections.Generic.List[string]
         Write-Host "Лог кадров: $Log"
     } catch {
@@ -492,7 +533,7 @@ function Update-GfxBitmap {
 
 # --- окно ---
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "GFXSTREAM v1 - $Port $Baud 8N1 (160x100 x$Scale)"
+$form.Text = "GFXSTREAM v2.2 - $Port $Baud 8N1 (160x100 x$Scale)"
 # УРОК PS 5.1: запятая крепче '+' — «Size ((a)+24, (b)+70)» группируется как
 # «(a) + @(24,(b))» → op_Addition на Object[] (доклад владельца 11-11).
 # ::new() — вызов метода: запятая там = разделитель аргументов, '+' безопасен.
@@ -520,11 +561,26 @@ $script:statT0 = [DateTime]::UtcNow
 $script:fpsShown = 0.0
 $script:framesShown = 0
 $timer = New-Object System.Windows.Forms.Timer
-$timer.Interval = 15
+$timer.Interval = 2
 $timer.Add_Tick({
     try {
         $avail = $sp.BytesToRead
         $script:GfxBufLast = $avail
+        # v1.5: бэклог > 3000 Б = вьюер отстал больше чем на конверт с запасом
+        # (старт окна, батчинг CH340): сброс — устаревшие кадры всё равно
+        # прокрасились бы скачком; экран просто ждёт свежий кадр.
+        if ($avail -gt 3000) {
+            if ($null -ne $script:GfxLogLines) {
+                $script:GfxLogLines.Add(("{0},F,-1,-1,0,{1}" -f `
+                    [DateTime]::Now.ToString('HH:mm:ss.fff'), $avail))
+            }
+            try { $sp.DiscardInBuffer() } catch { }
+            $script:GfxAcc.Clear()
+            $script:GfxFillLeft = 0
+            $script:GfxLastSeq = -1
+            $script:GfxFlushN++
+            return
+        }
         if ($avail -gt $script:GfxBufMax) { $script:GfxBufMax = $avail }
         if ($avail -gt 0) {
             $chunk = New-Object 'byte[]' $avail
@@ -534,12 +590,30 @@ $timer.Add_Tick({
                 Invoke-GfxChunk -Chunk $chunk
             }
         }
-        # v1.3: гейт каденса — не чаще 36 мс, всегда самый свежий FB (SPEC:
-        # просроченные кадры отбрасываются). Гейт + сетка таймера ~15,6 мс
-        # дают равномерные ~40-47 мс вместо попеременных 31/47 (рывки).
-        if ($script:GfxDirty.Count -gt 0 -and $script:paintSw.ElapsedMilliseconds -ge 36) {
+        # v1.5: краска БЕЗ гейта (УРОК 14: гейт на сетке WM_TIMER при сколь-
+        # зящей фазе провода режет кадры структурно — 3,37% по логу 11-12);
+        # краска дёшева с v1.4 — рисуем каждый тик с грязным FB: каденс
+        # краски = каденс провода ± 2 мс.
+        if ($script:GfxDirty.Count -gt 0) {
+            $pd = $script:GfxPaintSw.Elapsed.TotalMilliseconds
+            $script:GfxPaintSw.Restart()
+            if ($script:GfxPaintTotal -gt 0) {
+                $script:GfxPaintSum += $pd; $script:GfxPaintN++
+                if ($pd -gt $script:GfxPaintMax) { $script:GfxPaintMax = $pd }
+            }
+            $skipped = 0
+            if ($script:GfxSincePaint -gt 1) {
+                $skipped = $script:GfxSincePaint - 1
+                $script:GfxSkipN += $skipped
+            }
             Update-GfxBitmap; $pbox.Image = $bmpB
-            $script:paintSw.Restart()
+            $script:GfxPaintTotal++
+            if ($null -ne $script:GfxLogLines) {
+                $script:GfxLogLines.Add(("{0},P,{1},0,{2},{3}" -f `
+                    [DateTime]::Now.ToString('HH:mm:ss.fff'), $script:GfxLastSeq, `
+                    [int][Math]::Round($pd), $skipped))
+            }
+            $script:GfxSincePaint = 0
         }
         $now = [DateTime]::UtcNow
         if (($now - $script:statT0).TotalMilliseconds -ge 250) {
@@ -547,14 +621,14 @@ $timer.Add_Tick({
             $script:fpsShown = [Math]::Round(($script:GfxFrames - $script:framesShown) / $dt, 1)
             $script:framesShown = $script:GfxFrames
             $script:statT0 = $now
-            $ivAvg = 0.0; $ivMax = 0.0
-            if ($script:GfxIvN -gt 0) {
-                $ivAvg = [Math]::Round($script:GfxIvSum / $script:GfxIvN, 0)
-                $ivMax = [Math]::Round($script:GfxIvMax, 0)
+            $pdAvg = 0.0; $pdMax = 0.0
+            if ($script:GfxPaintN -gt 0) {
+                $pdAvg = [Math]::Round($script:GfxPaintSum / $script:GfxPaintN, 0)
+                $pdMax = [Math]::Round($script:GfxPaintMax, 0)
             }
-            $lbl.Text = "FPS {0,5:N1}  SEQ {1,3}  кадры {2}`nинт {3}/{4} мс  пропуски SEQ {5}  ресинк {6} Б  буф {7} Б  {8} Б/с" -f `
-                $script:fpsShown, $script:GfxLastSeq, $script:GfxFrames, `
-                $ivAvg, $ivMax, $script:GfxGaps, $script:GfxResyncB, $script:GfxBufMax, $script:GfxBps
+            $lbl.Text = "FPS {0,5:N1}  SEQ {1,3}  кадры {2}  краски {3}`nкраска {4}/{5} мс  пропуск {6}  флеш {7}  разрыв {8}  буф {9} Б  {10} Б/с" -f `
+                $script:fpsShown, $script:GfxLastSeq, $script:GfxFrames, $script:GfxPaintTotal, `
+                $pdAvg, $pdMax, $script:GfxSkipN, $script:GfxFlushN, $script:GfxGaps, $script:GfxBufMax, $script:GfxBps
             # v1.3: слив CSV-лога (файл открыт/закрыт на каждый слив — краш-
             # безопасно: в файле всегда хвост ≤250 мс) + сброс окна
             if ($null -ne $script:GfxLogLines -and $script:GfxLogLines.Count -gt 0) {
@@ -563,6 +637,7 @@ $timer.Add_Tick({
             }
             $script:GfxIvSum = 0.0; $script:GfxIvMax = 0.0; $script:GfxIvN = 0
             $script:GfxBufMax = 0
+            $script:GfxPaintSum = 0.0; $script:GfxPaintN = 0; $script:GfxPaintMax = 0.0
         }
     } catch { $lbl.Text = "ошибка: $($_.Exception.Message)" }
 })
@@ -572,5 +647,8 @@ $form.Add_FormClosed({
     if ($null -ne $script:GfxLogLines -and $script:GfxLogLines.Count -gt 0) {
         try { [System.IO.File]::AppendAllLines($script:GfxLogPath, $script:GfxLogLines) } catch { }
     }
+    [void][GfxNative.WinMM]::timeEndPeriod(1)
+    Write-Host ("СВОДКА v1.5: кадров {0}, красок {1}, пропусков {2}, флешей {3}, разрывов SEQ {4}, ресинк {5} Б" -f `
+        $script:GfxFrames, $script:GfxPaintTotal, $script:GfxSkipN, $script:GfxFlushN, $script:GfxGaps, $script:GfxResyncB)
 })
 [void]$form.ShowDialog()
