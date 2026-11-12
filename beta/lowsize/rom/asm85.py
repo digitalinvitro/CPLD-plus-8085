@@ -313,10 +313,16 @@ def assemble(path, defines):
     if ifstack:
         raise AsmError('незакрытый IF (осталось уровней: %d)' % len(ifstack))
 
-    # метки не должны остаться с None — кроме переопределённых -D констант
+    # метки не должны остаться с None — кроме переопределённых -D констант.
+    # ФИКС xstream (урок 11-12): строки НЕАКТИВНЫХ веток IF не участвуют
+    # в резолве — у них ln.addr всегда None (pass-1 их пропускает), и раньше
+    # такая строка (первая по порядку) затирала адрес метки нулём, если та
+    # же метка объявлена и в активной ветке (XSCHK:/XISR: в IF/ELSE).
     for ln in lines:
+        if ln.label is not None and ln.addr is None:
+            continue                # неактивная ветка IF (или строка без адреса)
         if ln.label is not None and syms.get(ln.label) is None:
-            syms[ln.label] = ln.addr if ln.addr is not None else 0
+            syms[ln.label] = ln.addr
 
     # отложенные константы: несколько раундов (цепочки друг на друга)
     for _ in range(len(deferred) + 1):

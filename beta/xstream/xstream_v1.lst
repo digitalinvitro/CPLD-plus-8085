@@ -1,0 +1,1030 @@
+    1            ; =====================================================================
+    2            ; beta/xstream -- XSTREAM v1: ПРЕРЫВАНИЯ/ТИК -> ВЕСЬ ЭКРАН В UART
+    3            ; (патч монитора fw_mon "ACdE", владелец: "8085 прерывая выдает в UART
+    4            ; весь экран, потом идет работать по своим делам в монитор")
+    5            ;
+    6            ; ИДЕЯ РЕЖИМА (ТЗ владельца, 11-12):
+    7            ;   - экран = ФИКСИРОВАННЫЙ буфер ОЗУ B000h..B7CFh (80x25 = 2000 Б,
+    8            ;     row-major; любой код байтов, у ПК-клиента трактуется как CP1251);
+    9            ;   - по тику (прерыванию) ЦП выдаёт ВЕСЬ экран в UART аппаратным TX
+   10            ;     (CPLD v2.3, 1 000 000 бод 8N1, OUT 04h) и возвращается в монитор;
+   11            ;   - частота тика = из условия ЦП <= 50% на выдачу, FPS 20-25
+   12            ;     (расчёт: scripts/xstream_calc.py; посылка 22.9 мс => потолок
+   13            ;     21.3 FPS при 48.8% ЦП; 22 FPS уже 50.2% -> по ТЗ FPS снижается);
+   14            ;   - фолбэк 10 FPS = 22.9% ЦП (константы XS_TH/TMR_N).
+   15            ;
+   16            ; ДВА ВАРИАНТА ТИКА (ключ TMR_HW, сборка -D TMR_HW=1):
+   17            ;   TMR_HW=0 (по умолчанию, для ТЕКУЩЕГО образа CPLD txuart v2.3:
+   18            ;     источника прерываний нет - RST 7.5 заземлён) - ПРОГРАММНЫЙ ТИК:
+   19            ;     накопитель слотов скана XSPASS, каждые XS_TH слотов (~0.33 мс
+   20            ;     слот скана монитора) CALL XSEND. Кадр ~47.4 мс = 21.1 FPS,
+   21            ;     48.2% ЦП. Тик живёт в контексте монитора: во время
+   22            ;     пользовательской программы (E) поток останавливается.
+   23            ;   TMR_HW=1 (для будущего фит-а CPLD v24 = txuart + таймер -> RST 7.5,
+   24            ;     порт 06h = N, тик 51.2 мкс): ВЕКТОР 003Ch уже прошит, ISR
+   25            ;     ре-армит таймер (T = N x 51.2 мкс), делитель XS_DIVN=3 ->
+   26            ;     кадр 46.9 мс = 21.3 FPS, 48.8% ЦП. ISR выбивает из монитора:
+   27            ;     поток идёт и ВО ВРЕМЯ пользовательской программы (пока та не DI).
+   28            ;     Смета v24: база v3.9.8-clear 94 + TX-ядро 18 - узел -7 = 103/108,
+   29            ;     остров таймера ~18 МЦ (прескалер 8 + счётчик 8 + строб 1 + P75 1)
+   30            ;     => 121/108 - НЕ ЛОЖИТСЯ в XC95108 (документировано в README).
+   31            ;
+   32            ; ФОРМАТ ПРОВОДА (2003 Б/кадр):
+   33            ;   A5 5A [SEQ] + 2000 Б экрана. SEQ++ mod 256 в каждом кадре.
+   34            ;   Ресинк клиента по A5 5A; хвост кадра = ровно 2000 Б, без добивки.
+   35            ;
+   36            ; ПОСЫЛКА (сим xstream_calc + sim_xstream_v1):
+   37            ;   РАВНОМЕРНЫЙ пейсинг 35T/Б (УРОК SPRINT: пачки развёртки 23T ->
+   38            ;   отбросы: TX принимает 1 Б за 31.25T, запись в busy ОТБРАСЫВАЕТСЯ;
+   39            ;   мин. цикл из ОЗУ MOV+OUT+INX = 23T + 3 NOP = 35T >= 31.25T - ноль
+   40            ;   отбросов; прецедент p04: равномерные 32T железно);
+   41            ;   слот дисплея XDIG (~147T с CALL) каждые 200 Б: регенерация 7-сегмент-
+   42            ;   ника не замирает (цикл разряда ~4.8 мс, ~207 Гц - без мерцания; тон
+   43            ;   бипа идёт через SND в XDIG);
+   44            ;   итого ~37.7T/Б => посылка ~24.2 мс; провод (чистый эфир) 20.03 мс.
+   45            ;
+   46            ; ПАМЯТЬ (MEMORY_MAP.md): ROM 0000-7FFF (вектор RST 7.5 = 003Ch прошит
+   47            ;   JMP XISR, код после таблиц смещён на ORG 0040h), RAM 8000-FFFF.
+   48            ;   Монитор: переменные FFE8-FFF9, стек с FFE7 вниз. XSTREAM:
+   49            ;   XBUF B000-B7CF (пользовательская область), XSSEQ/XSPASS/XSDIV =
+   50            ;   FFFA-FFFC (свободно выше PREVST FFF9, стек до них не доходит).
+   51            ;
+   52            ; ПОРТЫ: 00h сегменты, 01h разряды+SND, 02h колонки, 03h ряды (монитор);
+   53            ;   04h TXDATA, 05h TXRDY (не используется), 06h - в v24 загрузка N
+   54            ;   (на v2.3 записи игнорируются - безопасно в обоих образах CPLD).
+   55            ;
+   56            ; СОБРАКА (asm85.py из beta/lowsize/rom; регрессия: fw_mon.hex md5
+   57            ;   f9ad5c6deb3bf0618018fd630b1d25aa воспроизводится байт-в-байт):
+   58            ;   python3 asm85.py xstream_v1.asm -o xstream_v1.hex -l xstream_v1.lst
+   59            ;   HW-вариант:  ... -D TMR_HW=1 -o xstream_v1_hw.hex
+   60            ;   (исходник-канон CP1251 = xstream_v1.asm; близнец UTF-8 = xstream_v1_utf8.asm)
+   61            ;
+   62            ; СИМ: beta/xstream/scripts/sim_xstream_v1.py - исполнение РЕАЛЬНОГО hex,
+   63            ;   период кадра, 0 отбросов, побайтовая сверка экрана, нажатие клавиши.
+   64            ; =====================================================================
+   65            
+   66            ; ---- константы монитора (fw_mon, без изменений; переопределяются -D) ----
+   67            FAST    EQU 0               ; 1 = укороченные паузы (для симуляции)
+   68            IF FAST
+   69            TICK_MS EQU 4               ; тик клавиши, единиц ~1 мс (быстро)
+   70            SET_MS  EQU 2               ; дебаунс после отпускания
+   71            ELSE
+   72            TICK_MS EQU 30              ; 30 x ~1.2 мс = ~36 мс тик (на CPU 3.125 МГц)
+   73            SET_MS  EQU 30              ; 30 x ~1.2 мс = ~36 мс дебаунс
+   74            ENDIF
+   75            
+   76            K_MS    EQU 144             ; внутренний счётчик единицы ~1 мс
+   77            
+   78            ; ---- порты CPLD (декод по A2-A0, зеркала mod 8) ----
+   79            SEGP    EQU 00h             ; сегменты: D0=a..D6=g, D7=dp; 1 = горит
+   80            DIGP    EQU 01h             ; D3-D0 разряды, D4 = SND
+   81            KBCOLP  EQU 02h             ; D3-D0 колонки (1 = заведена)
+   82            KBROWP  EQU 03h             ; D4-D0 ряды (1 = нажата в активной колонке)
+   83            
+   84            ; ---- XSTREAM v1 ----
+   85            TMR_HW  EQU 0               ; 0 = SW-тик (CPLD txuart v2.3); 1 = таймер->RST 7.5 (v24)
+   86            TXPORT  EQU 04h             ; TXDATA ядра TX v2.3 (запись при busy отбрасывается)
+   87            TMRP    EQU 06h             ; v24: загрузка N таймера (на v2.3 запись игнорируется)
+   88            XBUF    EQU 0B000h          ; ЭКРАН 80x25 = 2000 Б (B000h..B7CFh)
+   89            XSSEQ   EQU 0FFFAh          ; SEQ кадра mod 256
+   90            XSPASS  EQU 0FFFBh          ; накопитель слотов скана между кадрами (SW-тик)
+   91            XSDIV   EQU 0FFFCh          ; делитель ISR (только TMR_HW=1)
+   92            XS_TH   EQU 71              ; слотов скана между кадрами (сим-калибровка; ~49.8 мс)
+   93            XS_QINC EQU 4               ; добавка за единицу QUNIT/BUNIT (~1.2 мс = 3.7 слота)
+   94            TMR_N   EQU 250             ; v24: N тиков по 51.2 мкс = 12.80 мс
+   95            XS_DIVN EQU 2               ; v24: ISR на кадр; период = посылка + 2x12.80 = 49.7 мс
+   96            XSCNT   EQU XBUF+06E4h      ; живой счётчик SEQ в демо-экране (строка 22, кол. 4-5)
+   97            
+   98            ; ---- коды клавиш ----
+   99            K_ENT   EQU 10h             ; Enter  (row3/col3, SW16)
+  100            K_F1    EQU 11h             ; F1     (row4/col1, SW18) - меню
+  101            K_F2    EQU 12h             ; F2     (row4/col2, SW19) - показ адреса
+  102            K_NONE  EQU 0FFh            ; пустая позиция матрицы
+  103            
+  104            ; ---- состояния ----
+  105            ST_MENU EQU 00h             ; меню "ACDE"
+  106            ST_ADDR EQU 01h             ; ввод адреса
+  107            ST_PROG EQU 02h             ; ввод кода (Code)
+  108            ST_VIEW EQU 03h             ; просмотр кода
+  109            ST_SHOW EQU 04h             ; показ адреса операций (F2)
+  110            
+  111            ; ---- ОЗУ монитора (FFE8h-FFF9h; стек с FFE7 вниз) ----
+  112            SP0     EQU 0FFE8h          ; SP монитора
+  113            SNDST   EQU 0FFE8h          ; состояние тона 0/1
+  114            STATE   EQU 0FFE9h          ; 0=меню, 1=адрес, 2=код, 3=просмотр
+  115            ADDRH   EQU 0FFEAh          ; текущий адрес (старший)
+  116            ADDRL   EQU 0FFEBh          ; текущий адрес (младший)
+  117            ADCNT   EQU 0FFECh          ; введено тетрад адреса (0..4)
+  118            AF3     EQU 0FFEDh          ; тетрады адреса (AF3 - старшая...)
+  119            AF2     EQU 0FFEEh
+  120            AF1     EQU 0FFEFh
+  121            AF0     EQU 0FFF0h
+  122            BDCNT   EQU 0FFF1h          ; введено тетрад байта (0..2)
+  123            BF1     EQU 0FFF2h          ; старшая тетрада байта
+  124            BF0     EQU 0FFF3h          ; младшая тетрада байта
+  125            DPIDX   EQU 0FFF4h          ; фаза регенерации 0..3 (0 = DIG0)
+  126            DIGIMG  EQU 0FFF5h          ; глифы разрядов DIG0..DIG3 (4 байта)
+  127            DIGIMG0 EQU 0FFF5h          ;   правый (DIG0)
+  128            DIGIMG1 EQU 0FFF6h
+  129            DIGIMG2 EQU 0FFF7h
+  130            DIGIMG3 EQU 0FFF8h          ;   левый (DIG3)
+  131            PREVST  EQU 0FFF9h          ; прежний режим для F2
+  132            
+  133            ; =====================================================================
+  134            ;                    СБРОС, ТАБЛИЦЫ, ВЕКТОР RST 7.5
+  135            ; =====================================================================
+  136  0000: -                ORG 0000h
+  137  0000: C3 ED 01         JMP MAIN
+  138            
+  139            ; ---- глифы '0'..'F' (a,b,c,d,e,f,g = D0..D6) ----
+  140  0003: 3F       GTBL:   DB 3Fh              ; '0'
+  141  0004: 06               DB 06h              ; '1'
+  142  0005: 5B               DB 5Bh              ; '2'
+  143  0006: 4F               DB 4Fh              ; '3'
+  144  0007: 66               DB 66h              ; '4'
+  145  0008: 6D               DB 6Dh              ; '5'
+  146  0009: 7D               DB 7Dh              ; '6'
+  147  000A: 07               DB 07h              ; '7'
+  148  000B: 7F               DB 7Fh              ; '8'
+  149  000C: 6F               DB 6Fh              ; '9'
+  150  000D: 77               DB 77h              ; 'A'
+  151  000E: 7C               DB 7Ch              ; 'b'
+  152  000F: 39               DB 39h              ; 'C'
+  153  0010: 5E               DB 5Eh              ; 'd'
+  154  0011: 79               DB 79h              ; 'E'
+  155  0012: 71               DB 71h              ; 'F'
+  156            
+  157            ; ---- биты разрядов (индекс = DPIDX: 0=DIG0 правый ... 3=DIG3 левый) ----
+  158  0013: 01 02 04 08 BITTBL: DB 01h,02h,04h,08h
+  159            
+  160            ; ---- таблица клавиш: KEYTBL[row*4+col] ----
+  161  0017: 0A 0B 0C 0D KEYTBL: DB 0Ah,0Bh,0Ch,0Dh  ; row0: A  B  C  D
+  162  001B: 07 08 09 0E         DB 07h,08h,09h,0Eh  ; row1: 7  8  9  E
+  163  001F: 04 05 06 0F         DB 04h,05h,06h,0Fh  ; row2: 4  5  6  F
+  164  0023: 01 02 03 10         DB 01h,02h,03h,10h  ; row3: 1  2  3  Enter
+  165  0027: 00 11 12 FF         DB 00h,11h,12h,0FFh ; row4: 0  F1 F2 (нет)
+  166            
+  167            ; ---- ВЕКТОР RST 7.5 (003Ch) - XSTREAM ----
+  168            ;   TMR_HW=1: обработчик кадра по таймеру CPLD (v24);
+  169            ;   TMR_HW=0: на CPLD v2.3 линия заземлена - вход невозможен.
+  170  003C: -                ORG 003Ch
+  171  003C: C3 6E 05         JMP XISR
+  172            
+  173  0040: -                ORG 0040h           ; код монитора смещён вектором (3 Б из 003Ch)
+  174            
+  175            ; ---------------------------------------------------------------------
+  176            ; SETTLE: пауза ~25 мкс (успокоение колонки клавиатуры)
+  177            ; ---------------------------------------------------------------------
+  178  0040: 01 03 00 SETTLE: LXI B,3
+  179  0043: 0B       STL:    DCX B
+  180  0044: 78               MOV A,B
+  181  0045: B1               ORA C
+  182  0046: C2 43 00         JNZ STL
+  183  0049: C9               RET
+  184            
+  185            ; ---------------------------------------------------------------------
+  186            ; SCANALL: опрос всех 4 колонок; A = ИЛИ рядов (0 = нажатий нет);
+  187            ; колонки на выходе погашены. Портит A/B/C/D/E.
+  188            ; ---------------------------------------------------------------------
+  189  004A: AF       SCANALL: XRA A
+  190  004B: 5F               MOV E,A             ; E = накопитель
+  191  004C: 16 01            MVI D,01h           ; D = бит колонки
+  192  004E: 7A       SAL1:   MOV A,D
+  193  004F: D3 02            OUT KBCOLP
+  194  0051: CD 40 00         CALL SETTLE
+  195  0054: DB 03            IN KBROWP
+  196  0056: E6 1F            ANI 1Fh
+  197  0058: B3               ORA E
+  198  0059: 5F               MOV E,A
+  199  005A: 7A               MOV A,D
+  200  005B: 07               RLC
+  201  005C: 57               MOV D,A
+  202  005D: FE 10            CPI 10h
+  203  005F: C2 4E 00         JNZ SAL1
+  204  0062: AF               XRA A
+  205  0063: D3 02            OUT KBCOLP
+  206  0065: 7B               MOV A,E
+  207  0066: C9               RET
+  208            
+  209            ; ---------------------------------------------------------------------
+  210            ; REFRESH: один слот регенерации. ГАШЕНИЕ -> РАЗРЯД -> ГЛИФ.
+  211            ; DIGIMG[DPIDX] на разряд DPIDX. Бит D4 (SND) уносится записью DIGP -
+  212            ; дисплей при тоне не гаснет. Портит A/B/C/H/L.
+  213            ; ---------------------------------------------------------------------
+  214  0067: 3A F4 FF REFRESH: LDA DPIDX
+  215  006A: 4F               MOV C,A             ; C = индекс 0..3
+  216  006B: 06 00            MVI B,0
+  217  006D: 21 13 00         LXI H,BITTBL
+  218  0070: 09               DAD B
+  219  0071: 46               MOV B,M             ; B = бит разряда (01,02,04,08)
+  220  0072: 21 F5 FF         LXI H,DIGIMG        ; HL = DIGIMG + DPIDX
+  221  0075: 79       RFIL:   MOV A,C
+  222  0076: B7               ORA A
+  223  0077: CA 7F 00         JZ RFGD
+  224  007A: 2C               INR L
+  225  007B: 0D               DCR C
+  226  007C: C3 75 00         JMP RFIL
+  227  007F: 4E       RFGD:   MOV C,M             ; C = глиф разряда
+  228  0080: 3A E8 FF         LDA SNDST
+  229  0083: B7               ORA A
+  230  0084: CA 8B 00         JZ RFN
+  231  0087: 78               MOV A,B
+  232  0088: F6 10            ORI 10h
+  233  008A: 47               MOV B,A             ; B |= SND
+  234  008B: AF       RFN:    XRA A
+  235  008C: D3 00            OUT SEGP            ; (1) гашение: старый разряд погас
+  236  008E: 78               MOV A,B
+  237  008F: D3 01            OUT DIGP            ; (2) разряд переключён (сегменты пусты)
+  238  0091: 79               MOV A,C
+  239  0092: D3 00            OUT SEGP            ; (3) зажгли глиф нового разряда
+  240  0094: 3A F4 FF         LDA DPIDX
+  241  0097: 3C               INR A
+  242  0098: E6 03            ANI 03h
+  243  009A: 32 F4 FF         STA DPIDX
+  244  009D: C9               RET
+  245            
+  246            ; ---------------------------------------------------------------------
+  247            ; BUNIT: единица ~1 мс + тоггл SNDST + регенерация дисплея
+  248            ;         + XSTREAM SW-тик (кадр не останавливается на тоне/дебаунсе)
+  249            ; QUNIT: единица ~1 мс без звука, дисплей живёт
+  250            ; ---------------------------------------------------------------------
+  251  009E: 01 90 00 BUNIT:  LXI B,K_MS
+  252  00A1: 0B       BUL:    DCX B
+  253  00A2: 78               MOV A,B
+  254  00A3: B1               ORA C
+  255  00A4: C2 A1 00         JNZ BUL
+  256  00A7: 3A E8 FF         LDA SNDST
+  257  00AA: EE 01            XRI 01h
+  258  00AC: 32 E8 FF         STA SNDST
+  259  00AF: CD 67 00         CALL REFRESH
+  260  00B2: 3E 04            MVI A,XS_QINC
+  261  00B4: CD 86 04         CALL XSCHK          ; XSTREAM: тик кадра
+  262  00B7: C9               RET
+  263            
+  264  00B8: 01 90 00 QUNIT:  LXI B,K_MS
+  265  00BB: 0B       QUL:    DCX B
+  266  00BC: 78               MOV A,B
+  267  00BD: B1               ORA C
+  268  00BE: C2 BB 00         JNZ QUL
+  269  00C1: CD 67 00         CALL REFRESH
+  270  00C4: C9               RET
+  271            
+  272            ; ---------------------------------------------------------------------
+  273            ; TICKON: короткий тик подтверждения клавиши (TICK_MS единиц ~1 мс,
+  274            ; тон ~415 Гц на CPU 3.125 МГц). Счётчик - В DE.
+  275            ; ---------------------------------------------------------------------
+  276  00C5: 11 1E 00 TICKON: LXI D,TICK_MS
+  277  00C8: CD 9E 00 TK1:    CALL BUNIT
+  278  00CB: 1B               DCX D
+  279  00CC: 7A               MOV A,D
+  280  00CD: B3               ORA E
+  281  00CE: C2 C8 00         JNZ TK1
+  282  00D1: AF               XRA A
+  283  00D2: 32 E8 FF         STA SNDST           ; тон гарантированно погашен
+  284  00D5: C9               RET
+  285            
+  286            ; ---------------------------------------------------------------------
+  287            ; GLOOK: A = тетрада 0..F -> A = глиф (GTBL). Портит A/B/C/H/L.
+  288            ; ---------------------------------------------------------------------
+  289  00D6: 4F       GLOOK:  MOV C,A
+  290  00D7: 06 00            MVI B,0
+  291  00D9: 21 03 00         LXI H,GTBL
+  292  00DC: 09               DAD B
+  293  00DD: 7E               MOV A,M
+  294  00DE: C9               RET
+  295            
+  296            ; ---------------------------------------------------------------------
+  297            ; REDRAW: пересобрать DIGIMG[0..3] по состоянию (меню/адрес/код/...)
+  298            ; ---------------------------------------------------------------------
+  299  00DF: 3A E9 FF REDRAW: LDA STATE
+  300  00E2: B7               ORA A
+  301  00E3: CA 84 01         JZ RDM
+  302  00E6: FE 01            CPI 01h
+  303  00E8: CA 9B 01         JZ RDA
+  304  00EB: FE 03            CPI 03h
+  305  00ED: CA 26 01         JZ RDV
+  306  00F0: FE 04            CPI 04h
+  307  00F2: CA 4F 01         JZ RDW
+  308                    ; ---- ST_PROG ----
+  309  00F5: AF               XRA A
+  310  00F6: 32 F8 FF         STA DIGIMG3
+  311  00F9: 32 F7 FF         STA DIGIMG2
+  312  00FC: 32 F6 FF         STA DIGIMG1
+  313  00FF: 32 F5 FF         STA DIGIMG0
+  314  0102: 3A F1 FF         LDA BDCNT
+  315  0105: FE 02            CPI 02h
+  316  0107: DA 13 01         JC RDPR0            ; <2 - старшая тетрада пуста
+  317  010A: 3A F2 FF         LDA BF1
+  318  010D: CD D6 00         CALL GLOOK
+  319  0110: 32 F6 FF         STA DIGIMG1
+  320  0113: 3A F1 FF RDPR0:  LDA BDCNT
+  321  0116: B7               ORA A
+  322  0117: CA EC 01         JZ RDRE             ; 0 - младшая тоже пуста
+  323  011A: 3A F3 FF         LDA BF0
+  324  011D: CD D6 00         CALL GLOOK
+  325  0120: 32 F5 FF         STA DIGIMG0
+  326  0123: C3 EC 01         JMP RDRE
+  327  0126: 3A EA FF RDV:    LDA ADDRH           ; ---- ST_VIEW: [ADDR] в правых разрядах ----
+  328  0129: 67               MOV H,A
+  329  012A: 3A EB FF         LDA ADDRL
+  330  012D: 6F               MOV L,A             ; HL = ADDR
+  331  012E: 7E               MOV A,M             ; A = [ADDR] (HL>=8000h - ОЗУ)
+  332  012F: 57               MOV D,A             ; D = байт (GLOOK портит B)
+  333  0130: 0F               RRC
+  334  0131: 0F               RRC
+  335  0132: 0F               RRC
+  336  0133: 0F               RRC
+  337  0134: E6 0F            ANI 0Fh             ; старшая тетрада
+  338  0136: CD D6 00         CALL GLOOK
+  339  0139: 32 F6 FF         STA DIGIMG1
+  340  013C: 7A               MOV A,D
+  341  013D: E6 0F            ANI 0Fh             ; младшая тетрада
+  342  013F: CD D6 00         CALL GLOOK
+  343  0142: 32 F5 FF         STA DIGIMG0
+  344  0145: AF               XRA A
+  345  0146: 32 F8 FF         STA DIGIMG3
+  346  0149: 32 F7 FF         STA DIGIMG2
+  347  014C: C3 EC 01         JMP RDRE
+  348  014F: 3A EA FF RDW:    LDA ADDRH           ; ---- ST_SHOW: ADDR на 4 разрядах ----
+  349  0152: 57               MOV D,A             ; D = старший байт (GLOOK портит B)
+  350  0153: 0F               RRC
+  351  0154: 0F               RRC
+  352  0155: 0F               RRC
+  353  0156: 0F               RRC
+  354  0157: E6 0F            ANI 0Fh             ; старшая тетрада
+  355  0159: CD D6 00         CALL GLOOK
+  356  015C: 32 F8 FF         STA DIGIMG3
+  357  015F: 7A               MOV A,D
+  358  0160: E6 0F            ANI 0Fh
+  359  0162: CD D6 00         CALL GLOOK
+  360  0165: 32 F7 FF         STA DIGIMG2
+  361  0168: 3A EB FF         LDA ADDRL
+  362  016B: 57               MOV D,A
+  363  016C: 0F               RRC
+  364  016D: 0F               RRC
+  365  016E: 0F               RRC
+  366  016F: 0F               RRC
+  367  0170: E6 0F            ANI 0Fh
+  368  0172: CD D6 00         CALL GLOOK
+  369  0175: 32 F6 FF         STA DIGIMG1
+  370  0178: 7A               MOV A,D
+  371  0179: E6 0F            ANI 0Fh
+  372  017B: CD D6 00         CALL GLOOK
+  373  017E: 32 F5 FF         STA DIGIMG0
+  374  0181: C3 EC 01         JMP RDRE
+  375  0184: 3E 77    RDM:    MVI A,77h           ; 'A'
+  376  0186: 32 F8 FF         STA DIGIMG3
+  377  0189: 3E 39            MVI A,39h           ; 'C'
+  378  018B: 32 F7 FF         STA DIGIMG2
+  379  018E: 3E 5E            MVI A,5Eh           ; 'd' (D)
+  380  0190: 32 F6 FF         STA DIGIMG1
+  381  0193: 3E 79            MVI A,79h           ; 'E'
+  382  0195: 32 F5 FF         STA DIGIMG0
+  383  0198: C3 EC 01         JMP RDRE
+  384  019B: AF       RDA:    XRA A               ; ---- ST_ADDR: последняя тетрада справа ----
+  385  019C: 32 F8 FF         STA DIGIMG3
+  386  019F: 32 F7 FF         STA DIGIMG2
+  387  01A2: 32 F6 FF         STA DIGIMG1
+  388  01A5: 32 F5 FF         STA DIGIMG0
+  389  01A8: 3A EC FF         LDA ADCNT
+  390  01AB: FE 01            CPI 01h             ; 0 тетрад - всё пусто
+  391  01AD: DA EC 01         JC RDRE
+  392  01B0: 3A F0 FF         LDA AF0             ; DIG0 = AF0 (последний ввод)
+  393  01B3: CD D6 00         CALL GLOOK
+  394  01B6: 32 F5 FF         STA DIGIMG0
+  395  01B9: 3A EC FF         LDA ADCNT
+  396  01BC: FE 02            CPI 02h
+  397  01BE: DA EC 01         JC RDRE
+  398  01C1: 3A EF FF         LDA AF1             ; DIG1 = AF1
+  399  01C4: CD D6 00         CALL GLOOK
+  400  01C7: 32 F6 FF         STA DIGIMG1
+  401  01CA: 3A EC FF         LDA ADCNT
+  402  01CD: FE 03            CPI 03h
+  403  01CF: DA EC 01         JC RDRE
+  404  01D2: 3A EE FF         LDA AF2             ; DIG2 = AF2
+  405  01D5: CD D6 00         CALL GLOOK
+  406  01D8: 32 F7 FF         STA DIGIMG2
+  407  01DB: 3A EC FF         LDA ADCNT
+  408  01DE: FE 04            CPI 04h
+  409  01E0: DA EC 01         JC RDRE
+  410  01E3: 3A ED FF         LDA AF3             ; DIG3 = AF3 (старшая)
+  411  01E6: CD D6 00         CALL GLOOK
+  412  01E9: 32 F8 FF         STA DIGIMG3
+  413  01EC: C9       RDRE:   RET
+  414            
+  415            ; ---------------------------------------------------------------------
+  416            ; MAIN / MAIN2
+  417            ; ---------------------------------------------------------------------
+  418  01ED: F3       MAIN:   DI
+  419  01EE: 31 E8 FF         LXI SP,SP0
+  420  01F1: 3E 80            MVI A,80h           ; адрес по умолчанию 8000h (начало ОЗУ)
+  421  01F3: 32 EA FF         STA ADDRH
+  422  01F6: AF               XRA A
+  423  01F7: 32 EB FF         STA ADDRL
+  424  01FA: CD 47 04         CALL XSINIT         ; XSTREAM v1: демо-экран B000h, SEQ=0 (холодный старт)
+  425                    IF TMR_HW
+  426                    EI                  ; HW: поток идёт всегда (ISR самодостаточен)
+  427                    ENDIF
+  428  01FD: AF       MAIN2:  XRA A
+  429  01FE: D3 00            OUT SEGP            ; дисплей погашен (после сброса горел "8.")
+  430  0200: D3 01            OUT DIGP            ; разряды off, SND off
+  431  0202: D3 02            OUT KBCOLP          ; колонки off (безопасный INIT)
+  432  0204: 32 E8 FF         STA SNDST
+  433  0207: 32 EC FF         STA ADCNT
+  434  020A: 32 F1 FF         STA BDCNT
+  435  020D: 32 F4 FF         STA DPIDX
+  436  0210: 32 E9 FF         STA STATE           ; ST_MENU
+  437  0213: 32 F9 FF         STA PREVST          ; прежний режим детерминирован (0 = меню)
+  438  0216: CD DF 00         CALL REDRAW         ; "ACdE"
+  439            
+  440            ; ---- главный цикл: скан 4 колонок, без нажатий - слот регенерации ----
+  441  0219: 1E 00    SCAN:   MVI E,0             ; E = индекс колонки 0..3
+  442  021B: 16 01            MVI D,01h           ; D = бит колонки
+  443  021D: 7A       SC1:    MOV A,D
+  444  021E: D3 02            OUT KBCOLP
+  445  0220: CD 40 00         CALL SETTLE
+  446  0223: DB 03            IN KBROWP
+  447  0225: E6 1F            ANI 1Fh
+  448  0227: C2 3E 02         JNZ HIT
+  449  022A: 7A               MOV A,D
+  450  022B: 07               RLC
+  451  022C: 57               MOV D,A
+  452  022D: 1C               INR E
+  453  022E: FE 10            CPI 10h
+  454  0230: C2 1D 02         JNZ SC1
+  455  0233: CD 67 00         CALL REFRESH        ; нажатий нет - слот дисплея
+  456  0236: 3E 01            MVI A,1
+  457  0238: CD 86 04         CALL XSCHK          ; XSTREAM: SW-тик кадра (в HW-режиме - тихий RET)
+  458  023B: C3 19 02         JMP SCAN
+  459            
+  460            ; ---- нажатие поймано: A = ряды, E = индекс колонки ----
+  461  023E: F5       HIT:    PUSH PSW
+  462  023F: AF               XRA A
+  463  0240: D3 02            OUT KBCOLP          ; колонки off (фиксируем факт нажатия)
+  464  0242: F1               POP PSW
+  465            
+  466  0243: 16 00            MVI D,0             ; D = номер строки
+  467  0245: 0F       H1:     RRC
+  468  0246: DA 4D 02         JC H2
+  469  0249: 14               INR D
+  470  024A: C3 45 02         JMP H1
+  471  024D: 7A       H2:     MOV A,D             ; D = строка, E = колонка; код = KEYTBL[row*4+col]
+  472  024E: 07               RLC
+  473  024F: 07               RLC                 ; A = row*4
+  474  0250: 4F               MOV C,A
+  475  0251: 7B               MOV A,E
+  476  0252: B1               ORA C               ; | col
+  477  0253: 4F               MOV C,A
+  478  0254: 06 00            MVI B,0
+  479  0256: 21 17 00         LXI H,KEYTBL
+  480  0259: 09               DAD B
+  481  025A: 7E               MOV A,M
+  482  025B: FE FF            CPI 0FFh
+  483  025D: CA 63 02         JZ NKEY             ; пустая позиция матрицы
+  484  0260: CD 8A 02         CALL DISPATCH
+  485  0263: CD 4A 00 NKEY:   CALL SCANALL        ; ожидание отпускания + дебаунс
+  486  0266: E6 1F            ANI 1Fh
+  487  0268: CA 76 02         JZ WDN
+  488  026B: CD 67 00         CALL REFRESH
+  489  026E: 3E 01            MVI A,1
+  490  0270: CD 86 04         CALL XSCHK          ; XSTREAM: кадр идёт и при удержании клавиши
+  491  0273: C3 63 02         JMP NKEY
+  492  0276: 11 1E 00 WDN:    LXI D,SET_MS        ; счётчик В DE (QUNIT->REFRESH портит HL)
+  493  0279: CD B8 00 ST1:    CALL QUNIT
+  494  027C: 3E 04            MVI A,XS_QINC
+  495  027E: CD 86 04         CALL XSCHK          ; XSTREAM: кадр идёт во время дебаунса
+  496  0281: 1B               DCX D
+  497  0282: 7A               MOV A,D
+  498  0283: B3               ORA E
+  499  0284: C2 79 02         JNZ ST1
+  500  0287: C3 19 02         JMP SCAN
+  501            
+  502            ; ---------------------------------------------------------------------
+  503            ; DISPATCH: обработка кода клавиши (A). F1 - глобально в меню,
+  504            ; F2 - глобально показать адрес операций (повторное F2 - назад).
+  505            ; Смены состояния подтверждаются тиком; K_IGN - молча.
+  506            ; ---------------------------------------------------------------------
+  507  028A: 4F       DISPATCH: MOV C,A           ; C = КОД КЛАВИШИ (LDA STATE затирает A!)
+  508  028B: FE 12            CPI K_F2
+  509  028D: CA CF 03         JZ K_F2E
+  510  0290: FE 11            CPI K_F1
+  511  0292: CA F4 03         JZ K_F1E
+  512  0295: 3A E9 FF         LDA STATE
+  513  0298: B7               ORA A
+  514  0299: CA 8D 03         JZ DSM
+  515  029C: FE 01            CPI 01h
+  516  029E: CA 26 03         JZ DSA
+  517  02A1: FE 02            CPI 02h
+  518  02A3: CA CA 02         JZ DSP
+  519  02A6: FE 04            CPI 04h
+  520  02A8: CA F3 03         JZ DSW              ; показ адреса: прочие клавиши - игнор
+  521                    ; ================= ST_VIEW =================
+  522  02AB: 79       DSV:    MOV A,C             ; вернули код клавиши
+  523  02AC: FE 10            CPI K_ENT
+  524  02AE: CA B2 02         JZ VENT
+  525  02B1: C9               RET                 ; тетрады - игнор (режим только чтение)
+  526  02B2: 3A EB FF VENT:   LDA ADDRL
+  527  02B5: 6F               MOV L,A
+  528  02B6: 3A EA FF         LDA ADDRH
+  529  02B9: 67               MOV H,A
+  530  02BA: 23               INX H               ; ADDR++
+  531  02BB: 7C               MOV A,H
+  532  02BC: 32 EA FF         STA ADDRH
+  533  02BF: 7D               MOV A,L
+  534  02C0: 32 EB FF         STA ADDRL
+  535  02C3: CD C5 00         CALL TICKON
+  536  02C6: CD DF 00         CALL REDRAW         ; следующий байт на дисплее
+  537  02C9: C9               RET
+  538                    ; ================= ST_PROG =================
+  539  02CA: 79       DSP:    MOV A,C             ; вернули код клавиши
+  540  02CB: FE 10            CPI K_ENT
+  541  02CD: CA F5 02         JZ PENT
+  542  02D0: FE 10            CPI 10h
+  543  02D2: DA D6 02         JC PDIG             ; 00h..0Fh - тетрада байта
+  544  02D5: C9               RET                 ; прочие - игнор
+  545  02D6: 79       PDIG:   MOV A,C             ; A = тетрада
+  546  02D7: 47               MOV B,A             ; B = тетрада (C больше не нужен)
+  547  02D8: 3A F3 FF         LDA BF0
+  548  02DB: 32 F2 FF         STA BF1             ; сдвиг: BF1 = BF0
+  549  02DE: 78               MOV A,B
+  550  02DF: 32 F3 FF         STA BF0             ; BF0 = новая тетрада
+  551  02E2: 3A F1 FF         LDA BDCNT
+  552  02E5: FE 02            CPI 02h
+  553  02E7: D2 EE 02         JNC PDS
+  554  02EA: 3C               INR A
+  555  02EB: 32 F1 FF         STA BDCNT
+  556  02EE: CD C5 00 PDS:    CALL TICKON
+  557  02F1: CD DF 00         CALL REDRAW
+  558  02F4: C9               RET
+  559  02F5: 3A F1 FF PENT:   LDA BDCNT
+  560  02F8: B7               ORA A
+  561  02F9: CA 25 03         JZ PIGN             ; пусто - игнор (без записи)
+  562  02FC: 3A F2 FF         LDA BF1
+  563  02FF: 07               RLC
+  564  0300: 07               RLC
+  565  0301: 07               RLC
+  566  0302: 07               RLC
+  567  0303: 4F               MOV C,A
+  568  0304: 3A F3 FF         LDA BF0
+  569  0307: B1               ORA C               ; C = байт
+  570  0308: 4F               MOV C,A
+  571  0309: 3A EA FF         LDA ADDRH
+  572  030C: 67               MOV H,A
+  573  030D: 3A EB FF         LDA ADDRL
+  574  0310: 6F               MOV L,A
+  575  0311: 71               MOV M,C             ; [ADDR] = байт (A15=0 железо отбросит)
+  576  0312: 23               INX H               ; ADDR++
+  577  0313: 7C               MOV A,H
+  578  0314: 32 EA FF         STA ADDRH
+  579  0317: 7D               MOV A,L
+  580  0318: 32 EB FF         STA ADDRL
+  581  031B: AF               XRA A
+  582  031C: 32 F1 FF         STA BDCNT           ; поле гасится - ждем следующий байт
+  583  031F: CD C5 00         CALL TICKON
+  584  0322: CD DF 00         CALL REDRAW
+  585  0325: C9       PIGN:   RET
+  586                    ; ================= ST_ADDR =================
+  587  0326: 79       DSA:    MOV A,C             ; вернули код клавиши
+  588  0327: FE 10            CPI K_ENT
+  589  0329: CA 5D 03         JZ AENT
+  590  032C: FE 10            CPI 10h
+  591  032E: DA 32 03         JC ADIG             ; 00h..0Fh - тетрада адреса
+  592  0331: C9               RET
+  593  0332: 79       ADIG:   MOV A,C             ; A = тетрада
+  594  0333: 47               MOV B,A             ; B = тетрада
+  595  0334: 3A EE FF         LDA AF2
+  596  0337: 32 ED FF         STA AF3
+  597  033A: 3A EF FF         LDA AF1
+  598  033D: 32 EE FF         STA AF2
+  599  0340: 3A F0 FF         LDA AF0
+  600  0343: 32 EF FF         STA AF1
+  601  0346: 78               MOV A,B
+  602  0347: 32 F0 FF         STA AF0
+  603  034A: 3A EC FF         LDA ADCNT
+  604  034D: FE 04            CPI 04h
+  605  034F: D2 56 03         JNC ADS
+  606  0352: 3C               INR A
+  607  0353: 32 EC FF         STA ADCNT
+  608  0356: CD C5 00 ADS:    CALL TICKON
+  609  0359: CD DF 00         CALL REDRAW
+  610  035C: C9               RET
+  611  035D: 3A EC FF AENT:   LDA ADCNT
+  612  0360: B7               ORA A
+  613  0361: CA 8C 03         JZ AIGN             ; пусто - игнор
+  614  0364: 3A ED FF         LDA AF3
+  615  0367: 07               RLC
+  616  0368: 07               RLC
+  617  0369: 07               RLC
+  618  036A: 07               RLC
+  619  036B: 4F               MOV C,A
+  620  036C: 3A EE FF         LDA AF2
+  621  036F: B1               ORA C
+  622  0370: 32 EA FF         STA ADDRH
+  623  0373: 3A EF FF         LDA AF1
+  624  0376: 07               RLC
+  625  0377: 07               RLC
+  626  0378: 07               RLC
+  627  0379: 07               RLC
+  628  037A: 4F               MOV C,A
+  629  037B: 3A F0 FF         LDA AF0
+  630  037E: B1               ORA C
+  631  037F: 32 EB FF         STA ADDRL
+  632  0382: AF               XRA A
+  633  0383: 32 E9 FF         STA STATE           ; в меню
+  634  0386: CD C5 00         CALL TICKON
+  635  0389: CD DF 00         CALL REDRAW
+  636  038C: C9       AIGN:   RET
+  637                    ; ================= ST_MENU =================
+  638  038D: 79       DSM:    MOV A,C             ; вернули код клавиши
+  639  038E: FE 0A            CPI 0Ah             ; 'A' - ввод адреса
+  640  0390: CA A3 03         JZ KAD
+  641  0393: FE 0C            CPI 0Ch             ; 'C' - ввод кода (Code)
+  642  0395: CA B3 03         JZ KPR
+  643  0398: FE 0D            CPI 0Dh             ; 'D' - просмотр кода
+  644  039A: CA C3 03         JZ KVD
+  645  039D: FE 0E            CPI 0Eh             ; 'E' - выполнить
+  646  039F: CA FF 03         JZ KGO
+  647  03A2: C9               RET                 ; остальные (в т.ч. B) - игнор
+  648  03A3: 3E 01    KAD:    MVI A,ST_ADDR
+  649  03A5: 32 E9 FF         STA STATE
+  650  03A8: AF               XRA A
+  651  03A9: 32 EC FF         STA ADCNT
+  652  03AC: CD C5 00         CALL TICKON
+  653  03AF: CD DF 00         CALL REDRAW
+  654  03B2: C9               RET
+  655  03B3: 3E 02    KPR:    MVI A,ST_PROG       ; C: ввод кода (Code)
+  656  03B5: 32 E9 FF         STA STATE
+  657  03B8: AF               XRA A
+  658  03B9: 32 F1 FF         STA BDCNT
+  659  03BC: CD C5 00         CALL TICKON
+  660  03BF: CD DF 00         CALL REDRAW
+  661  03C2: C9               RET
+  662  03C3: 3E 03    KVD:    MVI A,ST_VIEW       ; D: просмотр кода
+  663  03C5: 32 E9 FF         STA STATE
+  664  03C8: CD C5 00         CALL TICKON
+  665  03CB: CD DF 00         CALL REDRAW
+  666  03CE: C9               RET
+  667            ; ---- F2: показ адреса операций (глобально; повторное F2 - назад) ----
+  668  03CF: 3A E9 FF K_F2E:  LDA STATE
+  669  03D2: FE 04            CPI ST_SHOW
+  670  03D4: CA E6 03         JZ KF2B             ; уже показываем - вернуть прежний режим
+  671  03D7: 32 F9 FF         STA PREVST          ; запомнить, откуда пришли
+  672  03DA: 3E 04            MVI A,ST_SHOW
+  673  03DC: 32 E9 FF         STA STATE
+  674  03DF: CD C5 00         CALL TICKON
+  675  03E2: CD DF 00         CALL REDRAW
+  676  03E5: C9               RET
+  677  03E6: 3A F9 FF KF2B:   LDA PREVST
+  678  03E9: 32 E9 FF         STA STATE
+  679  03EC: CD C5 00         CALL TICKON
+  680  03EF: CD DF 00         CALL REDRAW
+  681  03F2: C9               RET
+  682  03F3: C9       DSW:    RET                 ; показ адреса: Enter/тетрады не действуют
+  683  03F4: AF       K_F1E:  XRA A
+  684  03F5: 32 E9 FF         STA STATE           ; меню (из любого режима)
+  685  03F8: CD C5 00         CALL TICKON
+  686  03FB: CD DF 00         CALL REDRAW
+  687  03FE: C9               RET
+  688                    ; ================= GO: запуск =================
+  689  03FF: AF       KGO:    XRA A
+  690  0400: D3 00            OUT SEGP            ; сегменты 0
+  691  0402: D3 01            OUT DIGP            ; разряды 0, SND 0
+  692  0404: D3 02            OUT KBCOLP          ; колонки off
+  693  0406: F3               DI
+  694  0407: 31 E8 FF         LXI SP,SP0
+  695  040A: 21 1C 04         LXI H,MONRET
+  696  040D: E5               PUSH H              ; адрес возврата в монитор
+  697                    IF TMR_HW
+  698                    EI                  ; пользовательская программа живёт вместе с потоком
+  699                    ENDIF
+  700  040E: 3A EA FF         LDA ADDRH
+  701  0411: 67               MOV H,A
+  702  0412: 3A EB FF         LDA ADDRL
+  703  0415: 6F               MOV L,A             ; HL = адрес запуска
+  704  0416: AF               XRA A
+  705  0417: 47               MOV B,A
+  706  0418: 4F               MOV C,A
+  707  0419: 57               MOV D,A
+  708  041A: 5F               MOV E,A             ; регистры обнулены
+  709  041B: E9               PCHL                ; ушли в программу пользователя
+  710  041C: F3       MONRET: DI
+  711  041D: 31 E8 FF         LXI SP,SP0
+  712                    ; ждем отпускания всех клавиш + дебаунс
+  713  0420: CD 4A 00 MNR1:   CALL SCANALL
+  714  0423: E6 1F            ANI 1Fh
+  715  0425: CA 33 04         JZ MNR2
+  716  0428: CD 67 00         CALL REFRESH
+  717  042B: 3E 01            MVI A,1
+  718  042D: CD 86 04         CALL XSCHK          ; XSTREAM: кадр идёт при удержании клавиши
+  719  0430: C3 20 04         JMP MNR1
+  720  0433: 11 1E 00 MNR2:   LXI D,SET_MS        ; счётчик В DE (QUNIT->REFRESH портит HL)
+  721  0436: CD B8 00 MNR3:   CALL QUNIT
+  722  0439: 3E 04            MVI A,XS_QINC
+  723  043B: CD 86 04         CALL XSCHK          ; XSTREAM: кадр идёт во время дебаунса
+  724  043E: 1B               DCX D
+  725  043F: 7A               MOV A,D
+  726  0440: B3               ORA E
+  727  0441: C2 36 04         JNZ MNR3
+  728                    IF TMR_HW
+  729                    EI                  ; возврат потока после DI пользователя/монитора
+  730                    ENDIF
+  731  0444: C3 FD 01         JMP MAIN2           ; реинициализация, ADDR сохранен
+  732            
+  733            ; =====================================================================
+  734            ;                     XSTREAM v1: ЭКРАН -> UART
+  735            ; =====================================================================
+  736            ; ---------------------------------------------------------------------
+  737            ; XSINIT (из MAIN, только холодный старт): демо-экран в B000h,
+  738            ; SEQ/PASS = 0. В HW-варианте: делитель, запуск таймера, маска SIM
+  739            ; (M7.5 = НЕ маскировать, 6.5/5.5 маскированы), EI.
+  740            ; Мониторные переменные не трогаются; B000-B7CF - пользовательская
+  741            ; область: ЛЮБАЯ программа может рисовать туда свой текст/графику.
+  742            ; ---------------------------------------------------------------------
+  743  0447: CD 6C 04 XSINIT: CALL XBLANK
+  744  044A: 21 04 07         LXI H,XTBL
+  745  044D: 5E       XSI1:   MOV E,M             ; DE = адрес назначения
+  746  044E: 23               INX H
+  747  044F: 56               MOV D,M
+  748  0450: 23               INX H               ; HL -> src_lo
+  749  0451: 7A               MOV A,D             ; конец таблицы (dst == 0000)?
+  750  0452: B3               ORA E
+  751  0453: CA 64 04         JZ XSI3
+  752  0456: 4E               MOV C,M             ; BC = адрес строки (источник)
+  753  0457: 23               INX H
+  754  0458: 46               MOV B,M
+  755  0459: 23               INX H               ; HL -> следующая запись
+  756  045A: E5               PUSH H              ; указатель следующей записи -> стек
+  757  045B: 60               MOV H,B
+  758  045C: 69               MOV L,C
+  759  045D: CD 7D 04         CALL XCPY           ; ASCIZ [HL] -> [DE], 0 = конец
+  760  0460: E1               POP H
+  761  0461: C3 4D 04         JMP XSI1
+  762  0464: AF       XSI3:   XRA A
+  763  0465: 32 FA FF         STA XSSEQ
+  764  0468: 32 FB FF         STA XSPASS
+  765                    IF TMR_HW
+  766                    MVI A,XS_DIVN
+  767                    STA XSDIV
+  768                    MVI A,TMR_N
+  769                    OUT TMRP            ; запустить таймер: 1-й фронт через ~12 мс
+  770                    MVI A,00011000b     ; SIM: MSE=1, M7.5=0 (НЕ маскировать), 6.5/5.5 маскированы
+  771                    SIM
+  772                    EI
+  773                    ENDIF
+  774  046B: C9               RET
+  775            
+  776  046C: 21 00 B0 XBLANK: LXI H,XBUF          ; 2000 пробелов
+  777  046F: 01 D0 07         LXI B,2000
+  778  0472: 3E 20    XB1:    MVI A,20h
+  779  0474: 77               MOV M,A
+  780  0475: 23               INX H
+  781  0476: 0B               DCX B
+  782  0477: 78               MOV A,B
+  783  0478: B1               ORA C
+  784  0479: C2 72 04         JNZ XB1
+  785  047C: C9               RET
+  786            
+  787  047D: 7E       XCPY:   MOV A,M             ; ASCIZ: [HL]->[DE], 0 = конец (A/флаги)
+  788  047E: B7               ORA A
+  789  047F: C8               RZ
+  790  0480: 12               STAX D
+  791  0481: 23               INX H
+  792  0482: 13               INX D
+  793  0483: C3 7D 04         JMP XCPY
+  794            
+  795            ; ---------------------------------------------------------------------
+  796            ; XSCHK: SW-тик кадра. A = добавка слотов (1 = слот скана ~0.37 мс,
+  797            ; XS_QINC = единица QUNIT/BUNIT ~1.2 мс). Накопитель XSPASS;
+  798            ; порог XS_TH -> XSEND (~24.3 мс) и сброс. Портит A/C; D/E/B целы.
+  799            ; В HW-варианте тело выключено (кадр ведёт ISR) - вызов = RET.
+  800            ; ---------------------------------------------------------------------
+  801                    IF TMR_HW
+  802            XSCHK:  RET                 ; HW: кадр ведёт ISR по таймеру; SW-тик отключён
+  803                    ELSE
+  804  0486: 4F       XSCHK:  MOV C,A
+  805  0487: 3A FB FF         LDA XSPASS
+  806  048A: 81               ADD C
+  807  048B: 32 FB FF         STA XSPASS
+  808  048E: FE 47            CPI XS_TH
+  809  0490: DA 9A 04         JC XSKR             ; < порога - выход
+  810  0493: CD 9B 04         CALL XSEND          ; КАДР -> UART (~24.3 мс)
+  811  0496: AF               XRA A
+  812  0497: 32 FB FF         STA XSPASS          ; счётчик заново
+  813  049A: C9       XSKR:   RET
+  814                    ENDIF
+  815            
+  816            ; ---------------------------------------------------------------------
+  817            ; XSEND: кадр XSTREAM в UART: A5 5A [SEQ] + 2000 Б из XBUF.
+  818            ;   Сохраняет PSW/B/D/H. РАВНОМЕРНЫЙ пейсинг 35T/Б (7+10+6+3x4 >= 31.25T,
+  819            ;   ноль отбросов TX, прецедент p04); каждые 80 Б - слот дисплея XDIG
+  820            ;   (D/E - фаза дисплея, C свободен после inner, B - внешний 20x100).
+  821            ; ---------------------------------------------------------------------
+  822  049B: F5       XSEND:  PUSH PSW
+  823  049C: C5               PUSH B
+  824  049D: D5               PUSH D
+  825  049E: E5               PUSH H
+  826  049F: CD 48 05         CALL XUPDCTR        ; живой счётчик SEQ в демо-экран
+  827  04A2: 3E A5            MVI A,0A5h
+  828  04A4: D3 04            OUT TXPORT          ; шапка: равномерный пейсинг 33T (4 NOP)
+  829  04A6: 00               NOP
+  830  04A7: 00               NOP
+  831  04A8: 00               NOP
+  832  04A9: 00               NOP
+  833  04AA: 3E 5A            MVI A,05Ah
+  834  04AC: D3 04            OUT TXPORT
+  835  04AE: 00               NOP
+  836  04AF: 00               NOP
+  837  04B0: 00               NOP
+  838  04B1: 00               NOP
+  839  04B2: 3A FA FF         LDA XSSEQ
+  840  04B5: D3 04            OUT TXPORT
+  841  04B7: 00               NOP
+  842  04B8: 00               NOP
+  843  04B9: 00               NOP
+  844  04BA: 00               NOP
+  845  04BB: 3C               INR A
+  846  04BC: 32 FA FF         STA XSSEQ           ; SEQ++ mod 256
+  847  04BF: 21 13 00         LXI H,BITTBL        ; фаза дисплея: E = бит разряда, D = ptr глифа
+  848  04C2: 3A F4 FF         LDA DPIDX
+  849  04C5: 4F               MOV C,A
+  850  04C6: 06 00            MVI B,0
+  851  04C8: 09               DAD B
+  852  04C9: 7E               MOV A,M
+  853  04CA: 5F               MOV E,A
+  854  04CB: 79               MOV A,C
+  855  04CC: C6 F5            ADI 0F5h            ; DIGIMG = 0FFF5h (+DPIDX 0..3)
+  856  04CE: 57               MOV D,A
+  857  04CF: 21 00 B0         LXI H,XBUF          ; HL = экран
+  858  04D2: 06 0A            MVI B,10            ; внешний: 10 групп по 200 Б (слот дисплея)
+  859  04D4: 0E 19    XSOUT:  MVI C,25            ; внутренний: 25 подгрупп по 8 Б
+  860  04D6: 7E       XSL:    MOV A,M
+  861  04D7: D3 04            OUT TXPORT          ; равномерный пейсинг: гэп OUT->OUT = 23T+пад >= 31.25T
+  862  04D9: 23               INX H
+  863  04DA: 00               NOP
+  864  04DB: 00               NOP
+  865  04DC: 00               NOP
+  866  04DD: 7E               MOV A,M
+  867  04DE: D3 04            OUT TXPORT
+  868  04E0: 23               INX H
+  869  04E1: 00               NOP
+  870  04E2: 00               NOP
+  871  04E3: 00               NOP
+  872  04E4: 7E               MOV A,M
+  873  04E5: D3 04            OUT TXPORT
+  874  04E7: 23               INX H
+  875  04E8: 00               NOP
+  876  04E9: 00               NOP
+  877  04EA: 00               NOP
+  878  04EB: 7E               MOV A,M
+  879  04EC: D3 04            OUT TXPORT
+  880  04EE: 23               INX H
+  881  04EF: 00               NOP
+  882  04F0: 00               NOP
+  883  04F1: 00               NOP
+  884  04F2: 7E               MOV A,M
+  885  04F3: D3 04            OUT TXPORT
+  886  04F5: 23               INX H
+  887  04F6: 00               NOP
+  888  04F7: 00               NOP
+  889  04F8: 00               NOP
+  890  04F9: 7E               MOV A,M
+  891  04FA: D3 04            OUT TXPORT
+  892  04FC: 23               INX H
+  893  04FD: 00               NOP
+  894  04FE: 00               NOP
+  895  04FF: 00               NOP
+  896  0500: 7E               MOV A,M
+  897  0501: D3 04            OUT TXPORT
+  898  0503: 23               INX H
+  899  0504: 00               NOP
+  900  0505: 00               NOP
+  901  0506: 00               NOP
+  902  0507: 7E               MOV A,M
+  903  0508: D3 04            OUT TXPORT
+  904  050A: 23               INX H
+  905  050B: 00               NOP
+  906  050C: 00               NOP
+  907  050D: 00               NOP
+  908  050E: 0D               DCR C               ; подгруппа = 7x35T + 49T = 294T (36.75T/Б)
+  909  050F: C2 D6 04         JNZ XSL
+  910  0512: CD 1E 05         CALL XDIG           ; слот дисплея (регенерация не замирает)
+  911  0515: 05               DCR B
+  912  0516: C2 D4 04         JNZ XSOUT
+  913  0519: E1               POP H
+  914  051A: D1               POP D
+  915  051B: C1               POP B
+  916  051C: F1               POP PSW
+  917  051D: C9               RET
+  918            
+  919            ; ---------------------------------------------------------------------
+  920            ; XDIG: один слот регенерации дисплея ВО ВРЕМЯ посылки.
+  921            ;   D = ptr глифа (DIGIMG0..3, FFF5h..FFF8h), E = бит разряда -
+  922            ;   своя фаза (DPIDX не трогает, к возврату монитор продолжит свою).
+  923            ;   Тон: SNDST OR-ится в бит разряда (запись DIGP несет D4).
+  924            ;   Глиф хранится в C (внутр. счётчик к этому моменту отработан);
+  925            ;   A/флаги портит свободно (XSEND сохранил PSW). ~187T + CALL.
+  926            ; ---------------------------------------------------------------------
+  927  051E: AF       XDIG:   XRA A
+  928  051F: D3 00            OUT SEGP            ; гашение
+  929  0521: 1A               LDAX D              ; A = глиф текущего разряда
+  930  0522: 4F               MOV C,A
+  931  0523: 3A E8 FF         LDA SNDST
+  932  0526: B7               ORA A
+  933  0527: CA 30 05         JZ XDG1
+  934  052A: 7B               MOV A,E
+  935  052B: F6 10            ORI 10h             ; + SND
+  936  052D: C3 31 05         JMP XDG2
+  937  0530: 7B       XDG1:   MOV A,E
+  938  0531: D3 01    XDG2:   OUT DIGP            ; разряд (и тон) включён
+  939  0533: 79               MOV A,C
+  940  0534: D3 00            OUT SEGP            ; глиф горит
+  941  0536: 13               INX D
+  942  0537: 7A               MOV A,D
+  943  0538: E6 03            ANI 03h             ; оставить 0..3 (обёртка DIGIMG0..3)
+  944  053A: F6 F5            ORI 0F5h            ; DIGIMG = 0FFF5h
+  945  053C: 57               MOV D,A
+  946  053D: 7B       XDG3:   MOV A,E
+  947  053E: 07               RLC
+  948  053F: E6 0F            ANI 0Fh             ; 08h -> 10h -> 00
+  949  0541: C2 46 05         JNZ XDG4
+  950  0544: 3E 01            MVI A,01h           ; после DIG3 -> DIG0
+  951  0546: 5F       XDG4:   MOV E,A
+  952  0547: C9               RET
+  953            
+  954            ; ---------------------------------------------------------------------
+  955            ; XUPDCTR: живой счётчик SEQ (hex, 2 цифры) в демо-экран, строка 22:
+  956            ;   'SEQ:xx ...' - x на B6E4/B6E5. Доказательство живого потока.
+  957            ; ---------------------------------------------------------------------
+  958  0548: E5       XUPDCTR: PUSH H
+  959  0549: 3A FA FF         LDA XSSEQ
+  960  054C: 4F               MOV C,A
+  961  054D: 0F               RRC
+  962  054E: 0F               RRC
+  963  054F: 0F               RRC
+  964  0550: 0F               RRC
+  965  0551: E6 0F            ANI 0Fh
+  966  0553: CD 64 05         CALL XHEX
+  967  0556: 32 E4 B6         STA XSCNT
+  968  0559: 79               MOV A,C
+  969  055A: E6 0F            ANI 0Fh
+  970  055C: CD 64 05         CALL XHEX
+  971  055F: 32 E5 B6         STA XSCNT+1
+  972  0562: E1               POP H
+  973  0563: C9               RET
+  974            
+  975  0564: C6 30    XHEX:   ADI '0'
+  976  0566: FE 3A            CPI 3Ah
+  977  0568: DA 6D 05         JC XHX1
+  978  056B: C6 07            ADI 07h
+  979  056D: C9       XHX1:   RET
+  980            
+  981            ; ---------------------------------------------------------------------
+  982            ; XISR - обработчик RST 7.5 (вектор 003Ch).
+  983            ;   HW: делитель XS_DIVN (период = посылка 22.9 мс + (XS_DIVN-1) x
+  984            ;   T = N x 51.2 мкс; TMR_N=234, XS_DIVN=3 -> 46.9 мс = 21.3 FPS,
+  985            ;   48.8% ЦП); ре-арм ПОСЛЕ тела - таймер не истекает внутри ISR,
+  986            ;   каденция точная. ISR выбивает из монитора/программы пользователя.
+  987            ;   SW (v2.3): линия заземлена - вход невозможен; тихий выход.
+  988            ; ---------------------------------------------------------------------
+  989                    IF TMR_HW
+  990            XISR:   PUSH PSW
+  991                    PUSH B
+  992                    PUSH D
+  993                    PUSH H
+  994                    LDA XSDIV
+  995                    DCR A
+  996                    STA XSDIV
+  997                    JNZ XISR1
+  998                    MVI A,XS_DIVN
+  999                    STA XSDIV
+ 1000                    CALL XSEND          ; КАДР -> UART
+ 1001            XISR1:  MVI A,TMR_N
+ 1002                    OUT TMRP            ; ре-арм ПОСЛЕ тела: следующий фронт через N тиков
+ 1003                    POP H
+ 1004                    POP D
+ 1005                    POP B
+ 1006                    POP PSW
+ 1007                    EI
+ 1008                    RET
+ 1009                    ELSE
+ 1010  056E: F5       XISR:   PUSH PSW
+ 1011  056F: FB               EI                  ; страховка: маска не трогается, тихий выход
+ 1012  0570: C9               RET
+ 1013                    ENDIF
+ 1014            
+ 1015            ; ---- демо-экран (ASCII; NUL-конец; <= 80 символов на строку) ----
+ 1016  0571: 58 53 54 52 45 41 4D 20 76 31 2E 30 20 2D 20 38 30 78 32 35 20 54 45 58 54 20 53 43 52 45 45 4E 20 42 55 46 46 45 52 20 42 30 30 30 68 2D 42 37 43 46 68 20 2D 3E 20 55 41 52 54 20 31 30 30 30 30 30 30 20 38 4E 31 00 S_T0:   DB 'XSTREAM v1.0 - 80x25 TEXT SCREEN BUFFER B000h-B7CFh -> UART 1000000 8N1',0
+ 1017  05B9: 46 52 41 4D 45 3A 20 41 35 20 35 41 20 5B 53 45 51 5D 20 2B 20 32 30 30 30 20 42 59 54 45 53 20 28 52 4F 57 2D 4D 41 4A 4F 52 20 38 30 78 32 35 20 2F 20 43 50 31 32 35 31 20 41 54 20 50 43 20 43 4C 49 45 4E 54 29 00 S_T1:   DB 'FRAME: A5 5A [SEQ] + 2000 BYTES (ROW-MAJOR 80x25 / CP1251 AT PC CLIENT)',0
+ 1018  0601: 46 57 3A 20 66 77 5F 6D 6F 6E 20 41 43 64 45 20 2B 20 53 54 52 45 41 4D 20 2D 20 54 4D 52 5F 48 57 3D 30 20 53 57 2D 54 49 43 4B 20 32 30 20 46 50 53 20 2F 20 54 4D 52 5F 48 57 3D 31 20 52 53 54 20 37 2E 35 20 28 76 32 34 29 00 S_T2:   DB 'FW: fw_mon ACdE + STREAM - TMR_HW=0 SW-TICK 20 FPS / TMR_HW=1 RST 7.5 (v24)',0
+ 1019  064D: 4D 4F 4E 49 54 4F 52 3A 20 41 3D 41 44 44 52 20 20 43 3D 43 4F 44 45 20 20 44 3D 56 49 45 57 20 20 45 3D 52 55 4E 20 20 46 31 3D 4D 45 4E 55 20 20 46 32 3D 53 48 4F 57 20 41 44 44 52 00 S_T3:   DB 'MONITOR: A=ADDR  C=CODE  D=VIEW  E=RUN  F1=MENU  F2=SHOW ADDR',0
+ 1020  068B: 57 52 49 54 45 20 59 4F 55 52 20 54 45 58 54 20 49 4E 54 4F 20 42 30 30 30 68 2E 2E 42 37 43 46 68 20 2D 20 54 48 49 53 20 57 49 4E 44 4F 57 20 49 53 20 54 48 45 20 50 43 20 53 43 52 45 45 4E 00 S_T4:   DB 'WRITE YOUR TEXT INTO B000h..B7CFh - THIS WINDOW IS THE PC SCREEN',0
+ 1021  06CC: 4C 4F 41 44 3A 20 53 45 4E 44 20 32 34 2E 32 20 4D 53 20 4F 46 20 34 39 2E 38 20 4D 53 20 3D 20 34 39 25 20 7C 20 4C 49 4E 45 20 34 30 25 20 7C 20 53 45 51 3A 5F 5F 00 S_T5:   DB 'LOAD: SEND 24.2 MS OF 49.8 MS = 49% | LINE 40% | SEQ:__',0
+ 1022  0704: 00 B0 71 05 XTBL:   DW XBUF, S_T0       ; строка 0
+ 1023  0708: A0 B0 B9 05         DW XBUF+00A0h, S_T1 ; строка 2
+ 1024  070C: F0 B0 01 06         DW XBUF+00F0h, S_T2 ; строка 3
+ 1025  0710: 80 B2 4D 06         DW XBUF+0280h, S_T3 ; строка 5
+ 1026  0714: 20 B3 8B 06         DW XBUF+0320h, S_T4 ; строка 6
+ 1027  0718: E0 B6 CC 06         DW XBUF+06E0h, S_T5 ; строка 22 (счётчик SEQ живой)
+ 1028  071C: 00 00 00 00         DW 0000h, 0000h     ; конец таблицы
+ 1029            
+ 1030  0720: -                END
