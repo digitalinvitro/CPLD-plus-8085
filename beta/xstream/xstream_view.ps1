@@ -1,6 +1,6 @@
 ﻿#!/usr/bin/env pwsh
 # ======================================================================
-# XSTREAM_VIEW.PS1 v1.2 -- клиент XSTREAM: приём потока 80x25 из платы
+# XSTREAM_VIEW.PS1 v1.2.1 -- клиент XSTREAM: приём потока 80x25 из платы
 # (fw xstream_v1) в GUI-окно PowerShell.
 #
 # ПРОВОД: 1 000 000 8N1; кадр = A5 5A [SEQ] + 2000 Б (80x25, row-major).
@@ -31,6 +31,15 @@
 #      0 кадров при живом потоке. Чтение порта перенесено в GUI-таймер
 #      (опрос BytesToRead/Read на UI-потоке; буфер драйвера 256 КБ
 #      держит ~2.6 с потока - паузы таймера байтов не теряют).
+#
+# v1.2.1 (третий железный отчёт владельца 11-13):
+#   4. FormatError «Индекс ... меньше размера списка аргументов» в
+#      Write-Log при -Log: "-f <список>" стоял прямо в скобках
+#      метод-вызова - PowerShell делит аргументы метода по запятым
+#      верхнего уровня, "-f" получал 1 аргумент при 7 подстановках
+#      {0}..{6}. Формат собирается в переменную, затем WriteLine($line).
+#   5. SelfTest: счётчик 5/5 -> 6/6 (кейс 2b добавили в v1.2, счётчик
+#      не обновили); OK payload больше не печатается после FAIL.
 # ======================================================================
 param(
     [string]$Port = "",
@@ -60,8 +69,17 @@ if ($Log -ne "") {
 
 function Write-Log([string]$kind, [int]$seq, [double]$dt, [int]$total, [int]$rs, [int]$gaps) {
     if ($null -ne $script:LogSw) {
-        $script:LogSw.WriteLine("{0:yyyy-MM-ddTHH:mm:ss.fff},{1},{2},{3:F1},{4},{5},{6}" -f `
-            [DateTime]::UtcNow, $kind, $seq, $dt, $total, $rs, $gaps)
+        # v1.2.1 / урок 11: "-f <список>" НЕЛЬЗЯ ставить прямо в скобках
+        # метод-вызова: PowerShell делит аргументы метода по запятым
+        # верхнего уровня, поэтому WriteLine("fmt" -f a,b,c) парсится как
+        # WriteLine(("fmt" -f a), b, c) - "-f" получает 1 аргумент при 7
+        # подстановках -> FormatException «Индекс ... меньше размера
+        # списка аргументов» (всплывало только с -Log: без лога Write-Log
+        # не вызывался). Форматируем в переменную (как в статус-строке,
+        # которая всегда работала), затем WriteLine($line).
+        $line = "{0:yyyy-MM-ddTHH:mm:ss.fff},{1},{2},{3:F1},{4},{5},{6}" -f `
+            [DateTime]::UtcNow, $kind, $seq, $dt, $total, $rs, $gaps
+        $script:LogSw.WriteLine($line)
     }
 }
 
@@ -148,10 +166,11 @@ function Invoke-SelfTest {
     $frame[0] = $Magic1; $frame[1] = $Magic2; $frame[2] = 129
     for ($k = 0; $k -lt $Screen; $k++) { $frame[3 + $k] = [byte]((($k + 129) * 7 + ($k -band 0x0F)) -band 0xFF) }
     [Array]::Copy($frame, 3, $ref, 0, $Screen)
+    $bad = $false
     for ($k = 0; $k -lt $Screen; $k++) {
-        if ($p.Screen[$k] -ne $ref[$k]) { Write-Host ("  FAIL: payload байт {0}: {1:X2} != {2:X2}" -f $k, $p.Screen[$k], $ref[$k]); $fail++; break }
+        if ($p.Screen[$k] -ne $ref[$k]) { Write-Host ("  FAIL: payload байт {0}: {1:X2} != {2:X2}" -f $k, $p.Screen[$k], $ref[$k]); $fail++; $bad = $true; break }
     }
-    Write-Host "  OK: побайтовая сверка payload кадра 129 (сшивка кусочков чтения)"
+    if (-not $bad) { Write-Host "  OK: побайтовая сверка payload кадра 129 (сшивка кусочков чтения)" }
 
     # 2) мусор до кадра -> ресинк без потери кадра (ДЕТЕРМИНИРОВАННО:
     #    одиночный A5 + байт не-5A -> Resyncs>=1; рандом зависел от сида
@@ -205,7 +224,7 @@ function Invoke-SelfTest {
     if ($line -ne "ПРИВЕТ") { Write-Host "  FAIL: CP1251-декод ('$line')"; $fail++ }
     else { Write-Host "  OK: CP1251-декод payload -> 'ПРИВЕТ'" }
 
-    if ($fail -eq 0) { Write-Host "SELfTEST: 5/5 ПРОЙДЕНЫ" }
+    if ($fail -eq 0) { Write-Host "SELfTEST: 6/6 ПРОЙДЕНЫ" }
     else { Write-Host "SELfTEST: ПРОВАЛОВ $fail"; exit 1 }
 }
 
