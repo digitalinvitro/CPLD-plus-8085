@@ -76,6 +76,10 @@ class CPU:
         self.kbcol = 0
         self.dig_writes = 0       # слоты регенерации (записи в 01h)
         self.stray_glyphs = 0     # чужие глифы на SEGP (норма 0)
+        self.last_dig = 0         # защёлкнутые биты разрядов DIGP (D3-D0)
+        self.no_digit_glyphs = 0  # глиф записан при 0 выбранном разряде - дисплей гас (урок 11-12-2)
+        self.multi_digit_glyphs = 0  # глиф при нескольких разрядах
+        self.glyph_mismatch = 0   # глиф не равен DIGIMG выбранного разряда
         # прерывание v24
         self.tmr_deadline = None  # такт следующего истечения (или None - стоп)
         self.tmrlatch = False
@@ -110,15 +114,29 @@ class CPU:
         elif port == 0x00:
             # дисплейная модель: НЕнулевой глиф обязан быть из DIGIMG0..3
             # (урок 11-12 железа: LDAX D по кривому указателю читал мусор
-            #  ОЗУ 0F5xx -> глифы-призраки; сим обязан ловить это класс)
+            #  ОЗУ 0F5xx -> глифы-призраки) И обязан иметь РОВНО ОДИН
+            #  выбранный разряд, совпадающий с глифом (урок 11-12-2:
+            #  XDIG v1.1 писала DIGP=SNDST 0/1 -> дисплей гас на посылке /
+            #  все глифы циклом на DIG0 = «дрожание»; сим обязан ловить
+            #  оба класса)
             if val != 0:
                 imgs = [self.mem.get(0xFFF5 + i, 0) for i in range(4)]
                 if val not in imgs:
                     self.stray_glyphs += 1
+                d = self.last_dig & 0x0F
+                if d == 0:
+                    self.no_digit_glyphs += 1
+                elif d & (d - 1):
+                    self.multi_digit_glyphs += 1
+                else:
+                    k = d.bit_length() - 1          # 01->0 .. 08->3
+                    if val != self.mem.get(0xFFF5 + k, 0):
+                        self.glyph_mismatch += 1
         elif port == 0x02:
             self.kbcol = val
         elif port == 0x01:
             self.dig_writes += 1
+            self.last_dig = val & 0x0F   # защёлка: разряд живёт до следующей записи DIGP
         elif port == 0x06 and self.hw:
             # таймер v24: загрузка N (стоп-в-нуле; 0 = стоп)
             n = val
@@ -436,25 +454,34 @@ def verdict(cpu, target_ms, label):
     print(f"чужие глифы на дисплее: {cpu.stray_glyphs} "
           f"{'ОК (норма 0)' if cpu.stray_glyphs == 0 else 'ПРОВАЛ: глиф не из DIGIMG'}")
     ok &= cpu.stray_glyphs == 0
+    disp_bad = cpu.no_digit_glyphs + cpu.multi_digit_glyphs + cpu.glyph_mismatch
+    print(f"выбор разряда при глифе: гас {cpu.no_digit_glyphs} / мульти {cpu.multi_digit_glyphs} "
+          f"/ не тот разряд {cpu.glyph_mismatch} "
+          f"{'ОК (норма 0)' if disp_bad == 0 else 'ПРОВАЛ: разряд не соответствует глифу (урок 11-12-2)'}")
+    ok &= disp_bad == 0
     return ok
 
 
 def main():
-    base = sys.argv[1] if len(sys.argv) > 1 else 'xstream_v1.hex'
-    print(f"=== XSTREAM v1 SW-тик (TMR_HW=0): {base} ===")
+    hw = '--hw' in sys.argv
+    base = sys.argv[1] if len(sys.argv) > 1 and not sys.argv[1].startswith('--') else (
+        'xstream_v1_hw.hex' if hw else 'xstream_v1.hex')
+    target = 49.7 if hw else 49.8
+    mode = 'HW RST 7.5 (TMR_HW=1)' if hw else 'SW-тик (TMR_HW=0)'
+    print(f"=== XSTREAM v1 {mode}: {base} ===")
     # 1) холодный старт, тишина
-    c = run(base, seconds=1.2)
-    ok1 = verdict(c, 47.4, "тишина, 1.2 с")
+    c = run(base, seconds=1.2, hw=hw)
+    ok1 = verdict(c, target, "тишина, 1.2 с")
     print(f"слот скана факт: измеряется по периоду между XSCHK-отправками; "
           f"цель pass ~{PASS_T:.0f}T")
     # 2) клавиша 'A' (row0/col0) на 300..420 мс
-    c2 = run(base, seconds=1.2, presses=((0.3 * 1e9 / T_NS, 0.42 * 1e9 / T_NS, 0, 0),),
+    c2 = run(base, seconds=1.2, hw=hw, presses=((0.3 * 1e9 / T_NS, 0.42 * 1e9 / T_NS, 0, 0),),
              label='kbd')
-    ok2 = verdict(c2, 47.4, "нажатие 'A' 300..420 мс")
+    ok2 = verdict(c2, target, "нажатие 'A' 300..420 мс")
     st = [1 if c2.mem.get(0xFFE9, 0) == 1 else 0]
     print(f"STATE после сеанса: {c2.mem.get(0xFFE9, 0)} (0=меню, 1=адрес) "
           f"{'ОК' if c2.mem.get(0xFFE9, 0) in (0, 1) else '?'}")
-    print(f"\nВЕРДИКТ SW: {'ВСЁ ОК' if (ok1 and ok2) else 'ЕСТЬ ПРОВАЛЫ'}")
+    print(f"\nВЕРДИКТ {'HW' if hw else 'SW'}: {'ВСЁ ОК' if (ok1 and ok2) else 'ЕСТЬ ПРОВАЛЫ'}")
     return 0 if (ok1 and ok2) else 1
 
 

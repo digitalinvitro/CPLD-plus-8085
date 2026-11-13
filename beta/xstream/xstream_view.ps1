@@ -1,6 +1,6 @@
 ﻿#!/usr/bin/env pwsh
 # ======================================================================
-# XSTREAM_VIEW.PS1 v1.1 -- клиент XSTREAM: приём потока 80x25 из платы
+# XSTREAM_VIEW.PS1 v1.2 -- клиент XSTREAM: приём потока 80x25 из платы
 # (fw xstream_v1) в GUI-окно PowerShell.
 #
 # ПРОВОД: 1 000 000 8N1; кадр = A5 5A [SEQ] + 2000 Б (80x25, row-major).
@@ -16,6 +16,21 @@
 # Совместимость: Windows PowerShell 5.1 (BOM обязателен; без ??, без
 # арифметики в New-Object - только ::new(); DoubleBuffered - только через
 # рефлексию (защищённое свойство); уроки gfx_view v1.1-v1.5 + свои 11-12).
+#
+# v1.2 (по железным отчётам владельца 11-13):
+#   1. SelfTest #2 FAIL (frames=1, rs=0): мусор $garb создавался, но
+#      НЕ подавался в парсер - в v1.1 пропущен Add-Bytes; теперь подаётся
+#      + кейс 2b "мусор, кончающийся A5, перед шапкой" (A5-набег не
+#      сдвигает кадр: в state 1 держим ТОЛЬКО последний A5);
+#   2. GUI-пад на 5.1 при старте окна: [Brush]::new([SolidBrush](...)) -
+#      Brush абстрактный, конструктора с 1 аргументом нет ->
+#      SolidBrush::new(цвет);
+#   3. ГЛАВНОЕ (всплыло бы следующим): Register-ObjectEvent -Action не
+#      видит $script: переменные - Action живёт в скопе PSEventJob-модуля,
+#      там $script:RxQueue = $null, Enqueue падал в пустой catch{} -
+#      0 кадров при живом потоке. Чтение порта перенесено в GUI-таймер
+#      (опрос BytesToRead/Read на UI-потоке; буфер драйвера 256 КБ
+#      держит ~2.6 с потока - паузы таймера байтов не теряют).
 # ======================================================================
 param(
     [string]$Port = "",
@@ -76,7 +91,7 @@ function Add-Bytes([hashtable]$p, [byte[]]$data, [int]$n) {
         elseif ($p.State -eq 1) {
             $p.Buf.Add($b)
             if ($b -eq $Magic2) { $p.State = 2 }      # A5 5A пойманы
-            elseif ($b -eq $Magic1) { }               # A5 A5... - ждём 5A
+            elseif ($b -eq $Magic1) { $p.Buf.Clear(); $p.Buf.Add($b) }  # A5 A5... - держим ТОЛЬКО последний A5 (набег A5 из мусора перед шапкой иначе сдвинул бы кадр, v1.2)
             else {
                 $p.Resyncs++; $p.State = 0            # A5 x - мусор, ресинк
             }
@@ -140,16 +155,36 @@ function Invoke-SelfTest {
 
     # 2) мусор до кадра -> ресинк без потери кадра (ДЕТЕРМИНИРОВАННО:
     #    одиночный A5 + байт не-5A -> Resyncs>=1; рандом зависел от сида
-    #    и мог не дать ни одного A5 - FAIL на железе владельца 11-12)
+    #    и мог не дать ни одного A5 - FAIL на железе владельца 11-12;
+    #    v1.2: в v1.1 мусор ещё и НЕ подавался (Add-Bytes потерян) ->
+    #    frames=1, rs=0 - FAIL в отчёте 11-13)
     $p = New-Parser
     $script:FrameReady = $false
     $garb = [byte[]]::new(137)
     $garb[0] = $Magic1; $garb[1] = 0x11              # A5 + НЕ 5A -> ресинк
     for ($k = 2; $k -lt 137; $k++) { $garb[$k] = 0x33 }
+    Add-Bytes $p $garb $garb.Length                  # v1.2: мусор РЕАЛЬНО подаётся
     $frame[2] = 7
     Add-Bytes $p $frame $FrameLen
     if ($p.Frames -ne 1 -or $p.Resyncs -lt 1) { Write-Host "  FAIL: ресинк мусора (frames=$($p.Frames), rs=$($p.Resyncs))"; $fail++ }
     else { Write-Host "  OK: мусор 137 Б (A5 + не-5A) -> ресинк=1, кадр принят без потерь" }
+
+    # 2b) мусор, кончающийся A5, перед шапкой: A5-набег НЕ должен сдвинуть
+    #     кадр. v1.1 копил A5-ы в Buf (A5 A5 5A -> SEQ=5A, экран со сдвигом
+    #     на 1 Б и потеря байта хвоста); v1.2 держит только последний A5.
+    $p = New-Parser
+    $script:FrameReady = $false
+    $tail = [byte[]]::new(9)
+    for ($k = 0; $k -lt 8; $k++) { $tail[$k] = 0x33 }
+    $tail[8] = $Magic1                               # мусор ...33 33 A5
+    $frame[2] = 7
+    Add-Bytes $p $tail 9
+    Add-Bytes $p $frame $FrameLen
+    # payload кадра #129 из теста 1: scr0 = ((0+129)*7+0)&FF = 87h; SEQ = 7
+    # (а не 5A/90 и scr0=07, как было бы при сдвиге)
+    if ($p.Frames -ne 1 -or $p.LastSeq -ne 7 -or $p.Screen[0] -ne 0x87) {
+        Write-Host ("  FAIL: A5-набег (frames={0}, seq={1}, scr0={2:X2} != 87)" -f $p.Frames, $p.LastSeq, $p.Screen[0]); $fail++
+    } else { Write-Host "  OK: мусор ...A5 перед шапкой -> кадр выровнен (SEQ=7, scr0=87)" }
 
     # 3) пропуск SEQ (плата сбросилась: ...5 -> 200)
     $p = New-Parser
@@ -170,7 +205,7 @@ function Invoke-SelfTest {
     if ($line -ne "ПРИВЕТ") { Write-Host "  FAIL: CP1251-декод ('$line')"; $fail++ }
     else { Write-Host "  OK: CP1251-декод payload -> 'ПРИВЕТ'" }
 
-    if ($fail -eq 0) { Write-Host "SELfTEST: 4/4 ПРОЙДЕНЫ" }
+    if ($fail -eq 0) { Write-Host "SELfTEST: 5/5 ПРОЙДЕНЫ" }
     else { Write-Host "SELfTEST: ПРОВАЛОВ $fail"; exit 1 }
 }
 
@@ -187,6 +222,7 @@ $script:FpsEma = 0.0
 $script:RxAccum = 0
 $script:RxRate = 0.0
 $script:LastRateTicks = $script:StartTicks
+$script:RxBuf = [byte[]]::new(16384)   # переиспользуемый буфер опроса порта
 
 $form = [System.Windows.Forms.Form]::new()
 $form.Text = "XSTREAM v1 - 80x25 ($Port @ $Baud 8N1)"
@@ -209,8 +245,8 @@ $null = $panel.GetType().GetProperty("DoubleBuffered", $flags).SetValue($panel, 
 $panel.BringToFront()
 
 $font = [System.Drawing.Font]::new("Consolas", [double]$FontSize)
-$green = [System.Drawing.Brush]::new([System.Drawing.SolidBrush]([System.Drawing.Color]::FromArgb(190, 255, 190)))
-$dim   = [System.Drawing.Brush]::new([System.Drawing.SolidBrush]([System.Drawing.Color]::FromArgb(90, 130, 90)))
+$green = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(190, 255, 190))
+$dim   = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(90, 130, 90))
 
 $panel.Add_Paint({
     param($sender, $e)
@@ -227,21 +263,12 @@ function Open-Port {
     $script:PortObj = [System.IO.Ports.SerialPort]::new($Port, $Baud, [System.IO.Ports.Parity]::None, 8, [System.IO.Ports.StopBits]::One)
     $script:PortObj.ReadBufferSize = 262144
     $script:PortObj.ReadTimeout = 500
-    # очередь чтения - ДО открытия порта (DataReceived может прийти сразу)
-    $script:RxQueue = [System.Collections.Concurrent.ConcurrentQueue[byte]]::new()
     $script:PortObj.Open()
     $script:PortObj.DiscardInBuffer()
-    $null = Register-ObjectEvent -InputObject $script:PortObj -EventName DataReceived -Action {
-        try {
-            $sp = $Sender
-            $n = $sp.BytesToRead
-            if ($n -gt 0) {
-                $buf = [byte[]]::new($n)
-                $null = $sp.BaseStream.Read($buf, 0, $n)
-                for ($k = 0; $k -lt $n; $k++) { $null = $script:RxQueue.Enqueue($buf[$k]) }
-            }
-        } catch { }
-    }
+    # v1.2: обработчик Register-ObjectEvent DataReceived УДАЛЁН - он живёт в
+    # скопе PSEventJob-модуля и НЕ видит $script:RxQueue (там $null,
+    # Enqueue падал в пустой catch{} -> 0 кадров при живом потоке).
+    # Чтение - опросом в GUI-таймере (см. Add_Tick).
 }
 
 Open-Port
@@ -251,15 +278,15 @@ $timer = [System.Windows.Forms.Timer]::new()
 $timer.Interval = 30
 $null = $timer.Add_Tick({
     try {
-        # дренируем очередь чтения в парсер (батчами, без по-байтных вызовов где можно)
-        $tmp = [byte[]]::new(8192)
-        $k = 0
-        $b = 0
-        while ($script:RxQueue.TryDequeue([ref]$b)) {
-            $tmp[$k] = $b; $k++
-            if ($k -eq 8192) { Add-Bytes $script:Parser $tmp $k; $k = 0 }
+        # v1.2: опрос порта на UI-потоке. BytesToRead -> Read ровно столько,
+        # сколько уже в буфере драйвера - чтение неблокирующее. Буфер
+        # драйвера 256 КБ >= 2.6 с потока: паузы таймера байтов не теряют.
+        $n = $script:PortObj.BytesToRead
+        if ($n -gt 0) {
+            if ($n -gt $script:RxBuf.Length) { $n = $script:RxBuf.Length }
+            $n = $script:PortObj.Read($script:RxBuf, 0, $n)
+            if ($n -gt 0) { Add-Bytes $script:Parser $script:RxBuf $n }
         }
-        if ($k -gt 0) { Add-Bytes $script:Parser $tmp $k }
 
         if ($script:FrameReady) {
             $script:FrameReady = $false
