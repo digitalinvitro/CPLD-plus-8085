@@ -1,6 +1,6 @@
 ﻿#!/usr/bin/env pwsh
 # ======================================================================
-# XSTREAM_VIEW.PS1 v1.2.1 -- клиент XSTREAM: приём потока 80x25 из платы
+# XSTREAM_VIEW.PS1 v1.2.2 -- клиент XSTREAM: приём потока 80x25 из платы
 # (fw xstream_v1) в GUI-окно PowerShell.
 #
 # ПРОВОД: 1 000 000 8N1; кадр = A5 5A [SEQ] + 2000 Б (80x25, row-major).
@@ -40,6 +40,25 @@
 #      {0}..{6}. Формат собирается в переменную, затем WriteLine($line).
 #   5. SelfTest: счётчик 5/5 -> 6/6 (кейс 2b добавили в v1.2, счётчик
 #      не обновили); OK payload больше не печатается после FAIL.
+#
+# v1.2.2 (четвёртый железный отчёт владельца 11-13: живой сеанс 118 с,
+# 2412 кадров, лог xlog.csv):
+#   6. ФАНТОМНАЯ 8-Я КОЛОНКА В CSV (урок 12): шапка объявляет 7 колонок,
+#      а строки несут 8 полей - {3:F1} в Write-Log форматируется оператором
+#      -f, который берёт КУЛЬТУРУ ПОТОКА: на ru-RU Windows F1 даёт "17,1"
+#      (десятичная ЗАПЯТАЯ), и в запятой-CSV поле расщепляется на "17" и
+#      "1". Все 2516 строк живого лога имеют 8 полей, 5-е всегда одна цифра
+#      0-9. Лечение: dt и штамп времени форматируются ЯВНО через
+#      InvariantCulture и собираются конкатенацией (никакого -f вовсе).
+#   7. РЕСТАРТ ПОТОКА ПЛАТЫ - НЕ ГЭП: в живом логе 110 из 113 "гэпов" дал
+#      один эпизод (пауза 462 мс, SEQ 145 -> 0) - плата перезапустила поток
+#      (счётчик SEQ обнулился), кадры при этом не терялись. Правило: dt >
+#      250 мс (~5 периодов) И скачок SEQ -> счётчик Restarts + строка "R"
+#      в CSV, SeqGaps не растёт. Оставшиеся 3 гэпа живого лога - честные
+#      пропуски по 1 кадру (dt 86-99 мс - плата промедлила один период).
+#   8. Косметика: в статусе "ресинк {N} Б" -> "ресинков {N}" (Resyncs -
+#      счётчик, не байты); статус и «Итог» показывают рестарты; SelfTest
+#      6/6 -> 7/7 (кейс 3b: пауза 1 с + скачок SEQ = рестарт, не гэп).
 # ======================================================================
 param(
     [string]$Port = "",
@@ -75,10 +94,16 @@ function Write-Log([string]$kind, [int]$seq, [double]$dt, [int]$total, [int]$rs,
         # WriteLine(("fmt" -f a), b, c) - "-f" получает 1 аргумент при 7
         # подстановках -> FormatException «Индекс ... меньше размера
         # списка аргументов» (всплывало только с -Log: без лога Write-Log
-        # не вызывался). Форматируем в переменную (как в статус-строке,
-        # которая всегда работала), затем WriteLine($line).
-        $line = "{0:yyyy-MM-ddTHH:mm:ss.fff},{1},{2},{3:F1},{4},{5},{6}" -f `
-            [DateTime]::UtcNow, $kind, $seq, $dt, $total, $rs, $gaps
+        # не вызывался). Форматируем в переменную, затем WriteLine($line).
+        # v1.2.2 / урок 12: -f и ToString() берут КУЛЬТУРУ ПОТОКА: на ru-RU
+        # Windows {3:F1} даёт "17,1" (десятичная запятая), и в запятой-CSV
+        # поле расщепляется на "17" и "1" - в живом логе владельца 11-13
+        # все 2516 строк имели фантомную 8-ю колонку при шапке в 7.
+        # Поэтому dt и штамп времени - ЯВНО через InvariantCulture, строка
+        # собирается конкатенацией: ни -f, ни культурных сюрпризов.
+        $inv = [System.Globalization.CultureInfo]::InvariantCulture
+        $ts = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fff", $inv)
+        $line = $ts + "," + $kind + "," + $seq + "," + $dt.ToString("F1", $inv) + "," + $total + "," + $rs + "," + $gaps
         $script:LogSw.WriteLine($line)
     }
 }
@@ -90,7 +115,7 @@ function New-Parser {
     $p = [hashtable]::Synchronized(@{
         State = 0; Buf = [System.Collections.Generic.List[byte]]::new()
         Screen = [byte[]]::new($Screen); Seq = -1
-        Frames = 0; Resyncs = 0; SeqGaps = 0; LastSeq = -1
+        Frames = 0; Resyncs = 0; SeqGaps = 0; Restarts = 0; LastSeq = -1
         LastFrameTicks = [DateTime]::Now.Ticks; DtMs = 0.0
         BytesTotal = 0; Dropped = 0
     })
@@ -123,7 +148,14 @@ function Add-Bytes([hashtable]$p, [byte[]]$data, [int]$n) {
                 $p.LastFrameTicks = $now
                 if ($p.LastSeq -ge 0) {
                     $d = ($seq - $p.LastSeq) -band 0xFF
-                    if ($d -ne 1) { $p.SeqGaps += ($d - 1 + 256) -band 0xFF }
+                    if ($d -ne 1) {
+                        # v1.2.2: пауза > 250 мс (~5 периодов) + скачок SEQ -
+                        # плата ПЕРЕЗАПУСТИЛА поток (счётчик обнулился; живой
+                        # лог 11-13: пауза 462 мс, SEQ 145 -> 0 = 110 ложных
+                        # "гэпов"). Это рестарт, а не потеря кадров.
+                        if ($p.DtMs -gt 250.0) { $p.Restarts++ }
+                        else { $p.SeqGaps += ($d - 1 + 256) -band 0xFF }
+                    }
                 }
                 $p.LastSeq = $seq
                 [Array]::Copy($p.Buf.ToArray(), 3, $p.Screen, 0, $Screen)
@@ -213,6 +245,17 @@ function Invoke-SelfTest {
     if ($p.SeqGaps -lt 1) { Write-Host "  FAIL: гэп SEQ не замечен"; $fail++ }
     else { Write-Host "  OK: пропуск SEQ (5 -> 200) засчитан ($($p.SeqGaps))" }
 
+    # 3b) рестарт потока: пауза > 250 мс + скачок SEQ = рестарт, НЕ гэп
+    #     (живой лог владельца 11-13: пауза 462 мс, SEQ 145 -> 0 давал
+    #     +110 ложных "гэпов" - плата просто перезапустила счётчик)
+    $p = New-Parser
+    $script:FrameReady = $false
+    $frame[2] = 5;  Add-Bytes $p $frame $FrameLen
+    $p.LastFrameTicks = [DateTime]::Now.Ticks - 10000000    # 1 с назад -> dt ~ 1000 мс
+    $frame[2] = 200; Add-Bytes $p $frame $FrameLen
+    if ($p.SeqGaps -ne 0 -or $p.Restarts -ne 1) { Write-Host "  FAIL: рестарт потока (gaps=$($p.SeqGaps), рестартов=$($p.Restarts))"; $fail++ }
+    else { Write-Host "  OK: пауза 1 с + скачок SEQ 5 -> 200 -> рестарт=1, гэпов 0" }
+
     # 4) декод CP1251: байты CP1251 -> кириллица
     $p = New-Parser
     $script:FrameReady = $false
@@ -224,8 +267,8 @@ function Invoke-SelfTest {
     if ($line -ne "ПРИВЕТ") { Write-Host "  FAIL: CP1251-декод ('$line')"; $fail++ }
     else { Write-Host "  OK: CP1251-декод payload -> 'ПРИВЕТ'" }
 
-    if ($fail -eq 0) { Write-Host "SELfTEST: 6/6 ПРОЙДЕНЫ" }
-    else { Write-Host "SELfTEST: ПРОВАЛОВ $fail"; exit 1 }
+    if ($fail -eq 0) { Write-Host "SELFTEST: 7/7 ПРОЙДЕНЫ" }
+    else { Write-Host "SELFTEST: ПРОВАЛОВ $fail"; exit 1 }
 }
 
 if ($SelfTest) { Invoke-SelfTest; exit 0 }
@@ -242,6 +285,7 @@ $script:RxAccum = 0
 $script:RxRate = 0.0
 $script:LastRateTicks = $script:StartTicks
 $script:RxBuf = [byte[]]::new(16384)   # переиспользуемый буфер опроса порта
+$script:LastRestarts = 0               # v1.2.2: сколько рестартов уже отражено в CSV (строки "R")
 
 $form = [System.Windows.Forms.Form]::new()
 $form.Text = "XSTREAM v1 - 80x25 ($Port @ $Baud 8N1)"
@@ -315,6 +359,12 @@ $null = $timer.Add_Tick({
             if ($script:FpsEma -eq 0) { $script:FpsEma = $ema } else { $script:FpsEma = 0.8 * $script:FpsEma + 0.2 * $ema }
             Write-Log "D" $p.LastSeq $p.DtMs $p.BytesTotal $p.Resyncs $p.SeqGaps
         }
+        # v1.2.2: рестарт потока платы - отдельная строка "R" в CSV
+        if ($script:Parser.Restarts -gt $script:LastRestarts) {
+            $script:LastRestarts = $script:Parser.Restarts
+            $p = $script:Parser
+            Write-Log -Kind "R" -Seq $p.LastSeq -Dt $p.DtMs -Total $p.BytesTotal -Rs $p.Resyncs -Gaps $p.SeqGaps
+        }
         $now = [DateTime]::Now.Ticks
         if (($now - $script:LastRateTicks) -ge 10000000) {
             $script:RxRate = $script:Parser.BytesTotal
@@ -323,8 +373,9 @@ $null = $timer.Add_Tick({
             $el = [int](($now - $script:StartTicks) / 10000000)
             $period = 0.0
             if ($script:FpsEma -gt 0) { $period = 1000.0 / $script:FpsEma }
-            $status.Text = ("FPS {0:F1} | период {1:F1} мс | кадров {2} | SEQ-гэпы {3} | ресинк {4} Б | принято {5:F1} КБ | {6} с" -f `
-                $script:FpsEma, $period, $p.Frames, $p.SeqGaps, $p.Resyncs, ($p.BytesTotal / 1024.0), $el)
+            # v1.2.2: + рестарты (рестарт потока не гэп), "ресинк N Б" -> "ресинков N"
+            $status.Text = ("FPS {0:F1} | период {1:F1} мс | кадров {2} | SEQ-гэпы {3} | рестарт {4} | ресинков {5} | принято {6:F1} КБ | {7} с" -f `
+                $script:FpsEma, $period, $p.Frames, $p.SeqGaps, $p.Restarts, $p.Resyncs, ($p.BytesTotal / 1024.0), $el)
             Write-Log -Kind "S" -Seq $p.LastSeq -Dt 0 -Total $p.BytesTotal -Rs $p.Resyncs -Gaps $p.SeqGaps
         }
     } catch { }
@@ -338,8 +389,8 @@ $form.Add_FormClosed({
         $p = $script:Parser
         Write-Log -Kind "FIN" -Seq $p.LastSeq -Dt 0 -Total $p.BytesTotal -Rs $p.Resyncs -Gaps $p.SeqGaps
         if ($null -ne $script:LogSw) { $script:LogSw.Flush(); $script:LogSw.Close() }
-        Write-Host ("Итог: кадров {0}, FPS {1:F2}, SEQ-гэпов {2}, ресинков {3}, байт {4}" -f `
-            $p.Frames, $script:FpsEma, $p.SeqGaps, $p.Resyncs, $p.BytesTotal)
+        Write-Host ("Итог: кадров {0}, FPS {1:F2}, SEQ-гэпов {2}, рестартов {3}, ресинков {4}, байт {5}" -f `
+            $p.Frames, $script:FpsEma, $p.SeqGaps, $p.Restarts, $p.Resyncs, $p.BytesTotal)
     } catch { }
 })
 
