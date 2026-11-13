@@ -1,6 +1,6 @@
 ﻿#!/usr/bin/env pwsh
 # ======================================================================
-# XSTREAM_VIEW.PS1 v1.0 -- клиент XSTREAM: приём потока 80x25 из платы
+# XSTREAM_VIEW.PS1 v1.1 -- клиент XSTREAM: приём потока 80x25 из платы
 # (fw xstream_v1) в GUI-окно PowerShell.
 #
 # ПРОВОД: 1 000 000 8N1; кадр = A5 5A [SEQ] + 2000 Б (80x25, row-major).
@@ -14,7 +14,8 @@
 #   .\xstream_view.ps1 -SelfTest
 #
 # Совместимость: Windows PowerShell 5.1 (BOM обязателен; без ??, без
-# арифметики в New-Object - только ::new(); уроки gfx_view v1.1/v1.5).
+# арифметики в New-Object - только ::new(); DoubleBuffered - только через
+# рефлексию (защищённое свойство); уроки gfx_view v1.1-v1.5 + свои 11-12).
 # ======================================================================
 param(
     [string]$Port = "",
@@ -137,15 +138,18 @@ function Invoke-SelfTest {
     }
     Write-Host "  OK: побайтовая сверка payload кадра 129 (сшивка кусочков чтения)"
 
-    # 2) мусор до кадра -> ресинк без потери кадра
+    # 2) мусор до кадра -> ресинк без потери кадра (ДЕТЕРМИНИРОВАННО:
+    #    одиночный A5 + байт не-5A -> Resyncs>=1; рандом зависел от сида
+    #    и мог не дать ни одного A5 - FAIL на железе владельца 11-12)
     $p = New-Parser
     $script:FrameReady = $false
-    $garb = [byte[]]::new(137); $rnd.NextBytes($garb)
-    Add-Bytes $p $garb 137
+    $garb = [byte[]]::new(137)
+    $garb[0] = $Magic1; $garb[1] = 0x11              # A5 + НЕ 5A -> ресинк
+    for ($k = 2; $k -lt 137; $k++) { $garb[$k] = 0x33 }
     $frame[2] = 7
     Add-Bytes $p $frame $FrameLen
     if ($p.Frames -ne 1 -or $p.Resyncs -lt 1) { Write-Host "  FAIL: ресинк мусора (frames=$($p.Frames), rs=$($p.Resyncs))"; $fail++ }
-    else { Write-Host "  OK: мусор 137 Б -> ресинк, кадр принят без потерь" }
+    else { Write-Host "  OK: мусор 137 Б (A5 + не-5A) -> ресинк=1, кадр принят без потерь" }
 
     # 3) пропуск SEQ (плата сбросилась: ...5 -> 200)
     $p = New-Parser
@@ -188,7 +192,6 @@ $form = [System.Windows.Forms.Form]::new()
 $form.Text = "XSTREAM v1 - 80x25 ($Port @ $Baud 8N1)"
 $form.StartPosition = "Manual"
 $form.BackColor = [System.Drawing.Color]::FromArgb(12, 12, 16)
-$form.DoubleBuffered = $true
 $panel = [System.Windows.Forms.Panel]::new()
 $panel.Dock = "Fill"
 $form.Controls.Add($panel)
@@ -200,6 +203,9 @@ $status.BackColor = [System.Drawing.Color]::FromArgb(12, 12, 16)
 $status.ForeColor = [System.Drawing.Color]::FromArgb(140, 220, 140)
 $status.Font = [System.Drawing.Font]::new("Consolas", 10)
 $form.Controls.Add($status)
+# double-buffering панели через рефлексию (свойство защищённое):
+$flags = [System.Reflection.BindingFlags]"Instance,NonPublic"
+$null = $panel.GetType().GetProperty("DoubleBuffered", $flags).SetValue($panel, $true, $null)
 $panel.BringToFront()
 
 $font = [System.Drawing.Font]::new("Consolas", [double]$FontSize)

@@ -817,7 +817,7 @@ XSKR:   RET
 ; XSEND: кадр XSTREAM в UART: A5 5A [SEQ] + 2000 Б из XBUF.
 ;   Сохраняет PSW/B/D/H. РАВНОМЕРНЫЙ пейсинг 35T/Б (7+10+6+3x4 >= 31.25T,
 ;   ноль отбросов TX, прецедент p04); каждые 80 Б - слот дисплея XDIG
-;   (D/E - фаза дисплея, C свободен после inner, B - внешний 20x100).
+;   (DE/C - фаза дисплея после inner, B - внешний счётчик групп).
 ; ---------------------------------------------------------------------
 XSEND:  PUSH PSW
         PUSH B
@@ -844,16 +844,17 @@ XSEND:  PUSH PSW
         NOP
         INR A
         STA XSSEQ           ; SEQ++ mod 256
-        LXI H,BITTBL        ; фаза дисплея: E = бит разряда, D = ptr глифа
-        LDA DPIDX
+        LDA DPIDX           ; фаза дисплея: DE = 0FFF5+idx (глиф), C = бит разряда
         MOV C,A
+        ADI 0F5h
+        MOV E,A             ; E = 0F5h..0F8h (младший байт указателя глифа)
+        MVI D,0FFh          ; D = 0FFh -> DE = 0FFF5h..0FFF8h (DIGIMG0..3)
+        MOV A,C
         MVI B,0
+        LXI H,BITTBL
         DAD B
         MOV A,M
-        MOV E,A
-        MOV A,C
-        ADI 0F5h            ; DIGIMG = 0FFF5h (+DPIDX 0..3)
-        MOV D,A
+        MOV C,A             ; C = бит разряда 01/02/04/08 (свободен вне inner)
         LXI H,XBUF          ; HL = экран
         MVI B,10            ; внешний: 10 групп по 200 Б (слот дисплея)
 XSOUT:  MVI C,25            ; внутренний: 25 подгрупп по 8 Б
@@ -918,37 +919,35 @@ XSL:    MOV A,M
 
 ; ---------------------------------------------------------------------
 ; XDIG: один слот регенерации дисплея ВО ВРЕМЯ посылки.
-;   D = ptr глифа (DIGIMG0..3, FFF5h..FFF8h), E = бит разряда -
+;   DE = 0FFF5h..0FFF8h (указатель глифа DIGIMG0..3), C = бит разряда -
 ;   своя фаза (DPIDX не трогает, к возврату монитор продолжит свою).
 ;   Тон: SNDST OR-ится в бит разряда (запись DIGP несет D4).
-;   Глиф хранится в C (внутр. счётчик к этому моменту отработан);
-;   A/флаги портит свободно (XSEND сохранил PSW). ~187T + CALL.
+;   Порядок как в REFRESH: ГАШЕНИЕ -> РАЗРЯД -> ГЛИФ. Без стеша:
+;   глиф читается последним (LDAX D -> OUT SEGP). A/флаги свободно.
+;   УРОК 11-12 железа: DE - ПАРА (старший байт D=0FFh!); вариант
+;   "D=0F5h, E=бит" читал мусор ОЗУ 0F5xx -> глифы-призраки L.L.L.1.
 ; ---------------------------------------------------------------------
 XDIG:   XRA A
-        OUT SEGP            ; гашение
-        LDAX D              ; A = глиф текущего разряда
-        MOV C,A
+        OUT SEGP            ; (1) гашение
+        MOV A,C             ; бит разряда
         LDA SNDST
         ORA A
         JZ XDG1
-        MOV A,E
         ORI 10h             ; + SND
-        JMP XDG2
-XDG1:   MOV A,E
-XDG2:   OUT DIGP            ; разряд (и тон) включён
-        MOV A,C
-        OUT SEGP            ; глиф горит
-        INX D
-        MOV A,D
-        ANI 03h             ; оставить 0..3 (обёртка DIGIMG0..3)
-        ORI 0F5h            ; DIGIMG = 0FFF5h
-        MOV D,A
-XDG3:   MOV A,E
+XDG1:   OUT DIGP            ; (2) разряд (и тон) включён, сегменты пусты
+        LDAX D              ; A = глиф [0FFF5h..0FFF8h]
+        OUT SEGP            ; (3) глиф горит
+        INX D               ; следующий глиф (E: 0F5..0F8)
+        MOV A,E
+        CPI 0F9h            ; за DIGIMG3?
+        JC XDG2
+        MVI E,0F5h          ; -> DIGIMG0
+XDG2:   MOV A,C
         RLC
         ANI 0Fh             ; 08h -> 10h -> 00
-        JNZ XDG4
+        JNZ XDG3
         MVI A,01h           ; после DIG3 -> DIG0
-XDG4:   MOV E,A
+XDG3:   MOV C,A
         RET
 
 ; ---------------------------------------------------------------------

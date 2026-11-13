@@ -75,6 +75,7 @@ class CPU:
         # клавиатура/дисплей
         self.kbcol = 0
         self.dig_writes = 0       # слоты регенерации (записи в 01h)
+        self.stray_glyphs = 0     # чужие глифы на SEGP (норма 0)
         # прерывание v24
         self.tmr_deadline = None  # такт следующего истечения (или None - стоп)
         self.tmrlatch = False
@@ -106,6 +107,14 @@ class CPU:
                 self.busy = self.t + FRAME_T
             else:
                 self.dropped += 1
+        elif port == 0x00:
+            # дисплейная модель: НЕнулевой глиф обязан быть из DIGIMG0..3
+            # (урок 11-12 железа: LDAX D по кривому указателю читал мусор
+            #  ОЗУ 0F5xx -> глифы-призраки; сим обязан ловить это класс)
+            if val != 0:
+                imgs = [self.mem.get(0xFFF5 + i, 0) for i in range(4)]
+                if val not in imgs:
+                    self.stray_glyphs += 1
         elif port == 0x02:
             self.kbcol = val
         elif port == 0x01:
@@ -424,6 +433,9 @@ def verdict(cpu, target_ms, label):
     # 5. слоты дисплея
     print(f"записей DIGP (слотов дисплея): {cpu.dig_writes} "
           f"(~{cpu.dig_writes / (cpu.t * T_NS / 1e6):.0f}/мс)")
+    print(f"чужие глифы на дисплее: {cpu.stray_glyphs} "
+          f"{'ОК (норма 0)' if cpu.stray_glyphs == 0 else 'ПРОВАЛ: глиф не из DIGIMG'}")
+    ok &= cpu.stray_glyphs == 0
     return ok
 
 
