@@ -39,23 +39,35 @@ def eq_of(sig):
 
 
 print("== Печатные уравнения узла ==")
-x2d = eq_of("X2_D")
-chk(x2d is not None, "X2_D найдено", "(нет уравнения в отчёте)")
-print("    X2_D = %s" % x2d)
 x1_inst = re.search(r"FTCPE_X1:\s*FTCPE port map \(X1,([^,]+),clk", txt)
 t0_inst = re.search(r"FTCPE_t0_q:\s*FTCPE port map \(t0_q,([^,]+),clk", txt)
-x2_inst = re.search(r"FDCPE_X2:\s*FDCPE port map \(X2,X2_D,clk", txt)
+x2_tff = re.search(r"FTCPE_X2:\s*FTCPE port map \(X2,([^,]+),clk", txt)
+x2_dff = re.search(r"FDCPE_X2:\s*FDCPE port map \(X2,X2_D,clk", txt)
 chk(x1_inst is not None and x1_inst.group(1).strip() == "t0_q",
     "X1 = FTCPE (T = t0_q)")
 chk(t0_inst is not None and t0_inst.group(1).strip() == "'1'",
     "t0_q = FTCPE (T = '1')")
-chk(x2_inst is not None, "X2 = FDCPE (D = X2_D)")
+t_form = x2_tff is not None and x2_tff.group(1).strip() == "t0_q"
+x2d = None
+if t_form:
+    chk(True, "X2 = FTCPE (T = t0_q) - T-форма v2.6, комб-логики НЕТ")
+    chk(x2_dff is None, "FDCPE_X2 отсутствует (D-форма не вернулась)")
+elif x2_dff is not None:
+    x2d = eq_of("X2_D")
+    chk(x2d is not None, "X2_D найдено", "(нет уравнения в отчёте)")
+    print("    X2_D = %s" % x2d)
+    chk(False, "X2 в D-форме (v2.6 требует T-форму: печать XOR без NOT "
+               "при любой записи RTL - фит 5 = фит 4 байт-в-байт)")
+else:
+    t_form = True  # чтобы сим не упал до chk ниже
+    chk(False, "инстанс X2 не найден")
 
 print("== Таблица истинности печати (25 МГц, 16 тактов) ==")
-# Печатная функция X2_D: литералы X1, t0_q; NOT по печати. XOR-разбиение: A XOR B.
+if t_form:
+    print("    T-форма: X2(t+1) = X2 ^ t0; X1(t+1) = X1 ^ t0 -> X2^X1 "
+          "инвариант = INIT")
+
 def f_x2d(x1, t0):
-    if x2d is None:
-        return None
     parts = [p.strip() for p in x2d.split(" XOR ")]
     if len(parts) == 2:
         def val(p):
@@ -76,7 +88,7 @@ try:
         if x2 != (1 - x1):
             anti_ok = False
         n0, n1 = 1 - t0, x1 ^ t0
-        n2 = f_x2d(x1, t0)
+        n2 = (x2 ^ t0) if t_form else f_x2d(x1, t0)
         t0, x1, x2 = n0, n1, n2
     period = None
     seq = [s[1] for s in trace[:8]]
@@ -113,7 +125,9 @@ chk("Fitting Status: Successful" in txt, "Fitting Status: Successful")
 print("\nВЕРДИКТ: %s (PASS %d / FAIL %d)" %
       ("ШИТЬ" if fail == 0 else "НЕ ШИТЬ", ok, fail))
 if fail:
-    print("  Класс брака: см. FAIL выше (для X2-D это класс «потеря инверсии» -")
-    print("  прецеденты фит 7:31/8:55 с por-декодами). Лечение: D(x2) - явная")
-    print("  И-ИЛИ форма (x1&t0)|(~x1&~t0) - печать с NOT, аудит таблицей.")
+    print("  Класс брака: см. FAIL выше (для X2 это класс «потеря инверсии» -")
+    print("  D-форма неаудитируема: фит 5 = фит 4 байт-в-байт, печать XOR")
+    print("  без NOT при любой записи RTL). Лечение (v2.6): x2_q = FTCPE")
+    print("  с T = t0_q, INIT = RESET - T-форма, комб-логики нет, инвариант")
+    print("  X2^X1 = 1 живёт в INIT-бите (SET/RESET-колонки отчёта).")
 sys.exit(1 if fail else 0)
