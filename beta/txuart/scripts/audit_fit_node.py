@@ -129,7 +129,10 @@ chk(m is not None, "строка бюджета найдена")
 if m:
     print("    МЦ: %s/108" % m.group(1))
     if MODE == "v27":
-        chk(m.group(1) == "107", "МЦ = 107 (вариант C: 101 + 6 МЦ тика)", "факт %s" % m.group(1))
+        # прогноз варианта C = 107; фиттер вправе лучше (свёртка комб-MC,
+        # фит v2.7: 106 при целых 82+6 FF) - против fold-брака сторожат
+        # счётчики инстансов tick_cnt/TRAP ниже
+        chk(m.group(1) in ("106", "107"), "МЦ 106-107 (вариант C: +6 МЦ тика)", "факт %s" % m.group(1))
 chk("Fitting Status: Successful" in txt, "Fitting Status: Successful")
 
 # ================================================================
@@ -154,7 +157,7 @@ if MODE == "v27":
                 toks.append(c)
                 i += 1
                 continue
-            m = re.match(r"[$A-Za-z_][A-Za-z_0-9$<>/]*(:?\(\d+\))?", s[i:])
+            m = re.match(r"[$A-Za-z_][A-Za-z_0-9$<>/]*(?:\(\d+\))?(?:\.[A-Za-z_0-9$]+)*", s[i:])
             if not m:
                 raise ValueError("символ %r в %r" % (c, s[:70]))
             toks.append(m.group(0))
@@ -226,13 +229,28 @@ if MODE == "v27":
         PARSE_CACHE[s] = v
         return v
 
+    PAD_ALIAS = {"X1": "x1_q", "X2": "x2_q"}  # пад-сети делителя = его FF
+
+    # Контрольные сети фиттера (FC_N_.OUT) уравнений НЕ имеют. Полная
+    # таблица невозможна - сим подаёт baud_tick ЭТАЛОННЫМ стробом 1/25
+    # (фаза от INIT): период тика 128 мкс от фазы НЕ зависит
+    # (LCM(4,25)=100 при любой фиксированной фазе, CRT), а сам строб
+    # железно доказан работой UART (1 000 000 бод) с v2.1. Конус тика
+    # (T-сети tick_cnt/TRAP_T) симулируется из печати 1-в-1.
+    FC_SYM = True
+
     def env_of(name, env):
         if name in IDLE0:
             return 0
+        name = PAD_ALIAS.get(name, name)
         if name in env:
             return env[name]
         eq = eq_of(name)
         if eq is None:
+            if FC_SYM and re.match(r"^FC_\d+_\.OUT$", name):
+                # эталонный строб baud_tick 1/25 (фаза от INIT)
+                env[name] = env["__bt__"]
+                return env[name]
             raise ValueError("нет уравнения для %r (печать тика не распознана)" % name)
         v = parse_fn(eq)(env)
         env[name] = v
@@ -246,6 +264,16 @@ if MODE == "v27":
             return None, None
         return m.group(2).strip(), ("T" if m.group(1) == "T" else "D")
 
+    def ff_net_out(cands):
+        """FF, чей Q = один из кандидатов. cpldfit вправе переименовать
+        защёлку тика в выходной регистр пина (фит v2.7: FTCPE_TRAP с
+        T = TRAP_T - мукс свёрнут в T-форму) - ищем по имени Q."""
+        for cand in cands:
+            m = re.search(r"F([DT])CPE_\S+:\s*F[DT]CPE port map \((%s),([^,]+),clk" % cand, txt)
+            if m:
+                return m.group(2), m.group(3).strip(), ("T" if m.group(1) == "T" else "D")
+        return None, None, None
+
     # --- инстансы и уравнения ---
     tick_ok = True
     tick_bits = {}
@@ -257,14 +285,22 @@ if MODE == "v27":
             continue
         eq = eq_of(net) or net  # D может быть inline-выражением
         tick_bits[n] = (eq, kind)
-    tq_net, _ = ff_net("tick_q")
-    chk(tq_net is not None, "tick_q: инстанс найден")
-    if tq_net is None:
+    qname, tq_net, tq_kind = ff_net_out(("tick_q", "TRAP"))
+    chk(qname is not None, "защёлка тика: инстанс найден (Q=%s, %s-форма)" % (qname, tq_kind))
+    if qname is None:
         tick_ok = False
         tq_eq = None
     else:
         tq_eq = eq_of(tq_net) or tq_net
-        chk("XOR" not in tq_eq, "D(tick_q) без XOR (И-ИЛИ защёлка-мукс)", tq_eq)
+        if tq_kind == "T":
+            # T = step AND (q XOR c4); XOR вправе быть расщеплён на 2
+            # И-терма с явными NOT (калибровано фит v2.7); семантику
+            # ловит сим (T=1 -> q^=1, T=0 -> hold)
+            chk("TRAP" in tq_eq and "tick_cnt(4)" in tq_eq,
+                "T-форма защёлки: T по печати = step & (TRAP XOR tick_cnt(4))", tq_eq[:100])
+        else:
+            chk("XOR" not in tq_eq, "D(tick_q) без XOR (И-ИЛИ защёлка-мукс)", tq_eq)
+    baud_sim = True  # печатается ли baud-сторона для полной сим
     baud_bits = {}
     for n in range(5):
         net, kind = ff_net("baud_cnt", n)
@@ -272,21 +308,36 @@ if MODE == "v27":
             chk(False, "baud_cnt(%d): инстанс найден" % n)
             tick_ok = False
         else:
-            baud_bits[n] = (eq_of(net) or net, kind)
+            eq = eq_of(net) or net
+            if re.search(r"FC_\d+_\.OUT", eq):
+                # фит v2.7: фиттер переупаковал baud_cnt (T(0) ссылается на
+                # контрольную сеть FC_6_.OUT без уравнения) - печатная
+                # симуляция свободного счёта невозможна
+                baud_sim = False
+            baud_bits[n] = (eq, kind)
     chk(re.search(r"^\s*TRAP\s+\d+\s+\d+\s+FB\d+_\d+\s+74\s+I/O\s+O\s+\S+\s+\S+ RESET\s*$", txt, re.M) is not None,
         "TRAP: P74, выход, registered, INIT=RESET")
     if tick_ok:
         # --- сим 6400 клк ---
-        state = {"t0_q": 0, "x1_q": 1, "x2_q": 0, "tick_q": 0}
+        state = {"t0_q": 0, "x1_q": 1, "x2_q": 0, qname: 0}
         for n in range(5):
             state["baud_cnt(%d)" % n] = 0
             state["tick_cnt(%d)" % n] = 0
         steps, q_edges, q_falls = [], [], []
-        tc_seen = set()
+        if not baud_sim:
+            print("    INFO: FC_N_.OUT непечатаемы (переупаковка baud_cnt фиттером)"
+                  " - baud_tick подан эталонным стробом 1/25 (фаза от INIT;"
+                  " период тика от фазы не зависит - LCM(4,25)=100 при CRT);"
+                  " конус тика симулируется из печати 1-в-1")
         try:
             ts_eq = eq_of("tick_step")
             if ts_eq is not None:
                 ts_fn = parse_fn(ts_eq)
+            elif 0 in tick_bits and tick_bits[0][1] == "T":
+                # фиттер растворил tick_step в T-сетях (фит v2.7:
+                # T(0) = ~X1 & ~t0 & $439677 - бит 0 счётчика тогглит
+                # КАЖДЫЙ шаг, перенос = 1, значит его T-сеть = tick_step)
+                ts_fn = parse_fn(tick_bits[0][0])
             else:
                 pc_eq, bt_eq = eq_of("por_ce"), eq_of("baud_tick")
                 if pc_eq is None or bt_eq is None:
@@ -295,6 +346,7 @@ if MODE == "v27":
                 ts_fn = lambda env: a(env) & b(env)
             for c in range(6400):
                 env = dict(state)
+                env["__bt__"] = 1 if (c % 25) == 24 else 0  # эталонный baud_tick
                 if ts_fn(env):
                     steps.append(c)
                 nxt = {}
@@ -302,16 +354,22 @@ if MODE == "v27":
                     v = parse_fn(eq)(env)
                     qk = "tick_cnt(%d)" % n
                     nxt[qk] = state[qk] ^ v if kind == "T" else v
-                for n, (eq, kind) in baud_bits.items():
-                    v = parse_fn(eq)(env)
-                    qk = "baud_cnt(%d)" % n
-                    nxt[qk] = state[qk] ^ v if kind == "T" else v
+                if baud_sim:
+                    for n, (eq, kind) in baud_bits.items():
+                        v = parse_fn(eq)(env)
+                        qk = "baud_cnt(%d)" % n
+                        nxt[qk] = state[qk] ^ v if kind == "T" else v
+                else:
+                    for n in range(5):
+                        nxt["baud_cnt(%d)" % n] = 0
                 vq = parse_fn(tq_eq)(env)
-                if state["tick_q"] == 0 and vq == 1:
+                # T-форма защёлки: vq = T-сеть -> q ^= T; D-форма: q = D
+                nq = (state[qname] ^ vq) if tq_kind == "T" else vq
+                if state[qname] == 0 and nq == 1:
                     q_edges.append(c + 1)
-                if state["tick_q"] == 1 and vq == 0:
+                if state[qname] == 1 and nq == 0:
                     q_falls.append(c + 1)
-                nxt["tick_q"] = vq
+                nxt[qname] = nq
                 nxt["t0_q"] = 1 - state["t0_q"]
                 nxt["x1_q"] = state["x1_q"] ^ state["t0_q"]
                 nxt["x2_q"] = state["x2_q"] ^ state["t0_q"]

@@ -1,27 +1,45 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""test_audit_v27.py - испытание аудитора в трёх режимах.
+"""test_audit_v27.py - испытание аудитора в четырёх режимах.
 
-  T1  fit6 (реальный отчёт v2.6) в режиме v26  -> ШИТЬ 21/0 (регрессия)
-  T2  fit6 в режиме v27                        -> НЕ ШИТЬ (тика нет - громко)
+  T1  fit6 (v2.6-отчёт из git: HEAD:upload/retro_pcld_top.rpt) в режиме
+      v26                                     -> ШИТЬ 21/0 (регрессия)
+  T2  fit6 в режиме v27                       -> НЕ ШИТЬ (тика нет - громко)
   T3  синтетический отчёт (fit6 + впрыск печати тика в калиброванном
-      формате) в режиме v27                    -> ШИТЬ, все проверки тика PASS
+      формате, D-форма) в режиме v27          -> ШИТЬ, все проверки тика PASS
+  T4  актуальный upload/retro_pcld_top.rpt в режиме v27 -> вердикт согласен
+      с пином TRAP (пин != 74 => ровно один FAIL: пин; пин = 74 => ШИТЬ)
 
 Синтетика валидирует парсер/сим аудитора против ОЖИДАЕМОГО формата
-печати cpldfit. Если реальный fit v2.7 напечатает иначе - аудитор громко
-FAIL-нет с диагностикой (имя нераспознанного символа), чинится калибровкой.
+печати cpldfit. Реальные фиты напечатали иначе - оба варианта
+откалиброваны: фит v2.7 перевёл защёлку тика в T-форму (FTCPE_TRAP,
+T = TRAP_T = step & (TRAP XOR tick_cnt(4)) с расщеплённым XOR) и
+переупаковал baud_cnt с контрольными сетями FC_N_.OUT (сим подаёт
+baud_tick эталонным стробом 1/25 - период тика от фазы не зависит).
 """
 import io
 import os
+import re
 import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-RPT = "/home/z/my-project/upload/retro_pcld_top.rpt"
+CUR = "/home/z/my-project/upload/retro_pcld_top.rpt"
 AUD = os.path.join(HERE, "audit_fit_node.py")
 SYN = "/tmp/synth_v27.rpt"
+FIT6 = "/tmp/fit6_fixture.rpt"
 
-src = io.open(RPT, "r", encoding="cp1251", errors="replace").read()
+# fit6 = версия upload-отчёта в HEAD (upload/retro_pcld_top.rpt
+# перезаписывается каждым новым фит-отчётом владельца)
+for cwd in (os.path.join(HERE, "..", ".."), "/home/z/my-project"):
+    p = subprocess.run(["git", "show", "HEAD:upload/retro_pcld_top.rpt"],
+                       cwd=cwd, capture_output=True)
+    if p.returncode == 0 and p.stdout:
+        break
+assert p.returncode == 0 and p.stdout, "fit6 из git не получен: %s" % p.stderr[:200]
+io.open(FIT6, "wb").write(p.stdout)
+
+src = io.open(FIT6, "r", encoding="cp1251", errors="replace").read()
 
 # --- впрыск 1: бюджет 107/108 ---
 src = src.replace("101/108 ( 94%) 339 /540", "107/108 ( 99%) 352 /540", 1)
@@ -75,7 +93,7 @@ def run(args):
 fails = 0
 
 # T1: v26-регрессия на реальном fit6
-rc, out = run([RPT, "v26"])
+rc, out = run([FIT6, "v26"])
 t1 = rc == 0 and "ВЕРДИКТ: ШИТЬ" in out and "PASS 21 / FAIL 0" in out
 print("T1 v26-регрессия на fit6:", "PASS" if t1 else "FAIL")
 if not t1:
@@ -83,7 +101,7 @@ if not t1:
     fails += 1
 
 # T2: v27 на fit6 - тика нет, громкий FAIL
-rc, out = run([RPT, "v27"])
+rc, out = run([FIT6, "v27"])
 t2 = rc != 0 and "ВЕРДИКТ: НЕ ШИТЬ" in out and "ТИК v2.7 в отчёте НЕ найден" in out
 print("T2 v27 на fit6 (ожид. НЕ ШИТЬ):", "PASS" if t2 else "FAIL")
 if not t2:
@@ -99,11 +117,27 @@ tick_ok = all(s in out for s in (
     "high tick_q ровно 1600 клк",
     "D(tick_q) без XOR",
     "TRAP: P74, выход, registered, INIT=RESET",
-    "МЦ = 107"))
+    "МЦ 106-107"))
 print("T3 v27 на синтетике (ожид. ШИТЬ):", "PASS" if t3 else "FAIL",
       "| тик-пункты:", "ALL" if tick_ok else "НЕ ПОЛНЫ")
 if not (t3 and tick_ok):
     print(out)
+    fails += 1
+
+# T4: актуальный отчёт владельца - вердикт согласен с пином TRAP
+rc, out = run([CUR, "v27"])
+cur_txt = io.open(CUR, "r", encoding="cp1251", errors="replace").read()
+m = re.search(r"^\s*TRAP\s+\d+\s+\d+\s+FB\d+_\d+\s+(\d+)\s+I/O\s+O", cur_txt, re.M)
+pin_ok = m is not None and m.group(1) == "74"
+nfail = re.search(r"PASS (\d+) / FAIL (\d+)", out)
+t4 = (nfail is not None
+      and (int(nfail.group(2)) == 0 if pin_ok
+           else int(nfail.group(2)) == 1 and "TRAP: P74" in out)
+      and ("ВЕРДИКТ: ШИТЬ" in out) == pin_ok)
+print("T4 v27 на актуальном отчёте (TRAP пин %s):" % (m.group(1) if m else "?"),
+      "PASS" if t4 else "FAIL")
+if not t4:
+    print(out[-1500:])
     fails += 1
 
 print("\nИТОГ теста аудитора: %s (%d провалов)" % ("PASS" if fails == 0 else "FAIL", fails))
