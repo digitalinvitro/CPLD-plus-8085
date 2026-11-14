@@ -29,14 +29,19 @@ AUD = os.path.join(HERE, "audit_fit_node.py")
 SYN = "/tmp/synth_v27.rpt"
 FIT6 = "/tmp/fit6_fixture.rpt"
 
-# fit6 = версия upload-отчёта в HEAD (upload/retro_pcld_top.rpt
-# перезаписывается каждым новым фит-отчётом владельца)
-for cwd in (os.path.join(HERE, "..", ".."), "/home/z/my-project"):
-    p = subprocess.run(["git", "show", "HEAD:upload/retro_pcld_top.rpt"],
-                       cwd=cwd, capture_output=True)
-    if p.returncode == 0 and p.stdout:
+# fit6 = последний снапшот upload-отчёта СО СТАРОЙ статистикой (101/108):
+# снапшот-репозиторий my-project коммитит upload/ после каждого сообщения,
+# HEAD уже содержит fit7 - ищем в истории маркер fit6
+p = None
+log = subprocess.run(["git", "log", "--format=%h", "--", "upload/retro_pcld_top.rpt"],
+                     cwd="/home/z/my-project", capture_output=True, text=True)
+for c in (log.stdout.split() if log.returncode == 0 else []):
+    q = subprocess.run(["git", "show", "%s:upload/retro_pcld_top.rpt" % c],
+                       cwd="/home/z/my-project", capture_output=True)
+    if q.returncode == 0 and b"101/108" in q.stdout[:2000]:
+        p = q
         break
-assert p.returncode == 0 and p.stdout, "fit6 из git не получен: %s" % p.stderr[:200]
+assert p is not None and p.stdout, "fit6-снапшот не найден в истории my-project"
 io.open(FIT6, "wb").write(p.stdout)
 
 src = io.open(FIT6, "r", encoding="cp1251", errors="replace").read()
