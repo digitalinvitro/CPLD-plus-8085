@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """audit_core_sim.py - поведенческая симуляция ПЕЧАТИ ядра (TX-путь)
-по уравнениям фит-отчёта. Закрывает остаточный риск переупаковки ядра
-(D->T у shreg/TX/bit_cnt/baud_cnt0, переэнкодинг FSM/baud_cnt): та же
-печатная логика проверяется поведенчески и сравнивается fit7 vs fit6.
+по уравнениям фит-отчёта. Калибровка: ФИТ С ПИН-КОНСТРЕЙНТАМИ (TRAP P74,
+104/108) - в нём сериализатор напечатан почти целиком: счётчик baud_cnt
+ДВОИЧНЫЙ (baud_cnt_D(0)=~b0&~$882), shreg_D(1..8) с инъекцией стоп-бита
+(sh(8):=1 на тике) - В ПЕЧАТИ, tick_cnt_T(4) с полным декодом. Верифицируется
+ПОЛНЫЙ кадр 8N1 (старт+данные+стоп) по точным временам фронтов.
 
 Стимул (шина 8085, CPU-тик = 4 клк 25 МГц):
   POR (GSR-INIT) -> пауза -> OUT 04h, A=5Ah (кадр 1) -> запись В КАДР
@@ -92,12 +94,11 @@ def parse_ffs(txt):
 
 
 def expected_transitions(data, load_c):
-    """Ожидаемые clk-и фронтов TX: старт + 8 бит данных (LSB-first).
+    """Ожидаемые clk-и фронтов TX: ПОЛНЫЙ кадр 8N1 (старт+данные+стоп).
     Бит k занимает [load+1+k*25, load+(k+1)*25); фронт - смена значения.
-    Стоп-бит НЕ включён: инъекция '1' в sh(8) непечатаемо переплетена
-    фиттером с переэнкодингом счётчика (D(8) + FC_6) - покрывается
-    железом (UART-тест) и гарантией инструмента; данные/старт - печать."""
-    bits = [0] + [(data >> i) & 1 for i in range(8)]
+    В этом фите инъекция '1' стоп-бита напечатана в shreg_D(8) - весь кадр
+    верифицируем из печати."""
+    bits = [0] + [(data >> i) & 1 for i in range(8)] + [1]
     out = []
     prev = 1  # idle
     for k, b in enumerate(bits):
@@ -124,28 +125,44 @@ class Sim:
         self._pc = {}
         self.has_fc = bool(re.search(r"FC_\d+_\.OUT", self.txt))
         self.subst = {}
-        # Заморозка счётчиков на INIT: baud_cnt переэнкодирован фиттером
-        # (T(0) несовместим с двоичным счётом, FC_6 невыводим), его значения
-        # питают только FC-сети и непечатаемые декоды. Литерал-паттерн
-        # декода (появляется в shreg_T(2..7) как «тик» переэнкодинга)
-        # переписывается в символ __tick__ = эталонный строб 1/25 с джемом
-        # от нагрузки. Остаточный риск: каденция тика = гарантия инструмента
-        # + железо (UART), структура сдвига/защёлки = печать 1-в-1.
-        self.frozen = {"baud_cnt(%d)" % n: 0 for n in range(5)}
-        self.frozen.update({"bit_cnt(%d)" % n: 0 for n in range(4)})
-        self._tick_pat = re.compile(
-            r"NOT baud_cnt\(0\) AND NOT baud_cnt\(1\) AND NOT baud_cnt\(2\)"
-            r" AND baud_cnt\(3\) AND baud_cnt\(4\)")
-        if self.has_fc:
-            self.subst = {
-                "FC_1_.OUT": "(NOT X1 AND NOT t0_q AND por_sh(7))",
-                "FC_2_.OUT": "(NOT X1 AND NOT t0_q)",
-                "FC_3_.OUT": None,  # модель tx_idle (frame_active)
-                "FC_4_.OUT": "(NOT state_FSM_FFd3 AND NOT state_FSM_FFd1)",
-                "FC_5_.OUT": "__tick__",
-                "FC_6_.OUT": "__tick__",  # завершение декода за ~b0&~b1&~b2
-            }
-        self.eqs = {k: self._tick_pat.sub("__tick__ ", v) for k, v in self.eqs.items()}
+        # === Калибровка под фит с пин-констрейнтами (TRAP P74, 104/108) ===
+        # Этот фит печатает сериализатор ПОЧТИ целиком: shreg_D(1..8) с
+        # полным декодом ==24 литералами (инъекция sh(8):=1 на тике - в
+        # печати!), счётчик baud_cnt ДВОИЧНЫЙ (baud_cnt_D(0)=~b0&~$882),
+        # tick_cnt_T(4) с полным декодом+por_ce литералами. Фолды:
+        #  $882 := ld_tx_q OR декод ==24 - закреплён двумя потребителями
+        #    (baud_cnt_D(0): ~b0&~$882 = RTL b0'=~b0&~ld&~tick; shreg_D(1):
+        #    hold sh(1)&~$882 выключен при ld И при тике) + RTL п.27
+        #  FC_4 := shreg(1) & декод-без-~b0 - TX_D = (TX&~$882)|(~b0&FC_4):
+        #    напечатанный ~b0 достраивает FC_4 до полного декода; sh(1) -
+        #    RTL сдвиг TX:=sh(1) на тике
+        #  FC_6 := ~state_FSM_FFd3 & ~state_FSM_FFd1 - закреплено печатью:
+        #    addr_latch_T(0)/(5) печатают защёлку T1H (001&ALE) ЦЕЛИКОМ,
+        #    T(1)/(2) сворачивают её же в FC_6 (захват в 001, дооборот в
+        #    парковке 000 - A стабильна весь T1); ld_tx_q_D = FFd2 & FC_6
+        #    = 010 = T2 переэнкодинга (машина: idle-вращение 001->010->100,
+        #    парковка 000 под ALE, запись стробится в фазе 010)
+        #  FC_5 := ~addr_latch(0) & tx_idle & !ld - хвост io_wr_tx: печать
+        #    несёт al(2)&~al(1), RTL п.31 требует ещё ~al(0), tx_idle, !ld
+        #  FC_1 := por_ce & por_sh(7) (заполнение '0'), FC_2 := por_ce -
+        #    паттерн por_sh_T(0..6); FC_0/FC_3 - вне TX-пути (чтение статуса/
+        #    защёлка колонок клавиатуры) - их FF заморожены
+        self.tick_expr = ("(NOT baud_cnt(0) AND NOT baud_cnt(1) AND NOT baud_cnt(2)"
+                          " AND baud_cnt(3) AND baud_cnt(4))")
+        self.frozen = {}
+        for n in range(4):
+            self.frozen["col%d" % n] = self.inits.get("col%d" % n, 0)
+        for n in range(8):
+            self.frozen["D_I(%d)" % n] = 0
+        self.subst = {
+            "$OpTx$FX_SC$882": "(ld_tx_q OR %s)" % self.tick_expr,
+            "FC_4_.OUT": "(shreg(1) AND NOT baud_cnt(2) AND NOT baud_cnt(1)"
+                         " AND baud_cnt(3) AND baud_cnt(4))",
+            "FC_5_.OUT": "(NOT addr_latch(0) AND __txidle__)",
+            "FC_6_.OUT": "(NOT state_FSM_FFd3 AND NOT state_FSM_FFd1)",
+            "FC_1_.OUT": "(NOT X1 AND NOT t0_q AND por_sh(7))",
+            "FC_2_.OUT": "(NOT X1 AND NOT t0_q)",
+        }
 
     # --- парсер выражений (как в audit_fit_node.py) ---
     def tokenize(self, s):
@@ -236,12 +253,7 @@ class Sim:
             return env[name]
         if name in self.subst:
             fn = self.subst[name]
-            if fn is None:  # FC_3: модель tx_idle
-                v = (1 - env["__frame__"]) & (1 - env.get("ld_tx_q", 0))
-            elif fn == "__tick__":
-                v = env["__tick__"]
-            else:
-                v = self.parse_fn(fn)(env)
+            v = self.parse_fn(fn)(env)
             env[name] = v
             return v
         if name == RSTF_NET:
@@ -267,8 +279,9 @@ class Sim:
         for q, _net, _k, _clr, _pre in self.ffs:
             st[q] = self.frozen.get(q, self.inits.get(q, 0))
         bus = {"ALE": 0, "WRn": 1, "RDn": 1, "IOM": 0, "A15": 0, "__A": 0x00}
-        phase = 0       # фазовый счётчик эталонного строба 0..24 (джем от нагрузки)
-        frame = 0       # счётчик бит-таймов кадра (RTL bit_cnt 1..10, модель)
+        frame = 0       # счётчик бит-таймов кадра (RTL bit_cnt 1..10, модель
+                        # для хвоста декода записи FC_5; сам bit_cnt печатный)
+        tick_fn = None  # реальный строб ==24 ИЗ ПЕЧАТИ (baud_cnt двоичный!)
         trace = {"c": [], "TX": [], "ld": [], "state": [], "por": [],
                  "resetin": [], "we": [], "bitcnt": [], "al": [],
                  "strobe": [], "sh": []}
@@ -294,12 +307,14 @@ class Sim:
             env = dict(st)
             env.update(pins())
             env["__frame__"] = 1 if frame else 0
-            strobe = 1 if phase == BIT_LEN - 1 else 0   # эталонный строб 1/25
-            env["__tick__"] = strobe
+            if tick_fn is None:
+                tick_fn = self.parse_fn(self.tick_expr)
+            strobe = tick_fn(env)   # РЕАЛЬНЫЙ строб из печатного счётчика
+            env["__txidle__"] = (1 - (1 if frame else 0)) & (1 - env.get("ld_tx_q", 0))
             nxt = {}
             for q, net, kind, clr, pre in self.ffs:
                 if q in self.frozen:
-                    nxt[q] = self.frozen[q]  # заморозка счётчиков (см. __init__)
+                    nxt[q] = self.frozen[q]  # вне TX-пути (колонки/D_I)
                     continue
                 cv = self.lit(clr)
                 if cv is None:
@@ -320,18 +335,13 @@ class Sim:
             branch_load = 1 if env.get("ld_tx_q", 0) else 0  # ветка загрузки RTL
             cpu_rst_new = nxt.get("rst_press", 0) | nxt.get("por_run", 1)
             st = nxt
-            # --- фазовые модели на следующий клк ---
-            # джем/bc:=1 срабатывают В ВЕТКЕ загрузки (env.ld_tx_q=1) -
-            # счётчики обнуляются этим же клком, строб через 25 клк отсюда
+            # --- модель бит-счёта кадра (для FC_5/tx_idle) ---
             if cpu_rst_new:
-                phase, frame = 0, 0            # CLR baud_cnt/bit_cnt (GSR)
+                frame = 0                      # CLR bit_cnt (GSR)
             elif branch_load:
-                phase, frame = 0, 1            # джем baud_cnt <= 0, bit_cnt <= 1
+                frame = 1                      # bit_cnt <= 1 (ветка загрузки RTL)
             elif strobe:
-                phase = 0
                 frame = (0 if frame >= 10 else frame + 1) if frame else 0
-            else:
-                phase = min(phase + 1, BIT_LEN - 1)
             if c_rel is None and st.get("por_run", 1) == 0 and c > 0:
                 c_rel = c
                 events.append((c, "POR_RELEASE"))
@@ -445,25 +455,23 @@ def main():
     chk(len(loads) == 2, "ровно 2 нагрузки (запись при busy отброшена)", len(loads))
     if len(loads) == 2:
         l0 = loads[0]
+        # ПОЛНЫЙ кадр 8N1 из печати: счётчик двоичный (baud_cnt_D(0)=~b0&~$882),
+        # shreg_D(1..8) с инъекцией sh(8):=1 на тике - стоп-бит печатный!
         exp = expected_transitions(0x5A, l0)
-        # честная глубина печати: sh(1)@tick_j = sh(j)@load = A[j-1] - данные
-        # d0..d6 доходят по загрузочной цепочке БЕЗ непечатаемых сетей;
-        # d7/стоп идут через sh(8) (D(8)+FC_6 переплетены фиттером с
-        # переэнкодингом счётчика) - покрыто железом (UART-тест) и
-        # гарантией инструмента
-        exp6 = exp[:6]
         obs = observed_transitions(trace, l0, loads[1])
-        chk(obs[:len(exp6)] == exp6 and all(t < exp6[-1] + BIT_LEN for t in obs[:len(exp6)]),
-            "кадр 1: фронты старт+d0..d6 точно по печати (биты по %d клк)" % BIT_LEN,
-            (obs[:8], exp6))
+        chk(obs == exp, "кадр 1: ВСЕ фронты 8N1 байта 5Ah точно по печати "
+                        "(старт+данные+стоп, биты по %d клк)" % BIT_LEN, (obs, exp))
+        exp2 = expected_transitions(0x00, loads[1])
+        obs2 = observed_transitions(trace, loads[1], SIM_LEN)
+        chk(obs2 == exp2, "кадр 2: ВСЕ фронты 8N1 байта 00h (спад старта, подъем стопа)",
+            (obs2, exp2))
         chk(loads[1] > loads[0] + 10 * BIT_LEN, "нагрузка 2 после конца кадра 1 (tx_idle)")
     al_at_load = trace["al"][loads[0]] if loads else None
     chk(al_at_load == (0, 0, 1), "addr_latch(2,1,0)=100 (порт 04h) на нагрузке", al_at_load)
     we = trace["we"]
     chk(all(v in (1, None) for v in we), "WE_n=1 весь сценарий (нет writeback в ОЗУ)")
-    if loads:
-        print("  bit_cnt/baud_cnt заморожены на INIT (переэнкодинг фиттера) -"
-              " их роль покрыта FC_3-моделью и стробом; след неинформативен")
+    print("  baud_cnt/bit_cnt печатаются и считаются из печати (двоичный счётчик);"
+          " заморожены только col0-3/D_I (вне TX-пути)")
     print("\nВЕРДИКТ СИМА ЯДРА: %s" % ("PASS" if ok else "FAIL"))
     sys.exit(0 if ok else 1)
 

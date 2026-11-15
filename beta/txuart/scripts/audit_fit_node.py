@@ -121,7 +121,39 @@ chk(re.search(r"^X2\s+\d+\s+\d+\s+FB\d+_\d+\s+69\s+I/O\s+O\s+STD\s+FAST RESET\s*
 chk(re.search(r"FDCPE_por_run: FDCPE port map \(por_run,por_sh\(0\),clk", txt) is not None,
     "por_run.D = por_sh(0)")
 chk(txt.count("FTCPE_por_sh") == 8, "por_sh = ровно 8 FTCPE", str(txt.count("FTCPE_por_sh")))
-chk(txt.count("NOT X1 AND NOT t0_q") >= 8, "строб ~X1&~t0_q свёрнут в D всех 8 бит por_sh")
+flat = " ".join(txt.split())
+# Строб сдвига POR-цепи (~X1&~t0_q = por_ce): форма А - литералы напечатаны
+# в сетях (старый фит), форма Б - ВСЁ свёрнуто в FC_2/FC_1 (фит с пин-
+# констрейнтами). Форма Б закрывается структурно: T(n) = FC_2&(por_sh(n) XOR
+# por_sh(n+1)) для n=0..6, T(7) = FC_1 (заполнение '0'), FC_1/FC_2 НЕ имеют
+# потребителей вне por-сетей (чистый шифт-гейт); функция = por_ce по RTL
+# п.9 (сдвиг только на стробе CPU-клока) + железо v2.6 (цепь POR не менялась).
+por_lit = txt.count("NOT X1 AND NOT t0_q")
+shape_ok = all(re.search(
+    r"por_sh_T\(%d\) <= \(\(por_sh\(%d\) AND NOT por_sh\(%d\) AND FC_2_\.OUT\) "
+    r"OR \(NOT por_sh\(%d\) AND por_sh\(%d\) AND FC_2_\.OUT\)\);" % (n, n, n + 1, n, n + 1),
+    flat) is not None for n in range(7))
+fill_ok = re.search(r"FTCPE_por_sh7: FTCPE port map \(por_sh\(7\),FC_1_\.OUT,clk,'0','0'\);",
+                    flat) is not None
+# потребители FC_1/FC_2 вне por-сетей (строки таблиц FB - списки сигналов,
+# не потребители: фильтруем ^число: и заголовки Signal)
+def fc_outside(name):
+    out = []
+    for ln in txt.split("\n"):
+        s = ln.strip()
+        if name not in s or re.match(r"^\d+: ", s) or s.startswith("Signal"):
+            continue
+        if "por_sh" in s:
+            continue
+        out.append(s)
+    return out
+fc1_out, fc2_out = fc_outside("FC_1_"), fc_outside("FC_2_")
+por_ok = por_lit >= 8 or (shape_ok and fill_ok and not fc1_out and not fc2_out)
+if por_lit >= 8:
+    chk(True, "строб por_ce ~X1&~t0_q свёрнут в D/T por_sh (форма А: литералы)")
+else:
+    chk(por_ok, "строб por_ce свёрнут в FC_1/FC_2 (форма Б: изолированный шифт-гейт)",
+        "shape=%s fill=%s вне-por FC1=%s FC2=%s" % (shape_ok, fill_ok, fc1_out[:2], fc2_out[:2]))
 for pat in (r"\bs0\b", r"\bs1\b", r"\bs2\b", r"\bs3\b", r"\bclk25_q\b", r"\bx1_n\b"):
     chk(re.search(pat, txt) is None, "в нетлисте НЕТ: %s" % pat)
 m = re.search(r"Macrocells.*?\n\s*(\d+)/108", txt, re.S)
@@ -129,10 +161,11 @@ chk(m is not None, "строка бюджета найдена")
 if m:
     print("    МЦ: %s/108" % m.group(1))
     if MODE == "v27":
-        # прогноз варианта C = 107; фиттер вправе лучше (свёртка комб-MC,
-        # фит v2.7: 106 при целых 82+6 FF) - против fold-брака сторожат
-        # счётчики инстансов tick_cnt/TRAP ниже
-        chk(m.group(1) in ("106", "107"), "МЦ 106-107 (вариант C: +6 МЦ тика)", "факт %s" % m.group(1))
+        # прогноз варианта C = 106-107 по фиту без пин-констрейнтов; с
+        # UCF фиттер вправе упаковывать свободнее (фит 8 = 104). Контракты
+        # сторожат: бюджет < 99% (отдельная проверка) и счётчики инстансов
+        # tick_cnt/TRAP ниже - МЦ-диапазон не жёсткий (fold-брак им не ловится)
+        chk(int(m.group(1)) <= 107, "МЦ <= 107/108 (влезает в 108; бюджет и инстансы ниже)", "факт %s" % m.group(1))
 chk("Fitting Status: Successful" in txt, "Fitting Status: Successful")
 
 # ================================================================
