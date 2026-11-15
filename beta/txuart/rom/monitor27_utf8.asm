@@ -26,6 +26,16 @@
 ;   6. NEW: RAM-тест 8000h-FFE7h (клавиша F в меню), 4 паттерна.
 ;   7. SOD (SIM) НЕ используется: на v2.7 транзит SOD->TX выпилен
 ;      (TX = только сериализатор CPLD); RIM - только для приёма SID.
+;   8. XSTREAM v1 (порт из beta/xstream/xstream_v1, SW-вариант): фон-выдача
+;      экрана 80x25 из ОЗУ B000h-B7CFh в UART @1M кадрами A5 5A [SEQ]+2000Б,
+;      ~17 FPS @ ~50% ЦП на 2,5 МГц (на v24-плате 3,125 МГц было ~20 FPS).
+;      Тик кадра = слоты скана монитора (XSPASS, БЕЗ прерываний - на v2.7
+;      таймера CPLD нет, TRAP-тик 128 мкс поглощается глушилкой). Клиент
+;      xstream_view.ps1 v1.2.2 (COM @ 1000000 8N1) - БЕЗ ИЗМЕНЕНИЙ.
+;      Во время B (загрузка) и F (RAM-тест) кадры стоят: клиент фиксирует
+;      паузу и продолжает по правилу рестарта (dt>250 мс + скачок SEQ).
+;      XSSEQ/XSPASS живут в FFFAh/FFFBh совместно с LST/LNIB загрузчика:
+;      режимы B и скан-выдача во времени не пересекаются, LOADM чистит.
 ;
 ; СБОРКА (asm85.py, кодировка CP1251):
 ;   python3 asm85.py monitor27.asm -o monitor27.hex -l monitor27.lst
@@ -100,6 +110,18 @@ LBPC    EQU 0FFFCh          ; осталось байт в текущем пол
 LACC    EQU 0FFFDh          ; накопитель тетрад текущего байта
 LSUM    EQU 0FFFEh          ; сумма байт записи (mod 256) для контроля
 LTY     EQU 0FFFFh          ; тип последней записи (00 = данные, 01 = конец)
+
+; --- XSTREAM v1: экран -> UART (SW-тик, без прерываний) ---
+TXPORT  EQU TXP             ; TXDATA (04h) - синоним для xstream-кода
+XBUF    EQU 0B000h          ; ЭКРАН 80x25 = 2000 Б (B000h..B7CFh)
+XSSEQ   EQU 0FFFAh          ; SEQ кадра mod 256 (ячейка LST - см. шапку п.8)
+XSPASS  EQU 0FFFBh          ; накопитель слотов скана (ячейка LNIB)
+XS_TH   EQU 71              ; слотов скана между кадрами: слот ~0,41 мс на
+                            ; 2,5 МГц -> пауза ~29,4 мс + посылка ~29,9 мс
+                            ; = ~59,3 мс = ~17 FPS @ ~50% ЦП (ТЗ: <=50%)
+XS_QINC EQU 2               ; слот-эквивалентов за единицу BUNIT/QUNIT
+                            ; (~1,03 мс = ~2,5 слота на 2,5 МГц, вниз)
+XSCNT   EQU XBUF+06E4h      ; живой счётчик SEQ в демо-экране (строка 22, кол. 4-5)
 
 ; =====================================================================
         ORG 0000h
@@ -275,6 +297,8 @@ BUL:    DCX B
         XRI 01h
         STA SNDST
         CALL REFRESH
+        MVI A,XS_QINC       ; XSTREAM: тик кадра за единицу паузы
+        CALL XSCHK
         RET
 
 QUNIT:  LXI B,K_MS
@@ -583,6 +607,8 @@ LDB1:   MVI A,1Fh           ; SND = 1, разряды on
 ; ---------------------------------------------------------------------
 LOADM:  XRA A
         STA LST             ; ждем ':'
+        STA LACC            ; накопитель тетрад тоже с нуля (баг v1.0:
+                            ;  сталь ломала первый байт первой записи)
         MVI A,38h           ; 'L'
         CALL LSTAT
 LDLP:   CALL RXD            ; C = байт, CY = ошибка кадра
@@ -713,8 +739,14 @@ LDNEW:  MVI A,01h           ; ':' - новая запись
         STA LSUM
         JMP LDLP
 LDDONE: CALL TICKON         ; подтверждение успешной загрузки
+        XRA A               ; XSTREAM: почистить совместные FFFA/FFFB
+        STA LST             ; (= XSSEQ: SEQ с нуля - клиент логирует рестарт)
+        STA LNIB            ; (= XSPASS: следующий кадр через полный порог)
         RET
-LDERR:  MVI A,79h           ; 'E' -> дисплей EEEE
+LDERR:  XRA A               ; XSTREAM: та же чистка при ошибке
+        STA LST
+        STA LNIB
+        MVI A,79h           ; 'E' -> дисплей EEEE
         CALL LSTAT
         CALL LDBEEP         ; длинный сигнал
         RET                 ; в меню (ADDRH/L = адрес сбоя, D = просмотр)
@@ -773,6 +805,262 @@ RMBAD:  SHLD ADDRL          ; ADDRH/L = адрес сбоя (HL из RMV, до P
         RET                 ; в меню; D = просмотр байта по адресу сбоя
 
 ; =====================================================================
+;                    XSTREAM v1: ЭКРАН -> UART (порт из beta/xstream,
+;                    SW-вариант: тик от слотов скана, без прерываний)
+; =====================================================================
+; ---------------------------------------------------------------------
+; XSINIT (из START, только холодный старт): демо-экран в B000h,
+; SEQ/PASS = 0. Мониторные переменные не трогаются; B000-B7CF -
+; пользовательская область: ЛЮБАЯ программа может рисовать туда
+; свой текст/графику, клиент xstream_view.ps1 покажет окном.
+; ---------------------------------------------------------------------
+XSINIT: CALL XBLANK
+        LXI H,XTBL
+XSI1:   MOV E,M             ; DE = адрес назначения
+        INX H
+        MOV D,M
+        INX H               ; HL -> src_lo
+        MOV A,D             ; конец таблицы (dst == 0000)?
+        ORA E
+        JZ XSI3
+        MOV C,M             ; BC = адрес строки (источник)
+        INX H
+        MOV B,M
+        INX H               ; HL -> следующая запись
+        PUSH H              ; указатель следующей записи -> стек
+        MOV H,B
+        MOV L,C
+        CALL XCPY           ; ASCIZ [HL] -> [DE], 0 = конец
+        POP H
+        JMP XSI1
+XSI3:   XRA A
+        STA XSSEQ
+        STA XSPASS
+        RET
+
+XBLANK: LXI H,XBUF          ; 2000 пробелов
+        LXI B,2000
+XB1:    MVI A,20h
+        MOV M,A
+        INX H
+        DCX B
+        MOV A,B
+        ORA C
+        JNZ XB1
+        RET
+
+XCPY:   MOV A,M             ; ASCIZ: [HL]->[DE], 0 = конец (A/флаги)
+        ORA A
+        RZ
+        STAX D
+        INX H
+        INX D
+        JMP XCPY
+
+; ---------------------------------------------------------------------
+; XSCHK: SW-тик кадра. A = добавка слотов (1 = слот скана ~0,41 мс на
+; 2,5 МГц, XS_QINC = единица QUNIT/BUNIT ~1,03 мс). Накопитель XSPASS;
+; порог XS_TH -> XSEND (~29,9 мс) и сброс. Портит A/C; D/E/B целы.
+; ---------------------------------------------------------------------
+XSCHK:  MOV C,A
+        LDA XSPASS
+        ADD C
+        STA XSPASS
+        CPI XS_TH
+        JC XSKR             ; < порога - выход
+        CALL XSEND          ; КАДР -> UART (~29,9 мс на 2,5 МГц)
+        XRA A
+        STA XSPASS          ; счётчик заново
+XSKR:   RET
+
+; ---------------------------------------------------------------------
+; XSEND: кадр XSTREAM в UART: A5 5A [SEQ] + 2000 Б из XBUF.
+;   Сохраняет PSW/B/D/H. РАВНОМЕРНЫЙ пейсинг 35T/Б без опроса TXRDY:
+;   на 2,5 МГц 35T = 14 мкс >= 10 мкс байта 1M - ноль отбросов TX
+;   (запись при busy аппаратно отбрасывается, пейсинг не даёт попасть).
+;   Каждые 200 Б - слот дисплея XDIG (регенерация не замирает, урок 9).
+; ---------------------------------------------------------------------
+XSEND:  PUSH PSW
+        PUSH B
+        PUSH D
+        PUSH H
+        CALL XUPDCTR        ; живой счётчик SEQ в демо-экран
+        MVI A,0A5h
+        OUT TXPORT          ; шапка: равномерный пейсинг 33T (4 NOP)
+        NOP
+        NOP
+        NOP
+        NOP
+        MVI A,05Ah
+        OUT TXPORT
+        NOP
+        NOP
+        NOP
+        NOP
+        LDA XSSEQ
+        OUT TXPORT
+        NOP
+        NOP
+        NOP
+        NOP
+        INR A
+        STA XSSEQ           ; SEQ++ mod 256
+        LDA DPIDX           ; фаза дисплея: DE = 0FFF5+idx (глиф), C = бит разряда
+        MOV C,A
+        ADI 0F5h
+        MOV E,A             ; E = 0F5h..0F8h (младший байт указателя глифа)
+        MVI D,0FFh          ; D = 0FFh -> DE = 0FFF5h..0FFF8h (DIGIMG0..3)
+        MOV A,C
+        MVI B,0
+        LXI H,BITTBL
+        DAD B
+        MOV A,M
+        MOV C,A             ; C = бит разряда 01/02/04/08 (свободен вне inner)
+        LXI H,XBUF          ; HL = экран
+        MVI B,10            ; внешний: 10 групп по 200 Б (слот дисплея)
+XSOUT:  MVI C,25            ; внутренний: 25 подгрупп по 8 Б
+XSL:    MOV A,M
+        OUT TXPORT          ; равномерный пейсинг: гэп OUT->OUT >= 25T байта
+        INX H
+        NOP
+        NOP
+        NOP
+        MOV A,M
+        OUT TXPORT
+        INX H
+        NOP
+        NOP
+        NOP
+        MOV A,M
+        OUT TXPORT
+        INX H
+        NOP
+        NOP
+        NOP
+        MOV A,M
+        OUT TXPORT
+        INX H
+        NOP
+        NOP
+        NOP
+        MOV A,M
+        OUT TXPORT
+        INX H
+        NOP
+        NOP
+        NOP
+        MOV A,M
+        OUT TXPORT
+        INX H
+        NOP
+        NOP
+        NOP
+        MOV A,M
+        OUT TXPORT
+        INX H
+        NOP
+        NOP
+        NOP
+        MOV A,M
+        OUT TXPORT
+        INX H
+        NOP
+        NOP
+        NOP
+        DCR C               ; подгруппа = 7x35T + 15T = 294T (36.75T/Б)
+        JNZ XSL
+        CALL XDIG           ; слот дисплея (регенерация не замирает)
+        DCR B
+        JNZ XSOUT
+        POP H
+        POP D
+        POP B
+        POP PSW
+        RET
+
+; ---------------------------------------------------------------------
+; XDIG: один слот регенерации дисплея ВО ВРЕМЯ посылки.
+;   САМОДОСТАТОЧНАЯ (урок 9 железа v1.2): бит разряда вычисляется из
+;   фазы глифа E (E = 0F5h+idx -> idx = (E+3)&3 -> бит = 01h RLC idx раз)
+;   и живёт в C ПЕРЕЖИВ LDA SNDST (как в REFRESH бит живёт в B) - иначе
+;   LDA снова затирал его в A -> OUT DIGP = 0: дисплей гас на ВСЮ посылку
+;   = 20 Гц «дрожание» на живой плате. DE - ПАРА (урок 11-12 (1): вариант
+;   "D=0F5h, E=бит" читал мусор ОЗУ 0F5xx -> глифы-призраки L.L.L.1).
+;   DPIDX не трогает; портит ТОЛЬКО A/C (C - счётчик подгруппы,
+;   перезагружается MVI C,25 в XSOUT; B/D/E/H целы - HL несёт указатель
+;   экрана, B - счётчик групп). Порядок как в REFRESH:
+;   ГАШЕНИЕ -> РАЗРЯД -> ГЛИФ.
+; ---------------------------------------------------------------------
+XDIG:   XRA A
+        OUT SEGP            ; (1) гашение
+        MOV A,E             ; E = 0F5h..0F8h (DIGIMG0..3)
+        ADI 03h
+        ANI 03h             ; A = idx разряда 0..3 (Z от ANI)
+        MOV C,A
+        MVI A,01h
+        JZ XDMK             ; idx=0 -> бит уже 01h
+XDSH:   RLC                 ; 01h -> 02h -> 04h -> 08h
+        DCR C
+        JNZ XDSH
+XDMK:   MOV C,A             ; C = бит разряда - ПЕРЕЖИВЁТ LDA (как B в REFRESH)
+        LDA SNDST           ; 0/1 - состояние тона (тоггл в BUNIT)
+        ORA A
+        MOV A,C             ; A = бит (LDA затёр - восстановить из C)
+        JZ XDG1
+        ORI 10h             ; + SND
+XDG1:   OUT DIGP            ; (2) разряд (и тон) включён, сегменты пусты
+        LDAX D              ; A = глиф [0FFF5h..0FFF8h]
+        OUT SEGP            ; (3) глиф горит
+        INX D               ; следующий глиф (E: 0F5..0F8)
+        MOV A,E
+        CPI 0F9h            ; за DIGIMG3?
+        JC XDG2
+        MVI E,0F5h          ; -> DIGIMG0
+XDG2:   RET
+
+; ---------------------------------------------------------------------
+; XUPDCTR: живой счётчик SEQ (hex, 2 цифры) в демо-экран, строка 22,
+; колонки 4-5 - доказательство живого потока в клиенте.
+; ---------------------------------------------------------------------
+XUPDCTR: PUSH H
+        LDA XSSEQ
+        MOV C,A
+        RRC
+        RRC
+        RRC
+        RRC
+        ANI 0Fh
+        CALL XHEX
+        STA XSCNT
+        MOV A,C
+        ANI 0Fh
+        CALL XHEX
+        STA XSCNT+1
+        POP H
+        RET
+
+XHEX:   ADI '0'
+        CPI 3Ah
+        JC XHX1
+        ADI 07h
+XHX1:   RET
+
+; ---- демо-экран (ASCII; NUL-конец; <= 80 символов на строку) ----
+S_T0:   DB 'XSTREAM v1.0 - 80x25 TEXT SCREEN BUFFER B000h-B7CFh -> UART 1000000 8N1',0
+S_T1:   DB 'FRAME: A5 5A [SEQ] + 2000 BYTES (ROW-MAJOR 80x25 / CP1251 AT PC CLIENT)',0
+S_T2:   DB 'FW: monitor27 + XSTREAM - SW-TICK ~17 FPS @ 50% CPU AT 2.5 MHZ (CPLD v27)',0
+S_T3:   DB 'MONITOR: A=ADDR  C=CODE  D=VIEW  E=RUN  B=HEX LOAD  F=RAM TEST  F1=MENU',0
+S_T4:   DB 'WRITE YOUR TEXT INTO B000h..B7CFh - THIS WINDOW IS THE PC SCREEN',0
+S_T5:   DB 'SEQ:__ SEND 29.9 MS OF 59.3 MS = 50% CPU | LINE 40% AT 1M BAUD',0
+XTBL:   DW XBUF, S_T0       ; строка 0
+        DW XBUF+00A0h, S_T1 ; строка 2
+        DW XBUF+00F0h, S_T2 ; строка 3
+        DW XBUF+0280h, S_T3 ; строка 5
+        DW XBUF+0320h, S_T4 ; строка 6
+        DW XBUF+06E0h, S_T5 ; строка 22 (счётчик SEQ живой, кол. 4-5)
+        DW 0000h, 0000h     ; конец таблицы
+
+; =====================================================================
 ; MAIN: как v5 (константы под 2,5 МГц) + баннер TX @1M
 ; =====================================================================
 START:  DI
@@ -781,6 +1069,7 @@ START:  DI
         STA ADDRH
         XRA A
         STA ADDRL
+        CALL XSINIT         ; XSTREAM: демо-экран B000h, SEQ/PASS=0
 MAIN2:  XRA A
         OUT SEGP            ; дисплей погашен (после сброса горело "8.")
         OUT DIGP            ; разряды off, SND off
@@ -791,6 +1080,7 @@ MAIN2:  XRA A
         STA DPIDX
         STA STATE           ; ST_MENU
         STA PREVST
+        STA XSPASS          ; накопитель кадров заново (после MONRET тоже)
         CALL REDRAW         ; "ACdE"
         LXI H,TXBAN         ; баннер: терминал 1M читает, 4800 = мусор
         CALL TXSTR
@@ -811,6 +1101,8 @@ SC1:    MOV A,D
         CPI 10h
         JNZ SC1
         CALL REFRESH        ; нажатий нет - слот дисплея
+        MVI A,1             ; XSTREAM: SW-тик кадра (1 слот скана)
+        CALL XSCHK
         JMP SCAN
 
 ; ---- нажатие поймано: A = ряды, E = индекс колонки ----
@@ -841,9 +1133,13 @@ NKEY:   CALL SCANALL        ; ожидание отпускания + дебау
         ANI 1Fh
         JZ WDN
         CALL REFRESH
+        MVI A,1             ; XSTREAM: кадр идёт и при удержании клавиши
+        CALL XSCHK
         JMP NKEY
 WDN:    LXI D,SET_MS        ; счётчик В DE (QUNIT->REFRESH портит HL)
 ST1:    CALL QUNIT
+        MVI A,XS_QINC       ; XSTREAM: кадр идёт во время дебаунса
+        CALL XSCHK
         DCX D
         MOV A,D
         ORA E
@@ -1070,9 +1366,13 @@ MNR1:   CALL SCANALL
         ANI 1Fh
         JZ MNR2
         CALL REFRESH
+        MVI A,1             ; XSTREAM: кадр идёт при удержании клавиши
+        CALL XSCHK
         JMP MNR1
 MNR2:   LXI D,SET_MS        ; счётчик В DE (QUNIT->REFRESH портит HL)
 MNR3:   CALL QUNIT
+        MVI A,XS_QINC       ; XSTREAM: кадр идёт во время дебаунса
+        CALL XSCHK
         DCX D
         MOV A,D
         ORA E

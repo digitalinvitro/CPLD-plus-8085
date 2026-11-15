@@ -100,6 +100,59 @@ shld = [a for a in range(0x0100, end - 2)
         if mem.get(a) == 0x22 and mem.get(a + 1) == 0xEB and mem.get(a + 2) == 0xFF]
 chk(len(shld) == 1, "RAMT: SHLD ADDRL (22 EB FF) - ровно один")
 
+
+# --- XSTREAM v1: экран -> UART ---
+# XSEND-шапка: MVI A,0A5h / OUT 04h / NOP x4 / MVI A,5Ah / OUT 04h / NOP x4
+#              / LDA FFFAh / OUT 04h
+xs = None
+for a in range(0x0100, end - 20):
+    if (mem.get(a) == 0x3E and mem.get(a+1) == 0xA5 and mem.get(a+2) == 0xD3
+            and mem.get(a+3) == 0x04 and mem.get(a+4) == 0x00
+            and mem.get(a+5) == 0x00 and mem.get(a+6) == 0x00
+            and mem.get(a+7) == 0x00 and mem.get(a+8) == 0x3E
+            and mem.get(a+9) == 0x5A and mem.get(a+10) == 0xD3
+            and mem.get(a+11) == 0x04 and mem.get(a+12) == 0x00
+            and mem.get(a+13) == 0x00 and mem.get(a+14) == 0x00
+            and mem.get(a+15) == 0x00 and mem.get(a+16) == 0x3A
+            and mem.get(a+17) == 0xFA and mem.get(a+18) == 0xFF
+            and mem.get(a+19) == 0xD3):
+        xs = a
+        break
+chk(xs is not None, "XSEND-шапка найдена: A5/OUT/NOPx4/5A/OUT/LDA XSSEQ/OUT")
+# XSCHK: MOV C,A / LDA XSPASS(FFFB) / ADD C / STA XSPASS / CPI 47h / JC
+xschk = [a for a in range(0x0100, end - 6)
+         if mem.get(a) == 0x4F and mem.get(a+1) == 0x3A and mem.get(a+2) == 0xFB
+         and mem.get(a+3) == 0xFF and mem.get(a+4) == 0x81
+         and mem.get(a+5) == 0x32 and mem.get(a+6) == 0xFB
+         and mem.get(a+7) == 0xFF and mem.get(a+8) == 0xFE
+         and mem.get(a+9) == 0x47 and mem.get(a+10) == 0xDA]
+chk(len(xschk) == 1, "XSCHK (MOV C/LDA FFFB/ADD/STA/CPI 71/JC) - ровно один")
+# XBLANK: LXI H,B000h / LXI B,2000 (07D0)
+xb = [a for a in range(0x0100, end - 5)
+      if mem.get(a) == 0x21 and mem.get(a+1) == 0x00 and mem.get(a+2) == 0xB0
+      and mem.get(a+3) == 0x01 and mem.get(a+4) == 0xD0 and mem.get(a+5) == 0x07]
+chk(len(xb) == 1, "XBLANK: LXI H,B000h + LXI B,2000 - ровно один")
+# сайты тика: MVI A,01h / CALL (скан, NKEY, MNR1) >= 3; MVI A,02h / CALL (BUNIT, WDN, MNR3) >= 3
+t1 = sum(1 for a in range(0x0100, end - 1)
+         if mem.get(a) == 0x3E and mem.get(a+1) == 0x01 and mem.get(a+2) == 0xCD)
+t2 = sum(1 for a in range(0x0100, end - 1)
+         if mem.get(a) == 0x3E and mem.get(a+1) == 0x02 and mem.get(a+2) == 0xCD)
+chk(t1 >= 3, "сайты тика MVI A,1 / CALL XSCHK: %d (>= 3)" % t1)
+chk(t2 >= 3, "сайты тика MVI A,XS_QINC / CALL XSCHK: %d (>= 3)" % t2)
+# LOADM вход чистит LACC: XRA A / STA FFFA / STA FFFD
+lent = [a for a in range(0x0100, end - 5)
+        if mem.get(a) == 0xAF and mem.get(a+1) == 0x32 and mem.get(a+2) == 0xFA
+        and mem.get(a+3) == 0xFF and mem.get(a+4) == 0x32
+        and mem.get(a+5) == 0xFD and mem.get(a+6) == 0xFF]
+chk(len(lent) == 1, "LOADM-вход: XRA A/STA LST/STA LACC (фикс v1.0) - ровно один")
+# демо-строка в ROM: 'XSTREAM v1.0'
+sig = bytes([0x58, 0x53, 0x54, 0x52, 0x45, 0x41, 0x4D, 0x20, 0x76, 0x31])
+dem = any(mem.get(a + i) == sig[i] for a in range(0x0100, end - 10)
+          for i in range(10))
+dem = any(all(mem.get(a + i) == sig[i] for i in range(10))
+          for a in range(0x0100, end - 10))
+chk(dem, "демо-экран: строка 'XSTREAM v1.0' в ROM")
+
 print()
 if fails:
     print("ВЕРДИКТ: FAIL (%d)" % len(fails))
