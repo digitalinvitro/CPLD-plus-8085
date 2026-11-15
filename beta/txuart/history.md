@@ -213,3 +213,17 @@ shreg 9 + bit_cnt 4 + baud_cnt 5 + ld_tx_q; кольцо s0..s3 (X1 = s0 в IO-M
   tb/tb_v28_island_check.py - PASS 6/6 (N тиков на фронт, стоп, N=0, ре-арм, джиттер в окне).
   (Санбокс-рецикл между сообщениями откатил репо до 0bb1da8: monitor27 v1.0/v1.1 восстановлены
   fast-forward с origin/main 20b6b39/365f7c2, файлы не пересобирались.)
+
+- **ФИТ v2.8 сессия 1 (11-15 5:29PM) - НЕ ШИТЬ, отказ DRC - ПРИЧИНА = ОПЦИИ ФИТА, не RTL**:
+  «Design Rule Checking Failed - needs at least 500 МЦ». Разбор отчёта владельца:
+  46 IO-MC замаплено + 454 Buried Nodes ($OpTx$BIN_AND/BIN_STEP, 1 ПТ 2-6 входов) = ровно 500;
+  483 ссылки .LFBK. Опции прогона: Exhaustive Fitting ON (INFO:Cpld:994, сведение Input/Pterm
+  Limit к 1/1) - cpldfit декомпозирует каждую широкую терму в дерево одновходовых узлов,
+  XC9500 (SOP-only) обязан дать МЦ на каждый узел. ЭТАЛОН: предок v3.9.8-clear (тот же
+  XST/cpldfit, 11-07): Exhaustive OFF, Input Limit 28, Pterm Limit 18 -> 94/108 Successful,
+  НОЛЬ BIN-узлов, 49 Buried. ВЫВОД: RTL/UCF валидированы этим же отчётом - остров замаплен
+  чисто (tmr_cnt 8 бит по 1-2 ПТ/2 входа, RST75_r = NOR8 в IO-MC P75, tmr_tick_q/tmr_load_q
+  по 1 ПТ), RST75 -> pin 75 (констрейнт применился, урок фита-1 v2.7 закрыт), P74 в пин-таблице
+  НЕТ (PGND по опции, 26 входов без TRAP), clk = GCK. ФИКС: Fit Properties -> Place&Route:
+  Exhaustive Fitting = OFF, Input Limit 28 (практика 01_timer: 20), Pterm Limit 18 -> рефит.
+  Ожидание 110-112 МЦ; при >108 - тримы T1-T3 из шапки RTL (по -1 МЦ до 108).
