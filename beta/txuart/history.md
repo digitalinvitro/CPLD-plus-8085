@@ -227,3 +227,13 @@ shreg 9 + bit_cnt 4 + baud_cnt 5 + ld_tx_q; кольцо s0..s3 (X1 = s0 в IO-M
   НЕТ (PGND по опции, 26 входов без TRAP), clk = GCK. ФИКС: Fit Properties -> Place&Route:
   Exhaustive Fitting = OFF, Input Limit 28 (практика 01_timer: 20), Pterm Limit 18 -> рефит.
   Ожидание 110-112 МЦ; при >108 - тримы T1-T3 из шапки RTL (по -1 МЦ до 108).
+
+- **ФИТ v2.8 сессия 2 (11-15 6:11PM, Exhaustive OFF/28/18) - Placement Failed, ВИНОВЕН COLLAPSING INPUT LIMIT, не RTL**:
+  МЦ 103/108 (резерв 5, лучше прогноза 111!), PT 369, НО FB Inps 213/216 (99%), 5 FB исчерпаны
+  (36/36). ERROR:Cpld:892 «Cannot place A<1>_BUFR - Consider reducing the collapsing input limit»:
+  при Input Limit 28 широкие декоды шины схлопнулись в гигантские МЦ (A<2>/A<0> 12 ПТ/13 входов,
+  A<5..7> 9/14, D 6/13), входы FB вычерпаны, и 3 реплики-буфера A<1>/<3>/<4>_BUFR (12/16, 11/13)
+  лечь некуда. Остров НЕ ПОВРЕЖДЁН: RST75 = FB6_4 pin 75 (NOR8 1ПТ/11), tmr_cnt 3-5 ПТ все
+  размещены, tmr_tick_q/tmr_load_q на местах, P74 в таблице нет. ЛЕКАРСТВО = документированный
+  Plan Б 01_timer v3.3b2: Collapsing Input Limit 28 -> 20 (Pterm 18, Exhaustive OFF оставить);
+  при упорстве -> 15. Ожидаемо МЦ подрастёт (свёртка слабее) - резерв 5 + тримы T1-T3 в кармане.
