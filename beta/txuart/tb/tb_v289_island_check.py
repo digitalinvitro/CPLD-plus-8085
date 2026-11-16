@@ -8,7 +8,11 @@
 #
 # НОВОЕ в v2.8.9:
 #   О-1: seg[7] (dp) = 1'b1 = ПОГАС (было 1'b0 = ГОРЕЛ всегда - активный 0).
-#   О-2: dig_q INIT/сброс = 4'h0 (было 4'hF - все 4 разряда в окне POR, ~68 мА).
+#   О-2/самотест «----» (правка владельца 11-16, после ответа на ревью):
+#        dig_q INIT/сброс = 4'hF + seg_q INIT = 7'h40 -> при включении
+#        и после RESET тире в каждом разряде до первой записи fw в порты
+#        (цена О-2 - ~68 мА баз PNP - возвращена осознанно; сегменты в
+#        7 раз легче «8888»; альтернатива с нулевым окном - fw).
 #   О-3: гейт счёта tick_step && |tmr_cnt (было !RST75_r) - underflow 0->F
 #        при OUT 06h,0 закрыт по построению; -1 вход ФБ (RST75_r ушёл из
 #        входов ФБ счётчика). Регрессия: фазовый перебор СТОП на верной
@@ -54,11 +58,18 @@ chk("О-1: assign seg = {1'b1, ~seg_q} (dp ПОГАС)",
     "assign seg = {1'b1, ~seg_q};" in code9)
 chk("О-1: старой формы {1'b0, ~seg_q} в коде НЕТ",
     "assign seg = {1'b0, ~seg_q};" not in code9)
-chk("О-2: dig_q INIT = 4'h0",
-    bool(re.search(r"reg\s*\[3:0\]\s*dig_q\s*=\s*4'h0;", code9)))
-chk("О-2: dig_q в сбросе = 4'h0",
-    bool(re.search(r"dig_q\s*<=\s*4'h0;", code9)) and
-    not re.search(r"dig_q\s*<=\s*4'hF;", code9))
+chk("самотест «----» (правка владельца 11-16): dig_q INIT/сброс = 4'hF",
+    bool(re.search(r"reg\s*\[3:0\]\s*dig_q\s*=\s*4'hF;", code9)) and
+    bool(re.search(r"dig_q\s*<=\s*4'hF;", code9)) and
+    not re.search(r"dig_q\s*<=\s*4'h0;", code9))
+chk("самотест: seg_q INIT/сброс = 7'h40 (только сегмент g)",
+    bool(re.search(r"reg\s*\[6:0\]\s*seg_q\s*=\s*7'h40;", code9)) and
+    bool(re.search(r"seg_q\s*<=\s*7'h40;", code9)))
+seg_out = (1 << 7) | (~0x40 & 0x7F)   # пины seg = {dp(О-1), ~seg_q}: активный 0
+dig_out = ~0xF & 0xF                  # пины dig = ~dig_q: активный 0
+chk("самотест «----» на пинах: горит ТОЛЬКО g (seg=BFh), все 4 разряда выбраны (dig=00h)",
+    seg_out == 0xBF and dig_out == 0x00,
+    f"seg=0x{seg_out:02X} (0=горит: g), dig=0x{dig_out:02X} (0=выбран: все)")
 chk("О-3: гейт tick_step && |tmr_cnt в коде",
     "tick_step && |tmr_cnt" in code9)
 chk("О-3: старый гейт tick_step && !RST75_r в КОДЕ отсутствует",
