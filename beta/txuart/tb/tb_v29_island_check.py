@@ -132,6 +132,15 @@ chk("Шаг-3 (Р-5): case портов под if (io_wr), гейт if (IOM) у�
     and "if (IOM) begin" not in code9)
 chk("Шаг-3 (Р-5): bus_reg НЕ на узле (ловит и записи памяти)",
     bool(re.search(r"if \(state == S_T2 && !WRn\)\s*bus_reg <= A;", code9)))
+# Шаг-4 (фит-лестница №2 инвариантна): узел сброса cpu_rst вместо сырой пары
+chk("Шаг-4: cpu_rst = rst_press | por_run, kept (один сигнал сброса в ФБ)",
+    bool(re.search(r'keep = "true" \*\) wire cpu_rst = rst_press \| por_run', code9)))
+chk("Шаг-4: сырая пара !por_run && !rst_press в коде отсутствует (де Морган)",
+    code9.count("!por_run && !rst_press") == 0)
+chk("Шаг-4: io_wr_tx гейтится узлом (!cpu_rst)",
+    "&& tx_idle && !ld_tx_q && !cpu_rst" in code9)
+chk("Шаг-4: FSM-гейт T2->WB1 от узла (!cpu_rst)",
+    "(!IOM && A15 && !cpu_rst)" in code9)
 chk("О-3: гейт tick_step && |tmr_cnt в коде",
     "tick_step && |tmr_cnt" in code9)
 chk("О-3: старый гейт tick_step && !RST75_r в КОДЕ отсутствует",
