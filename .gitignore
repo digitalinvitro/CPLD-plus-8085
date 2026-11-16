@@ -1,3 +1,4 @@
 # Python-артефакты
 __pycache__/
 *.pyc
+parsetab.py
