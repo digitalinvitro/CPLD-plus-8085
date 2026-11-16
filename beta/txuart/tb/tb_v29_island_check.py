@@ -96,7 +96,7 @@ chk("Шаг-2: v1.1 опрашивает 05h - встанет намертво (
 frags = re.split(r"\balways\b", code9)
 chk("Шаг-1 фикс (XST 528): kbcol_q - ОДИН always-водитель, сброс в cpu_rst-ветке ТАЙМЕРА",
     sum(1 for f in frags if re.search(r"\bkbcol_q\s*<=", f)) == 1
-    and re.search(r"if \(cpu_rst\) begin\s*tmr_cnt <= 4'hF;\s*kbcol_q <= 4'h0;\s*end", code9) is not None)
+    and re.search(r"if \(cpu_rst_r\) begin\s*tmr_cnt <= 4'hF;\s*kbcol_q <= 4'h0;\s*end", code9) is not None)
 _bad = []
 for _n in set(re.findall(r"\breg\s+(?:signed\s+)?(?:\[[^\]]+\]\s*)?(\w+)", code9)):
     if sum(1 for f in frags if re.search(r"\b%s\s*<=" % re.escape(_n), f)) > 1:
@@ -132,15 +132,24 @@ chk("Шаг-3 (Р-5): case портов под if (io_wr), гейт if (IOM) у�
     and "if (IOM) begin" not in code9)
 chk("Шаг-3 (Р-5): bus_reg НЕ на узле (ловит и записи памяти)",
     bool(re.search(r"if \(state == S_T2 && !WRn\)\s*bus_reg <= A;", code9)))
-# Шаг-4 (фит-лестница №2 инвариантна): узел сброса cpu_rst вместо сырой пары
-chk("Шаг-4: cpu_rst = rst_press | por_run, kept (один сигнал сброса в ФБ)",
-    bool(re.search(r'keep = "true" \*\) wire cpu_rst = rst_press \| por_run', code9)))
-chk("Шаг-4: сырая пара !por_run && !rst_press в коде отсутствует (де Морган)",
+# Шаг-4 -> Шаг-6 (GSR-идея владельца отклонена по первоисточникам для 5В
+# XC95108: у сети GSR нет внутреннего драйвера - только пин I/O/GSR, а наш
+# пин 1 = кнопка SW20; та же цель достигается РЕГИСТРОМ сброса, который
+# фиттер не может растворить в PT - kept-проводку Шага-4 cpldfit растворил)
+chk("Шаг-6: сброс - РЕГИСТР cpu_rst_r = rst_press | por_run (INIT=1)",
+    bool(re.search(r"reg\s+cpu_rst_r\s*=\s*1'b1;", code9))
+    and "cpu_rst_r <= rst_press | por_run;" in code9)
+chk("Шаг-6: kept-проводки wire cpu_rst в коде НЕТ (растворялась фиттером)",
+    "wire cpu_rst" not in code9)
+chk("Шаг-4/6: сырая пара !por_run && !rst_press в коде отсутствует (де Морган)",
     code9.count("!por_run && !rst_press") == 0)
-chk("Шаг-4: io_wr_tx гейтится узлом (!cpu_rst)",
-    "&& tx_idle && !ld_tx_q && !cpu_rst" in code9)
-chk("Шаг-4: FSM-гейт T2->WB1 от узла (!cpu_rst)",
-    "(!IOM && A15 && !cpu_rst)" in code9)
+chk("Шаг-4/6: io_wr_tx гейтится регистром (!cpu_rst_r)",
+    "&& tx_idle && !ld_tx_q && !cpu_rst_r" in code9)
+chk("Шаг-4/6: FSM-гейт T2->WB1 от регистра (!cpu_rst_r)",
+    "(!IOM && A15 && !cpu_rst_r)" in code9)
+chk("Шаг-6: все 4 асинхронных блока сбрасываются cpu_rst_r",
+    code9.count("posedge clk or posedge cpu_rst_r)") == 4
+    and "posedge clk or posedge cpu_rst)" not in code9)
 # Шаг-5 (Р-1, фит Шага-4: FB3 36/36 вх. при 15/18 МЦ, 892 D<2>_BUFR; по матрице
 # FB3 por_sh<7> - единственный читатель X1/t0_q/FC_3, переезду некуда - 5 ФБ
 # по 18/18 МЦ; Т1/Т2 бесполезны - константный пад держит МЦ (seg<7>), Т3/Т4
@@ -156,14 +165,15 @@ chk("Р-1: переворот rst_press по por_sh[6] на strobe + сброс 
     "por_ce && por_sh[6] && (rst_sync != rst_press)" in code9
     and "por_sh    <= 8'h00;" in code9)
 
-# --- поведенческая модель слитого блока Р-1: clk 40 нс, строб por_ce каждый
-#     4-й такт; ВСЕ D-функции от СТАРОГО состояния (nonblocking, как RTL) ---
+# --- поведенческая модель слитого блока Р-1 + регистра сброса Шага-6:
+#     clk 40 нс, строб por_ce каждый 4-й такт; ВСЕ D-функции от СТАРОГО
+#     состояния (nonblocking, как RTL); cpu_rst_r - +1 клк пайплайн ---
 class R1:
     def __init__(s):
         s.por_sh, s.por_run = 0xFF, 1        # INIT (RTL: FF / SET)
         s.rst_meta = s.rst_sync = s.rst_press = 0
         s.ph = 0                             # фаза строба por_ce
-        s.cpu_rst = s.rst_press | s.por_run  # INIT: 1 (CPU в сбросе с t=0)
+        s.cpu_rst_r = 1                      # Шаг-6: регистр сброса (INIT=1)
     def step(s, rst_pin):
         meta_n, sync_n = rst_pin, s.rst_meta           # 2FF-синхронизатор
         diff = int(s.rst_sync != s.rst_press)
@@ -176,12 +186,14 @@ class R1:
         if ce and (s.por_sh & 0x40) and diff:          # por_sh[6] ДО сдвига
             pr_n, sh_clr = s.rst_sync, True            # переворот + счёт закрыт
         run_n = (s.por_sh & 1) & s.por_run             # защёлка нуля
+        rst_n = s.rst_press | s.por_run                # Шаг-6: D регистра сброса
         s.rst_meta, s.rst_sync = meta_n, sync_n
         s.por_sh = 0x00 if sh_clr else sh_n
         s.rst_press, s.por_run = pr_n, run_n
-        s.cpu_rst = s.rst_press | s.por_run
+        s.cpu_rst_r = rst_n
 
-# 1) POR: защёлка por_run снимается ровно через 8 стробов + 1 такт и держится
+# 1) POR: защёлка por_run снимается ровно через 8 стробов + 1 такт и держится;
+#    регистр сброса cpu_rst_r отстаёт от por_run ровно на 1 клк (Шаг-6)
 r1 = R1()
 released_at = -1
 for k in range(40):
@@ -189,11 +201,21 @@ for k in range(40):
     if r1.por_run == 0 and released_at < 0:
         released_at = k
 chk("Р-1 модель: POR - por_run снят на такт %d (8-й строб=28, снятие=29), пор_sh=00" % released_at,
-    released_at == 29 and r1.por_sh == 0x00 and r1.cpu_rst == 0)
+    released_at == 29 and r1.por_sh == 0x00 and r1.cpu_rst_r == 0)
+r1b = R1()
+rel_run = rel_rst = -1
+for k in range(40):
+    r1b.step(0)
+    if r1b.por_run == 0 and rel_run < 0:
+        rel_run = k
+    if r1b.cpu_rst_r == 0 and rel_rst < 0:
+        rel_rst = k
+chk("Шаг-6 модель: cpu_rst_r отстаёт от por_run ровно на 1 клк (%d -> %d; низ RESET_IN ~1240 нс)" % (rel_run, rel_rst),
+    rel_run == 29 and rel_rst == 30)
 for _ in range(120):
     r1.step(0)
 chk("Р-1 модель: защёлка держит por_run=0 (300 тактов покоя)",
-    r1.por_run == 0 and r1.cpu_rst == 0)
+    r1.por_run == 0 and r1.cpu_rst_r == 0)
 
 # 2) взвод: 2 клка лага синхронизатора -> 8 ЗАСЧИТАННЫХ стробов -> переворот
 r2 = R1()
@@ -204,8 +226,8 @@ for _ in range(36):                                  # такты 40..75, стр
     seen.append(r2.rst_press)
 chk("Р-1 модель: 7 засчитанных стробов не взводят rst_press",
     all(v == 0 for v in seen[:32]))
-chk("Р-1 модель: на 8-м засчитанном стробе rst_press=1 (cpu_rst активен)",
-    seen[32] == 1 and r2.cpu_rst == 1 and r2.rst_press == 1)
+chk("Р-1 модель: на 8-м засчитанном стробе rst_press=1 (cpu_rst_r активен)",
+    seen[32] == 1 and r2.cpu_rst_r == 1 and r2.rst_press == 1)
 
 # 3) короткий импульс (24 такта = 6 засчитанных стробов) не взводит
 r3 = R1()
@@ -213,7 +235,7 @@ for _ in range(40): r3.step(0)
 for _ in range(24): r3.step(1)
 for _ in range(60): r3.step(0)
 chk("Р-1 модель: импульс 960 нс (<1280) не взводит, счёт распался",
-    r3.rst_press == 0 and r3.cpu_rst == 0 and r3.por_sh == 0x00)
+    r3.rst_press == 0 and r3.cpu_rst_r == 0 and r3.por_sh == 0x00)
 
 # 4) дребезг (нерегулярные выбеги 1-2 тактов, период 5 клков - НЕ кратен
 #    стробу, иначе когерентный 5 МГц-квадрат алиасится со стробами) не взводит
@@ -222,7 +244,7 @@ for _ in range(40): r4.step(0)
 for k2 in range(80):
     r4.step(1 if (k2 % 5) < 2 else 0)
 chk("Р-1 модель: дребезг (выбеги <=2 тактов, период 5 клков) не виден вовсе",
-    r4.rst_press == 0 and r4.cpu_rst == 0)
+    r4.rst_press == 0 and r4.cpu_rst_r == 0)
 
 # 5) снятие симметрично: удержание держит, отпускание - 8 засчитанных стробов
 r5 = R1()
@@ -235,8 +257,8 @@ for _ in range(36):                                  # такты 100..135
     seen5.append(r5.rst_press)
 chk("Р-1 модель: 7 засчитанных стробов отпущенного держат rst_press=1",
     all(v == 1 for v in seen5[:32]))
-chk("Р-1 модель: на 8-м стробе отпущенного rst_press=0 (cpu_rst=0)",
-    seen5[32] == 0 and r5.cpu_rst == 0)
+chk("Р-1 модель: на 8-м стробе отпущенного rst_press=0 (cpu_rst_r=0)",
+    seen5[32] == 0 and r5.cpu_rst_r == 0)
 chk("О-3: гейт tick_step && |tmr_cnt в коде",
     "tick_step && |tmr_cnt" in code9)
 chk("О-3: старый гейт tick_step && !RST75_r в КОДЕ отсутствует",
@@ -249,8 +271,8 @@ chk("О-7: (* fsm_encoding = \"compact\" *) на state",
     bool(re.search(r'fsm_encoding = "compact" \*\)\s*reg\s*\[2:0\]\s*state', src9)))
 chk("О-7: директива-комментарий v3.9-era заменена",
     '// synthesis attribute fsm_encoding of state is "compact"' not in src9)
-n_async8 = len(re.findall(r"always\s*@\(posedge clk or posedge cpu_rst\)", code_of(src8)))
-n_async9 = len(re.findall(r"always\s*@\(posedge clk or posedge cpu_rst\)", code9))
+n_async8 = len(re.findall(r"always\s*@\(posedge clk or posedge cpu_rst_r?\)", code_of(src8)))
+n_async9 = len(re.findall(r"always\s*@\(posedge clk or posedge cpu_rst_r?\)", code9))
 chk("Р-4: асинхронных блоков стало 4 (2 ядра + 2 таймера; было %d)" % n_async8,
     n_async9 == 4, f"v28_8={n_async8}, v28_9={n_async9}")
 chk("Р-6: параметров POR_W/CLK_DIV/CLK_HALF в коде НЕТ",
