@@ -92,6 +92,30 @@ chk("Шаг-2: hwuart-совместимость бита A1 упразднен�
     "УПРАЗДНЕНА" in src9 and "единственный потребитель статуса - fw_mon" in src9)
 chk("Шаг-2: v1.1 опрашивает 05h - встанет намертво (предупреждение в шапке)",
     "встанет НАМЕРТВО" in src9)
+# Шаг-1 ФИКС (16-16, синтез владельца: XST 528 x4 на col0..3) - статические сканеры
+frags = re.split(r"\balways\b", code9)
+chk("Шаг-1 фикс (XST 528): kbcol_q - ОДИН always-водитель, сброс в cpu_rst-ветке ТАЙМЕРА",
+    sum(1 for f in frags if re.search(r"\bkbcol_q\s*<=", f)) == 1
+    and re.search(r"if \(cpu_rst\) begin\s*tmr_cnt <= 4'hF;\s*kbcol_q <= 4'h0;\s*end", code9) is not None)
+_bad = []
+for _n in set(re.findall(r"\breg\s+(?:signed\s+)?(?:\[[^\]]+\]\s*)?(\w+)", code9)):
+    if sum(1 for f in frags if re.search(r"\b%s\s*<=" % re.escape(_n), f)) > 1:
+        _bad.append(_n)
+chk("Шаг-1 фикс (XST 528): ни один reg не назначается в >1 always-блоке"
+    + ("" if not _bad else " - НАРУШИТЕЛИ: " + ",".join(_bad)),
+    not _bad)
+_bad = []
+for _line in code9.split("\n"):
+    for _m in re.finditer(r"(\d+)'([hb])([0-9a-fA-FxXzZ_]+)", _line):
+        _w, _b, _d = int(_m.group(1)), _m.group(2).lower(), _m.group(3).replace("_", "")
+        if any(c in "xXzZ" for c in _d):
+            continue
+        _per = 4 if _b == "h" else 1
+        if len(_d) > (_w + _per - 1) // _per:          # правило ISE 301: цифр > ceil(ширина/цифру)
+            _bad.append(_m.group(0))
+chk("Шаг-1 фикс (XST 301): based-констант с лишними цифрами НЕТ"
+    + ("" if not _bad else " - " + ",".join(_bad[:4])),
+    not _bad)
 chk("О-3: гейт tick_step && |tmr_cnt в коде",
     "tick_step && |tmr_cnt" in code9)
 chk("О-3: старый гейт tick_step && !RST75_r в КОДЕ отсутствует",
