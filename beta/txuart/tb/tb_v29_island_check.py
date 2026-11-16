@@ -116,6 +116,22 @@ for _line in code9.split("\n"):
 chk("Шаг-1 фикс (XST 301): based-констант с лишними цифрами НЕТ"
     + ("" if not _bad else " - " + ",".join(_bad[:4])),
     not _bad)
+# Шаг-3 (Р-5, фит Шаг-1+2 не прошёл): единый узел записи в порт
+chk("Шаг-3 (Р-5): узел io_wr = (state == S_T2) && !WRn && IOM, kept",
+    bool(re.search(r'keep = "true" \*\) wire io_wr = \(state == S_T2\) && !WRn && IOM', code9)))
+chk("Шаг-3 (Р-5): копий декода (state/!WRn/IOM) в коде ровно 1 - сам узел",
+    code9.count("(state == S_T2) && !WRn && IOM") == 1)
+chk("Шаг-3 (Р-5): io_wr_tx построен ОТ узла (старый инлайн отсутствует)",
+    "wire io_wr_tx = io_wr" in code9
+    and "io_wr_tx = (state == S_T2) && !WRn && IOM" not in code9)
+chk("Шаг-3 (Р-5): tmr_wr06 построен ОТ узла (старый инлайн отсутствует)",
+    "wire tmr_wr06 = io_wr &&" in code9
+    and "tmr_wr06 = (state == S_T2) && !WRn && IOM" not in code9)
+chk("Шаг-3 (Р-5): case портов под if (io_wr), гейт if (IOM) удалён",
+    bool(re.search(r"if \(io_wr\) begin\s*case \(addr_latch\[2:0\]\)", code9))
+    and "if (IOM) begin" not in code9)
+chk("Шаг-3 (Р-5): bus_reg НЕ на узле (ловит и записи памяти)",
+    bool(re.search(r"if \(state == S_T2 && !WRn\)\s*bus_reg <= A;", code9)))
 chk("О-3: гейт tick_step && |tmr_cnt в коде",
     "tick_step && |tmr_cnt" in code9)
 chk("О-3: старый гейт tick_step && !RST75_r в КОДЕ отсутствует",
