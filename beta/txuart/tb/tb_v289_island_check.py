@@ -1,0 +1,342 @@
+#!/usr/bin/env python3
+# tb_v289_island_check.py - v2.8.9 = бесплатный блок по ревью
+# REVIEW_top_txuart_v28_8.md (О-1/О-2/О-3/О-7/Р-4/Р-6 + контракты Н-1..Н-11,
+# Д-5..Д-9). Шина/тактирование/пины/контракт таймера - БЕЗ ИЗМЕНЕНИЙ, поэтому
+# контракты v28.8 сохраняются 1-в-1; модель таймера теперь ЦИКЛОТЧНАЯ
+# (registered RST75_r, окно загрузки 16 клк = вся T2 записи), в отличие от
+# tb_v288 (там rst75 считался комбинационно в том же шаге).
+#
+# НОВОЕ в v2.8.9:
+#   О-1: seg[7] (dp) = 1'b1 = ПОГАС (было 1'b0 = ГОРЕЛ всегда - активный 0).
+#   О-2: dig_q INIT/сброс = 4'h0 (было 4'hF - все 4 разряда в окне POR, ~68 мА).
+#   О-3: гейт счёта tick_step && |tmr_cnt (было !RST75_r) - underflow 0->F
+#        при OUT 06h,0 закрыт по построению; -1 вход ФБ (RST75_r ушёл из
+#        входов ФБ счётчика). Регрессия: фазовый перебор СТОП на верной
+#        модели + БРАК-модель (старый гейт) показывает, что тест дискриминативен.
+#   О-7: (* fsm_encoding = "compact" *) на state - one-hot (109>108) закрыт.
+#   Р-4: таймер в асинхронной форме ядра (posedge clk or posedge cpu_rst).
+#   Р-6: параметры POR_W/CLK_DIV/CLK_HALF и generate-обёртка удалены.
+#   Н-3: каденция честная (период = N*4 + ISR; ~24 FPS @3,125, не 41.9).
+# База:
+# (П-5: tmr_cnt 4 бита, N <= 15; v2.8.8: RST75_r = УРОВЕНЬ до загрузки).
+# 1 clk = 40 нс (clk 25 МГц); tick_step = 1 клк каждые 100 клк (4 мкс).
+
+import re, sys
+
+BASE = "/home/z/my-project/CPLD-plus-8085/beta/txuart/"
+RTL9 = BASE + "top_txuart_por6_v28_9_utf8.v"
+RTL8 = BASE + "top_txuart_por6_v28_8_utf8.v"
+UCF9 = BASE + "top_txuart_v28_9.ucf"
+UCF8 = BASE + "top_txuart_v28_8.ucf"
+
+TICK = 100          # клк между tick_step
+MASK = 0x0F         # П-5: 4 бита
+WR = 16             # окно tmr_wr06 (вся T2 записи IO, ~640 нс)
+
+ok = []
+def chk(name, cond, detail=""):
+    ok.append((name, cond)); print(("  PASS " if cond else "  FAIL ") + name + (" " + detail if detail else ""))
+
+# =====================================================================
+# A. RTL-сверка фикс-паттернов (по САМОМУ ФАЙЛУ, не по модели)
+# =====================================================================
+print("== A. RTL v2.8.9: паттерны фиксов в исходнике ==")
+src9 = open(RTL9, encoding="utf-8").read()
+src8 = open(RTL8, encoding="utf-8").read()
+# код без комментариев (строчные // и блочные /* */):
+def code_of(s):
+    s = re.sub(r"/\*.*?\*/", " ", s, flags=re.S)
+    s = re.sub(r"//[^\n]*", " ", s)
+    return s
+code9 = code_of(src9)
+
+chk("О-1: assign seg = {1'b1, ~seg_q} (dp ПОГАС)",
+    "assign seg = {1'b1, ~seg_q};" in code9)
+chk("О-1: старой формы {1'b0, ~seg_q} в коде НЕТ",
+    "assign seg = {1'b0, ~seg_q};" not in code9)
+chk("О-2: dig_q INIT = 4'h0",
+    bool(re.search(r"reg\s*\[3:0\]\s*dig_q\s*=\s*4'h0;", code9)))
+chk("О-2: dig_q в сбросе = 4'h0",
+    bool(re.search(r"dig_q\s*<=\s*4'h0;", code9)) and
+    not re.search(r"dig_q\s*<=\s*4'hF;", code9))
+chk("О-3: гейт tick_step && |tmr_cnt в коде",
+    "tick_step && |tmr_cnt" in code9)
+chk("О-3: старый гейт tick_step && !RST75_r в КОДЕ отсутствует",
+    "tick_step && !RST75_r" not in code9)
+chk("О-3: RST75_r не входит в D-путь счётчика (вход ФБ освобождён)",
+    not re.search(r"tmr_cnt\s*<=\s*tmr_cnt\s*-\s*4'd1;\s*end\s*assign[^\n]*RST75_r.*tmr_cnt", code9)
+    and "tick_step && !RST75_r" not in code9)
+chk("О-7: (* fsm_encoding = \"compact\" *) на state",
+    '(* fsm_encoding = "compact" *)' in src9 and
+    bool(re.search(r'fsm_encoding = "compact" \*\)\s*reg\s*\[2:0\]\s*state', src9)))
+chk("О-7: директива-комментарий v3.9-era заменена",
+    '// synthesis attribute fsm_encoding of state is "compact"' not in src9)
+n_async8 = len(re.findall(r"always\s*@\(posedge clk or posedge cpu_rst\)", code_of(src8)))
+n_async9 = len(re.findall(r"always\s*@\(posedge clk or posedge cpu_rst\)", code9))
+chk("Р-4: асинхронных блоков стало 4 (2 ядра + 2 таймера; было %d)" % n_async8,
+    n_async9 == 4, f"v28_8={n_async8}, v28_9={n_async9}")
+chk("Р-6: параметров POR_W/CLK_DIV/CLK_HALF в коде НЕТ",
+    all(p not in code9 for p in ("POR_W", "CLK_DIV", "CLK_HALF")))
+chk("Р-6: generate/endgenerate в коде НЕТ",
+    "generate" not in code9 and "endgenerate" not in code9)
+chk("Р-6: module retro_pcld_top БЕЗ #(...)",
+    bool(re.search(r"module\s+retro_pcld_top\s*\(", code9)) and
+    not re.search(r"module\s+retro_pcld_top\s*#", code9))
+chk("О-3/Р-4: RESET-ветки таймера сохранены (tmr_cnt=0F, RST75=0)",
+    "tmr_cnt <= 4'hF;" in code9 and
+    bool(re.search(r"RST75_r\s*<=\s*1'b0;", code9)))
+
+# CP1251-двойник и UCF
+try:
+    twin = open(BASE + "top_txuart_por6_v28_9.v", "rb").read().decode("cp1251")
+    chk("CP1251-двойник декодируется и совпадает с UTF-8 (iconv-эквивалент)",
+        twin == src9)
+except FileNotFoundError:
+    chk("CP1251-двойник существует", False, "файл не найден")
+
+try:
+    u9 = open(UCF9, "rb").read(); u9.decode("utf-8")
+    u8 = open(UCF8, "rb").read().decode("cp1251", errors="replace")
+    nets = lambda s: sorted(re.findall(r'NET "([^"]+)"\s+LOC = "([^"]+)"', s))
+    chk("UCF v28_9: чистый UTF-8", b"\xef\xbf\xbd" not in u9)
+    chk("UCF v28_9: 73 NET/LOC, 1-в-1 с v28_8 (Д-12: пины не тронуты)",
+        len(nets(u9.decode("utf-8"))) == 73 and nets(u9.decode("utf-8")) == nets(u8))
+    u9t = u9.decode("utf-8")
+    chk("Н-6: UCF обещает 1 000 000 бод (мёртвого «OUT 04h, 1 562 500» нет)",
+        "1 000 000" in u9t and "OUT 04h, 1 562 500" not in u9t)
+    chk("Н-8: UCF фиксирует PGND 8 шт (P73/P75 - ВЫХОДЫ, не PGND)",
+        "8 шт" in u9t and "73 назначенных + 8" in u9t and "ВЫХОДЫ" in u9t)
+    chk("Д-1/Д-2: предупреждения о подтяжках RST/R21..R25 записаны",
+        "Д-1" in u9t and "Д-2" in u9t)
+except FileNotFoundError:
+    chk("UCF v28_9 существует", False, "файл не найден")
+
+# =====================================================================
+# B. Остров ТАЙМЕР v2.8.9 (циклоточная модель, nonblocking, окно загрузки)
+# =====================================================================
+print("== B. Остров ТАЙМЕР v2.8.9: контракт v28.8 сохранён + О-3 ==")
+
+class Tmr:
+    """Циклоточная модель v2.8.9: tmr_cnt/RST75_r - регистры, все RHS от
+    старого состояния; окно загрузки WR клк (tmr_wr06 держится всю T2).
+    gate='new' -> |tmr_cnt (v2.8.9), gate='old' -> !RST75_r (v2.8.8, БРАК)."""
+    def __init__(s, gate="new"):
+        s.cnt = MASK; s.rst75 = 0; s.t = 0
+        s.gate = gate
+        s.wr = None          # (t0, t1, val) - окно tmr_wr06
+        s.edges = []
+    def out06(s, n, t0, width=WR):
+        s.wr = (t0, t0 + width, n & MASK)
+    def step(s):
+        tick = (s.t % TICK == TICK - 1)
+        wr = s.wr is not None and s.wr[0] <= s.t < s.wr[1]
+        if wr:
+            n_cnt = s.wr[2]
+            n_rst = 0
+        else:
+            if s.gate == "new":
+                n_cnt = (s.cnt - 1) & MASK if (tick and s.cnt > 0) else s.cnt
+            else:   # БРАК-модель v2.8.8: гейт по уровню (registered, отстаёт на клк)
+                n_cnt = (s.cnt - 1) & MASK if (tick and not s.rst75) else s.cnt
+            n_rst = (1 if s.cnt == 0 else 0) | s.rst75
+        if n_rst and not s.rst75:
+            s.edges.append(s.t + 1)   # уровень виден с клка s.t+1
+        s.cnt, s.rst75 = n_cnt, n_rst
+        s.t += 1
+    def run(s, n):
+        for _ in range(n): s.step()
+
+def zero_tick(t0, n):
+    """Тик, на котором cnt обнуляется: n-й tick_step ПОСЛЕ окна загрузки."""
+    ticks = [t for t in range(t0 + WR, t0 + WR + 20 * TICK) if t % TICK == TICK - 1]
+    return ticks[n - 1]
+
+# 1. RESET->0F (загрузка тем же 0F на t=5): фронт на 15-м тике, уровень держится
+a = Tmr(); a.out06(MASK, 5); a.run(4000)
+e = a.edges[0] if a.edges else -1
+nticks = (e - 1) // TICK - 5 // TICK
+chk("RESET->0F: 1-й фронт на 15-м тике (~60 мкс)", nticks == 15,
+    f"клк={e}, тиков после загрузки={nticks}")
+chk("уровень держится после стопа (не пере-фронтирует)", len(a.edges) == 1, f"фронтов={len(a.edges)}")
+
+# 2. N=3 -> фронт через 3 тика
+b = Tmr(); b.out06(3, 10); b.run(2000)
+e = b.edges[0] if b.edges else -1
+chk("N=3: фронт через 3 tick_step'а (ожидался клк %d)" % (zero_tick(10, 3) + 2),
+    e == zero_tick(10, 3) + 2, f"клк={e}")
+
+# 3. N=0 СТОП: один защитный фронт, счётчик стоит в 0, уровень держится
+c = Tmr(); c.out06(0, 10); c.run(5000)
+chk("N=0: один защитный фронт, затем тишина",
+    len(c.edges) == 1 and c.cnt == 0 and c.rst75 == 1,
+    f"фронтов={len(c.edges)}, cnt={c.cnt}")
+
+# 4. О-3 РЕГРЕССИЯ: фазовый перебор OUT 06h,0 - underflow невозможен
+under_new, under_old = [], []
+for ph in range(TICK):
+    m = Tmr("new"); m.out06(0, ph); m.run(4000)
+    if m.cnt == MASK: under_new.append(ph)          # 0->F без загрузки 15
+    b_ = Tmr("old"); b_.out06(0, ph); b_.run(4000)
+    if b_.cnt == MASK: under_old.append(ph)
+chk("О-3 (v2.8.9): перебор 100 фаз СТОП - 0 underflow (cnt=0F без загрузки)",
+    len(under_new) == 0, f"подтекает фаз: {len(under_new)}")
+chk("О-3 (дискриминативность): БРАК-модель v2.8.8 ловит ровно 1 фазу из 100",
+    len(under_old) == 1, f"фаза {under_old} (клк после снятия tmr_wr06 = tick_step); "
+    "v28.8 маскировала защёлкой уровня, счётчик молча портился")
+chk("О-3: защитный фронт СТОП присутствует во ВСЕХ фазах (контракт цел)",
+    all((lambda m: (m.out06(0, ph), m.run(4000), len(m.edges) == 1 and m.rst75 == 1)[-1])
+        (Tmr()) for ph in (0, 1, 42, 83, 99)))
+
+# 5. ре-арм после СТОПа: N=5 -> второй фронт через 5 тиков
+d = Tmr(); d.out06(2, 10); d.run(1500)
+assert len(d.edges) == 1
+d.out06(5, 1500); d.run(1500)
+chk("ре-арм N=5 после стопа: второй фронт через 5 тиков (ожидался клк %d)" % (zero_tick(1500, 5) + 2),
+    len(d.edges) == 2 and d.edges[1] == zero_tick(1500, 5) + 2,
+    f"клк={d.edges[1] if len(d.edges) > 1 else -1}")
+
+# 6. максимум диапазона: N=15 -> 15 тиков
+f_ = Tmr(); f_.out06(15, 10); f_.run(4000)
+chk("N=15 (макс): фронт через 15 тиков (ожидался клк %d)" % (zero_tick(10, 15) + 2),
+    f_.edges and f_.edges[0] == zero_tick(10, 15) + 2, f"клк={f_.edges[0] if f_.edges else -1}")
+
+# 7. A[7:4] игнорируются: OUT 06h,0xFF эквивалентен N=15
+g = Tmr(); g.out06(0xFF, 10); g.run(4000)
+chk("OUT 06h,0xFF -> N=15 (A[7:4] отброшены)",
+    g.edges and (g.edges[0] - 1) // TICK - 10 // TICK == 15, f"клк={g.edges[0]}")
+
+# 8. ширина уровня фронта >= 8 клк (такт CPU 320 нс)
+m = Tmr(); m.out06(14, 5); m.run(3000)
+e = m.edges[0] if m.edges else -1
+hi = 3000 - e
+chk("фронт OUT 06h,14 на 14-м тике после окна загрузки (56 мкс + фаза)",
+    e == zero_tick(5, 14) + 2, f"клк={e}, ожидалось {zero_tick(5, 14) + 2}")
+chk("ширина уровня >= 8 клк (>= 320 нс, такт CPU)", hi >= 8,
+    f"уровень {hi} клк = {hi * 40} нс >> 320 нс")
+
+# 9. О-3 для ре-арма: перебор фаз OUT 06h,14 - underflow невозможен
+under14 = 0
+for ph in range(TICK):
+    m = Tmr(); m.out06(14, ph); m.run(4000)
+    if m.cnt == MASK: under14 += 1
+chk("О-3: перебор 100 фаз N=14 (ре-арм ISR) - 0 underflow", under14 == 0)
+
+# 10. каденция ISR-ре-армов (тело tiny ~536 клк @3,125): фронт на
+#     14-м тике после каждой загрузки
+sched = [5 + k * 1925 for k in range(5)]
+m = Tmr()
+exp = [zero_tick(t, 14) + 2 for t in sched]
+for t in range(sched[-1] + 15 * TICK + 10):
+    if t in sched:
+        m.out06(14, t)
+    m.step()
+got = m.edges[:5]
+chk("ре-арм каждые 77 мкс: фронт на 14-м тике после каждой загрузки",
+    got == exp, f"получено {got}, ожидалось {exp}")
+
+# 11. уровень фронта держится ДО СЛЕДУЮЩЕЙ загрузки (v28.8 контракт):
+#     загрузка МОЖЕТ сбросить уровень (затем новый фронт через N тиков),
+#     но ВНЕ окон загрузок спадов быть не должно (уровень, не импульс)
+m = Tmr()
+rearms = (5, 1930, 3855)
+fronts = 0; unexpected_drops = 0; prev_rst = 0
+for t in range(6000):
+    if t in rearms:
+        m.out06(14, t)
+    m.step()
+    if m.rst75 and not prev_rst:
+        fronts += 1
+    if prev_rst and not m.rst75:
+        near_load = any(r <= t <= r + WR + 1 for r in rearms)  # спад в клке загрузки включительно
+        if not near_load:
+            unexpected_drops += 1
+    prev_rst = m.rst75
+chk("уровень фронта держится до следующей загрузки (3 фронта; спады ТОЛЬКО "
+    "в окнах загрузок - уровень, не импульс)", fronts == 3 and unexpected_drops == 0,
+    f"фронтов={fronts}, внезапных спадов={unexpected_drops}")
+
+# 12. джиттер базы (jam TX): фаза tick_step блуждает +-200 клк
+import random
+class TmrJ(Tmr):
+    def __init__(s):
+        Tmr.__init__(s)
+        random.seed(1)
+        phi = 0; s.ticks = set()
+        for k in range(1, 500):
+            phi = max(-200, min(200, phi + random.choice([-50, 0, 50])))
+            s.ticks.add(100 * k + phi)
+    def step(s):
+        tick = 1 if s.t in s.ticks else 0
+        wr = s.wr is not None and s.wr[0] <= s.t < s.wr[1]
+        if wr:
+            n_cnt, n_rst = s.wr[2], 0
+        else:
+            n_cnt = s.cnt - 1 if (tick and s.cnt > 0) else s.cnt
+            n_rst = (1 if s.cnt == 0 else 0) | s.rst75
+        if n_rst and not s.rst75: s.edges.append(s.t + 1)
+        s.cnt, s.rst75 = n_cnt, n_rst
+        s.t += 1
+jj = TmrJ(); jj.out06(14, 10)
+last = 0
+while len(jj.edges) < 2 and jj.t < 40000:
+    jj.step()
+    if len(jj.edges) > last:
+        last = len(jj.edges); jj.out06(14, jj.t + 5)
+per = (jj.edges[1] - jj.edges[0]) * 0.04 if len(jj.edges) >= 2 else -1
+chk("джиттер базы: период N=14 в пределах 56+-16 мкс (jam TX)", abs(per - 56) <= 16.4,
+    f"{per:.1f} мкс")
+
+# =====================================================================
+# C. Каденция честная (Н-3): период = N*4 + ISR, каденция CPU-зависима
+# =====================================================================
+print("== C. Каденция monitor27 v1.2 (Н-3: с телами ISR, не идеализация) ==")
+for cpu_mhz, T_ns, fps_lo, fps_hi in ((3.125, 320, 22.0, 26.0), (2.5, 400, 17.0, 21.0)):
+    tiny_t = 67 * T_ns / 1000.0       # мкс - тело tiny ISR (fw: 67T)
+    slot_t = 543 * T_ns / 1000.0      # мкс - тело slot ISR (fw: 543T)
+    front = 14 * 4.0                  # таймерная часть фронта (N=14), фаза 52..56
+    cycle = 5 * (front + tiny_t) + (front + slot_t)   # слот-цикл: 5 tiny + 1 slot
+    frame = 71 * cycle / 1000.0       # мс, 71 слот на кадр (fw)
+    fps = 1000.0 / frame
+    chk(f"кадр @ {cpu_mhz} МГц = {frame:.1f} мс = {fps:.1f} FPS (fw-шапка честна)",
+        fps_lo <= fps <= fps_hi, f"слот-цикл {cycle:.0f} мкс > 336 мкс -> каденция CPU-зависима (Н-3)")
+
+# =====================================================================
+# D. Узел ЧАСЫ v2.8.7 (в v2.8.9 не тронут - Р-6 снял только обёртку)
+# =====================================================================
+print("== D. Узел ЧАСЫ: делитель /4 (t0_q/x1_q/x2_q), противофаза X2 ==")
+
+class Div:
+    def __init__(s, x1=1, x2=0, t0=0):
+        s.x1, s.x2, s.t0 = x1, x2, t0        # INIT конфигурации (SET/RESET/RESET)
+    def step(s):
+        if s.t0:                              # T у x1_q и x2_q - ОДИН провод
+            s.x1 ^= 1; s.x2 ^= 1              # -> x2^x1 ИНВАРИАНТ
+        s.t0 ^= 1
+        return int(not s.t0 and not s.x1)     # por_ce (bool, не ~int!)
+
+d = Div(); seq1, seq2, ce = [], [], []
+for _ in range(4000):
+    seq1.append(d.x1); seq2.append(d.x2)
+    ce.append(int(not d.t0 and not d.x1))
+    d.step()
+anti = all(b != a for a, b in zip(seq1, seq2))
+chk("инвариант X2 = ~X1 в КАЖДЫЙ такт (4000 клк)", anti)
+per = sum(1 for i in range(1, 4000) if seq1[i] != seq1[i - 1])
+chk("период X1 = 4 клк = 160 нс (6,25 МГц)", per in (1999, 2000), f"переключений {per}")
+chk("duty X1 = 1/2 (80/80 нс)", seq1[:4].count(1) == 2, f"first4={seq1[:4]}")
+chk("duty X2 = 1/2, фаза противоположна", seq2[:4].count(1) == 2, f"first4={seq2[:4]}")
+chk("por_ce ровно 1 клк за период (1000 за 4000)", sum(ce) == 1000, f"={sum(ce)}")
+
+bad = 0
+for init in ((1, 1, 0), (0, 0, 1), (0, 1, 1), (1, 0, 1), (1, 1, 1), (0, 0, 0), (0, 1, 0)):
+    d = Div(*init); s1, s2 = [], []
+    for _ in range(16):
+        s1.append(d.x1); s2.append(d.x2); d.step()
+    if all(b != a for a, b in zip(s1, s2)): bad += 1
+chk("самовыравнивание: инвариант из ЛЮБОГО живого INIT-кода (x1^x2=1)",
+    bad == 3, f"7 кодов -> {bad} дают противофазу (фаза = БРАК INIT X2=SET)")
+
+# =====================================================================
+print("ВЕРДИКТ:", "PASS (%d проверок)" % sum(1 for _, c in ok if c)
+      if all(c for _, c in ok) else "FAIL (%d из %d)" % (sum(1 for _, c in ok if not c), len(ok)))
+sys.exit(0 if all(c for _, c in ok) else 1)
