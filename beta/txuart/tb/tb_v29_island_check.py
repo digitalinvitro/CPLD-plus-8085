@@ -18,7 +18,10 @@
 #        входов ФБ счётчика). Регрессия: фазовый перебор СТОП на верной
 #        модели + БРАК-модель (старый гейт) показывает, что тест дискриминативен.
 #   О-7: (* fsm_encoding = "compact" *) на state - one-hot (109>108) закрыт.
-#   Р-4: таймер в асинхронной форме ядра (posedge clk or posedge cpu_rst).
+#   Р-4: таймер в асинхронной форме ядра (posedge clk or posedge cpu_rst);
+#   Шаг-7 (18-17, решение владельца): ВСЕ сбросы таймера СНЯТЫ (блоки на
+#   чистом @(posedge clk), INIT-значения прежние) - ложные фронты RST7.5
+#   при старте/после кнопки приняты (RESET_IN чистит защёлку 7.5 у CPU).
 #   Р-6: параметры POR_W/CLK_DIV/CLK_HALF и generate-обёртка удалены.
 #   Н-3: каденция честная (период = N*4 + ISR; ~24 FPS @3,125, не 41.9).
 # База:
@@ -70,8 +73,8 @@ dig_out = ~0xF & 0xF                  # пины dig = ~dig_q: активный 
 chk("самотест «----» на пинах: горит ТОЛЬКО g (seg=BFh), все 4 разряда выбраны (dig=00h)",
     seg_out == 0xBF and dig_out == 0x00,
     f"seg=0x{seg_out:02X} (0=горит: g), dig=0x{dig_out:02X} (0=выбран: все)")
-chk("Шаг-1 (v2.9): kbcol_q <= A[7:4] в блоке загрузки tmr_wr06 (слитый порт 06h)",
-    bool(re.search(r"else if \(tmr_wr06\) begin\s*tmr_cnt\s*<=\s*A\[3:0\];\s*kbcol_q\s*<=\s*A\[7:4\];", code9)))
+chk("Шаг-1 (v2.9): kbcol_q <= A[7:4] в блоке загрузки tmr_wr06 (слитый порт 06h; Шаг-7: первый if блока)",
+    bool(re.search(r"if \(tmr_wr06\) begin\s*tmr_cnt\s*<=\s*A\[3:0\];\s*kbcol_q\s*<=\s*A\[7:4\];", code9)))
 chk("Шаг-1: декод 3'b010: kbcol_q ИЗ case записи УДАЛЁН (порт 02h немаплен)",
     not re.search(r"3'b010:\s*kbcol_q", code9))
 chk("Шаг-1: КОНТРАКТ ПОРТОВ помечает 02h немапленным",
@@ -92,11 +95,24 @@ chk("Шаг-2: hwuart-совместимость бита A1 упразднен�
     "УПРАЗДНЕНА" in src9 and "единственный потребитель статуса - fw_mon" in src9)
 chk("Шаг-2: v1.1 опрашивает 05h - встанет намертво (предупреждение в шапке)",
     "встанет НАМЕРТВО" in src9)
-# Шаг-1 ФИКС (16-16, синтез владельца: XST 528 x4 на col0..3) - статические сканеры
+# Шаг-1 ФИКС (16-16, синтез владельца: XST 528 x4 на col0..3) - статические сканеры;
+# Шаг-7 (18-17): сбросы таймера СНЯТЫ по решению владельца - таймер вне сети сброса
 frags = re.split(r"\balways\b", code9)
-chk("Шаг-1 фикс (XST 528): kbcol_q - ОДИН always-водитель, сброс в cpu_rst-ветке ТАЙМЕРА",
-    sum(1 for f in frags if re.search(r"\bkbcol_q\s*<=", f)) == 1
-    and re.search(r"if \(cpu_rst_r\) begin\s*tmr_cnt <= 4'hF;\s*kbcol_q <= 4'h0;\s*end", code9) is not None)
+chk("Шаг-1 фикс (XST 528): kbcol_q - ОДИН always-водитель (Шаг-7: ветка сброса удалена)",
+    sum(1 for f in frags if re.search(r"\bkbcol_q\s*<=", f)) == 1)
+chk("Шаг-7: reset-ветка таймера (tmr_cnt <= 4'hF) в коде отсутствует",
+    re.search(r"if \(cpu_rst_r\) begin\s*tmr_cnt <= 4'hF;", code9) is None
+    and "tmr_cnt <= 4'hF" not in code9)
+chk("Шаг-7: reset-ветка триггера 7.5 (if cpu_rst_r -> RST75_r) в коде отсутствует",
+    re.search(r"if \(cpu_rst_r\)\s+RST75_r", code9) is None)
+chk("Шаг-7: оба таймерных блока на чистом @(posedge clk) (2 пометки Шаг-7)",
+    len(re.findall(r"always\s*@\(posedge clk\)\s*(?:begin\s*)?//\s*ШАГ-7", src9)) == 2)
+chk("Шаг-7: INIT-значения сохранены (старт бит-в-бит прежний)",
+    bool(re.search(r"reg\s+\[3:0\]\s+tmr_cnt\s*=\s*4'hF;", code9))
+    and bool(re.search(r"reg\s+RST75_r\s*=\s*1'b0;", code9))
+    and bool(re.search(r"reg\s+\[3:0\]\s+kbcol_q\s*=\s*4'h0;", code9)))
+chk("Шаг-7: загрузка/стоп OUT 06h не задеты (RST75_r <= 1'b0 при tmr_wr06 жив)",
+    re.search(r"if \(tmr_wr06\)\s+RST75_r <= 1'b0;", code9) is not None)
 _bad = []
 for _n in set(re.findall(r"\breg\s+(?:signed\s+)?(?:\[[^\]]+\]\s*)?(\w+)", code9)):
     if sum(1 for f in frags if re.search(r"\b%s\s*<=" % re.escape(_n), f)) > 1:
@@ -147,8 +163,8 @@ chk("Шаг-4/6: io_wr_tx гейтится регистром (!cpu_rst_r)",
     "&& tx_idle && !ld_tx_q && !cpu_rst_r" in code9)
 chk("Шаг-4/6: FSM-гейт T2->WB1 от регистра (!cpu_rst_r)",
     "(!IOM && A15 && !cpu_rst_r)" in code9)
-chk("Шаг-6: все 4 асинхронных блока сбрасываются cpu_rst_r",
-    code9.count("posedge clk or posedge cpu_rst_r)") == 4
+chk("Шаг-6: оба АСИНХРОННЫХ блока ядра сбрасываются cpu_rst_r (Шаг-7: таймер вышел из сети - осталось 2)",
+    code9.count("posedge clk or posedge cpu_rst_r)") == 2
     and "posedge clk or posedge cpu_rst)" not in code9)
 # Шаг-5 (Р-1, фит Шага-4: FB3 36/36 вх. при 15/18 МЦ, 892 D<2>_BUFR; по матрице
 # FB3 por_sh<7> - единственный читатель X1/t0_q/FC_3, переезду некуда - 5 ФБ
@@ -273,8 +289,8 @@ chk("О-7: директива-комментарий v3.9-era заменена",
     '// synthesis attribute fsm_encoding of state is "compact"' not in src9)
 n_async8 = len(re.findall(r"always\s*@\(posedge clk or posedge cpu_rst_r?\)", code_of(src8)))
 n_async9 = len(re.findall(r"always\s*@\(posedge clk or posedge cpu_rst_r?\)", code9))
-chk("Р-4: асинхронных блоков стало 4 (2 ядра + 2 таймера; было %d)" % n_async8,
-    n_async9 == 4, f"v28_8={n_async8}, v28_9={n_async9}")
+chk("Р-4/Шаг-7: асинхронных блоков осталось 2 (только ядро; таймер вне сети сброса; было %d)" % n_async8,
+    n_async9 == 2, f"v28_8={n_async8}, v28_9={n_async9}")
 chk("Р-6: параметров POR_W/CLK_DIV/CLK_HALF в коде НЕТ",
     all(p not in code9 for p in ("POR_W", "CLK_DIV", "CLK_HALF")))
 chk("Р-6: generate/endgenerate в коде НЕТ",
@@ -282,8 +298,8 @@ chk("Р-6: generate/endgenerate в коде НЕТ",
 chk("Р-6: module retro_pcld_top БЕЗ #(...)",
     bool(re.search(r"module\s+retro_pcld_top\s*\(", code9)) and
     not re.search(r"module\s+retro_pcld_top\s*#", code9))
-chk("О-3/Р-4: RESET-ветки таймера сохранены (tmr_cnt=0F, RST75=0)",
-    "tmr_cnt <= 4'hF;" in code9 and
+chk("Шаг-7: старт таймера жив как INIT (tmr_cnt=0F в декларации, RST75_r гасится OUT 06h)",
+    bool(re.search(r"reg\s+\[3:0\]\s+tmr_cnt\s*=\s*4'hF;", code9)) and
     bool(re.search(r"RST75_r\s*<=\s*1'b0;", code9)))
 
 # CP1251-двойник и UCF
