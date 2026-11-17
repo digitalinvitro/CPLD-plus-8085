@@ -10,7 +10,7 @@ mkdir -p "$W"
 
 SRC=/home/z/my-project/CPLD-plus-8085/beta/txuart
 # DUT bez pereimenovaniya - tb_poweron_v30 instanciruet retro_pcld_top
-cp "$SRC/top_txuart_por6_v30_utf8.v" "$W/dut30.v"
+cp "$SRC/top_txuart_por6_v30.v" "$W/dut30.v"
 
 "$IVLROOT/usr/bin/iverilog" -g2001 -o "$W/sim.vvp" \
   "$W/dut30.v" "$SRC/scripts/tb_poweron_v30.v"
