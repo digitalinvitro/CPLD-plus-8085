@@ -386,10 +386,6 @@ module retro_pcld_top (   // параметров нет: делитель единственный, обЄртка
                                  // reset_q INIT=0 -> значение в момент t0 то же)
   always @(posedge clk)          // сброс пайплайнитс€ на 1 клк (rst_press | ~reset_q)
     cpu_rst_r <= rst_press | ~reset_q;
-  always @(posedge clk) begin   // логика на clk 25 ћ√ц (п.23/34)
-    rst_meta <= RST;
-    rst_sync <= rst_meta;
-  end
   always @(posedge clk) begin  // п.35: полка сброса = 8 фронтов CLKOUT
     if (rst_press) begin
       reset_q <= 1'b0;          // кнопка (квалификатор п.21): сброс немедленно, счЄт с нул€
