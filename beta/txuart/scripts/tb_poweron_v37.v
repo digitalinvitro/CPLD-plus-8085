@@ -117,15 +117,13 @@ module tb_poweron_v37;
   endfunction
 
   // Vosstanovlenie INIT-sostoyaniya ostrova sbrosa (kak .jed pri
-  // vklyuchenii). Tsep sinkhronizatora vyrovnyaetsya s TEKUSHCHIM CLKOUT -
+  // vklyuchenii). Registr-pamyat vyrovnyaetsya s TEKUSHCHIM CLKOUT -
   // inache pereliv rodit sinteticheskiy front (bug tb, ne RTL).
   // cpu_rst_r podnimetsya sam cherez 1 klk (rst_press | !reset_q).
   task automatic set_reset_state(input [2:0] cnt, input rq);
     begin
       dut.rst_cnt     = cnt;
       dut.reset_q     = rq;
-      dut.clkout_meta = CLKOUT;
-      dut.clkout_sync = CLKOUT;
       dut.clkout_d    = CLKOUT;
       dut.rst_meta    = 1'b0;
       dut.rst_sync    = 1'b0;
@@ -151,7 +149,7 @@ module tb_poweron_v37;
       fuzz_on = 1'b0;
       if (t_rise < 2200.0 || t_rise > 3200.0) begin
         errors = errors + 1;
-        $display("RESULT P0 FAIL: RESET_IN podnyalsya cherez %0t ns (okno [2200..3200]; 8x320=2560 + faza + sinkhro)", t_rise);
+        $display("RESULT P0 FAIL: RESET_IN podnyalsya cherez %0t ns (okno [2200..3200]; 8x320=2560 + faza)", t_rise);
       end else if (dut.rst_cnt !== 3'b000) begin
         errors = errors + 1;
         $display("RESULT P0 FAIL: rst_cnt=%b posle snyatiya - schet NE rovno 8 frontov", dut.rst_cnt);
