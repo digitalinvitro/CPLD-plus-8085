@@ -1,8 +1,8 @@
-// tb_poweron_v35.v (txuart, 2026-11-17): dokazatel'nyy test sbrosa CPU po
-// schetu frontov CLKOUT - VARIANT A (predlozhenie vladel'tsa 11-17, v3.0).
-// DUT - real'nyy RTL top_txuart_por6_v37_utf8.v (STEP 14.2). Icarus Verilog 12.0.
-// v3.5: DUT = v3.4 + CE-forma bus_reg/kbcol_q (Shag-13, semantika 1-v-1);
-// semantika 1-v-1; tb bus-cikly proveryayut guard/vetki - cheki 1-v-1 v30/v31/v32/v33.
+// tb_poweron_v37.v (txuart): dokazatel'nyy test sbrosa CPU po schetu
+// frontov CLKOUT - VARIANT A.
+// DUT - real'nyy RTL top_txuart_por6_v37.v (CP1251). Icarus Verilog 12.0/13.0.
+// Проверки: POR-polka po frontam CLKOUT, mertvyy CLKOUT, knopka (kvalifikator
+// + polka), glitch, povtornyj vzvod, /WE-pulsy, zamorozka scheta taymera.
 // Pervyy Verilog-tb linii txuart (prezhnie tb - Python po uravneniyam
 // fita). Kommentarii - ASCII-translit (CP1251-bezopasno).
 //
@@ -57,7 +57,7 @@ module tb_poweron_v37;
   assign (weak0, weak1) A = cpuA;
   assign (weak0, weak1) D = memD;
 
-  reg clkout_en = 1'b1;   // (STEP 14.2: moved above dut - Icarus 13 forbids decl-after-use)
+  reg clkout_en = 1'b1;   // moved above dut - Icarus 13 forbids decl-after-use
   reg CLKOUT = 1'b0;      // Model' CPU CLKOUT = X1/2
 
   retro_pcld_top dut (
@@ -294,7 +294,7 @@ module tb_poweron_v37;
 
     quiet_bus;
     $display("ITOGE: %0d oshibok", errors);
-    if (errors == 0) $display("RESULT ITGAME PASS: VARIANT A podtverzhden na RTL v3.7 (STEP 14.2 tmr_cnt 3->2 bita; POR-logika v3.5 1-v-1; hod testa 1-v-1 v30-v35) (POR/mertvyy CLKOUT/knopka/glitch/povtor/mertvyy clk)");
+    if (errors == 0) $display("RESULT ITGAME PASS: VARIANT A podtverzhden na RTL v3.7 (POR/mertvyy CLKOUT/knopka/glitch/povtor/mertvyy clk)");
     else             $display("RESULT ITGAME FAIL: VARIANT A IMEET %0d RAZRYVOV", errors);
     $finish;
   end
