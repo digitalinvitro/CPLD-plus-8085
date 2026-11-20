@@ -10,6 +10,18 @@
 
 ---
 
+## 2026-11-20-1 — v37F (N4a): CS1/READY output->input — освобождаются МЦ FB2_3/FB4_5 под shreg<1>/<2>; проверка внутренней подтяжки XC9500 по DS063 + Constraints Guide: в нормальной работе pull-up ОТКЛЮЧЁН — внешние 10К на P99/P87 обязательны ДО прошивки
+
+RTL `top_txuart_por6_v37f.v` (копия v37E, 4 правки): порты CS1/READY `output wire` -> `input wire` (строки 230/233, комментарии сохранены), `assign CS1 = 1'b1;` и `assign READY = 1'b1;` удалены; иных упоминаний CS1/READY в HDL нет. Шапка помечена v37F + WARNING. Механизм: МЦ за preserved input-падами доступны buried-логике (прецедент: FB3_9/пад38 в rpt 11-20; v285-1 размещала shreg<1>/<2> в FB3). Удаление портов целиком НЕДОПУСТИМО: включена опция Ground on Unused IOs — CS1/READY ушли бы в '0' как PGND-пины (P74,P76,P78,P79,P81,P95,P96,P98).
+
+UCF не меняется: `NET "CS1" LOC="P99"` / `NET "READY" LOC="P87"` direction-agnostic и остаются. Добавлять PULLUP в UCF бессмысленно: Constraints Guide (ISE 8.1i, cgd), таблица «PULLUP Architecture Support»: **«XC9500, XC9500XL, XC9500XV — No»** (Yes — только Virtex/Spartan; CoolRunner XPLA3 — «Inputs only»; CoolRunner-II — Yes).
+
+Вердикт по внутренней подтяжке (проверка по запросу владельца, первоисточники — DS063 «XC9500 In-System Programmable CPLD Family» v5.0 + cgd.pdf): «A control pull-up resistor (typically 10K ohms) is attached to each device I/O pin to prevent them from floating when the device is not in normal user operation. This resistor is active during device programming mode and system power-up. It is also activated for an erased device. **The resistor is deactivated during normal operation.**» + Table 5 «IOB Pull-up Resistors»: Quiescent State = Enabled, Erased Device Operation = Enabled, **Valid User Operation = Disabled**. Programmable pin capability у 5V-семейства — только GND (используется владельцем для PGND-8), подтяжки-аналога нет. Bus-hold keeper «active during valid user operation» — только XC9500XL/XV (DS054), XC95108 — 5V семья, не применим. Раннее утверждение агента «подтяжка программируется внутри чипа» ОПРОВЕРГНУТО и отозвано.
+
+Порядок работ (директива владельца): фит v37F в ISE — без изменений платы, безопасен; **прошивка v37F запрещена до пайки внешних 10К** на P99 (U4.30, CE2) и P87 (cpu6, 8085.35 READY) — иначе оба пина висят в воздухе (CE2 — паразитное селектирование U4, READY — недетерминированные wait-state).
+
+Конфигурация фита — доказанная база rpt 11-20 10:36PM: Exhaustive OFF, Local Feedback ON, IL=13/PT=18. Ожидания от rpt: пин-фаза 100/108 МЦ (−CS1, −READY), при успехе 102/108; shreg<1> -> FB4_5 (входы A<1>.PIN и baud_tick уже в линиях FB4 №5/№13, новых 2–3 из 6 — комфортно); shreg<2> -> FB2_3 (ld_tx_q FB2_6 — локально; новые линии shreg<3>, A<2>, baud_tick = 3 из 3 — впритык, точка риска). При 892 на shreg<2> — v37F-2: перенос buried-узла из FB6 в освободившиеся слоты.
+
 ## 2026-11-19-6 — v37E: прогон N2 (Exhaustive ON) выполнен на ЗАПРЕЩЁННОЙ комбинации PT=1/IL=1 — Design Rule Checking Failed (ERROR 837: нужно ≥446 МЦ); прогон недиагностический для тупика shreg<1>/<2>
 
 Директива владельца 11-19: «изучи отчет по фиту CPLD-plus-8085/blob/main/beta/txuart/retro_pcld_top_v37E_EON.rpt» (upload владельца на origin, подтянут pull'ом; файл оставлен в репо как загружен — имя честное, EON).
