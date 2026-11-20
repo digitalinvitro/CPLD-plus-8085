@@ -1,0 +1,2112 @@
+ 
+cpldfit:  version P.20131013                        Xilinx Inc.
+                                  No Fit Report
+Design Name: retro_pcld_top                      Date: 11-20-2026,  7:58PM
+Device Used: XC95108-15-PQ100
+Fitting Status: Design Rule Checking Failed
+
+**************************  Errors and Warnings  ***************************
+
+INFO:Cpld:994 - Exhaustive fitting is trying pterm limit: 1 and input limit: 1
+ERROR:Cpld:837 - Insufficient number of macrocells. The design needs at least
+   446 but only 108 left after allocating other resources.
+ERROR:Cpld:868 - Cannot fit the design into any of the specified devices with
+   the selected implementation options.
+*************************  Mapped Resource Summary  **************************
+
+No logic has been mapped.
+
+Macrocells     Product Terms    Function Block   Registers      Pins           
+Used/Tot       Used/Tot         Inps Used/Tot    Used/Tot       Used/Tot       
+45 /108 ( 42%) 79  /540  ( 15%) 90 /216 ( 42%)   28 /108 ( 26%) 73 /81  ( 90%)
+
+** Function Block Resources **
+
+Function    Mcells      FB Inps     Signals     Pterms      IO          
+Block       Used/Tot    Used/Tot    Used        Used/Tot    Used/Tot    
+FB1          12/18       26/36       26          23/90      12/14
+FB2           6/18       12/36       12          10/90       6/14
+FB3          12/18       26/36       26          24/90      12/14
+FB4           2/18        2/36        4           1/90       2/13
+FB5           9/18       17/36       17          16/90       9/13
+FB6           4/18        7/36        9           5/90       4/13
+             -----       -----                   -----       -----     
+             45/108      90/216                  79/540     45/81 
+
+* - Resource is exhausted
+
+** Global Control Resources **
+
+Global clock net(s) unused.
+Global output enable net(s) unused.
+Global set/reset net(s) unused.
+
+** Pin Resources **
+
+Signal Type    Required     Mapped  |  Pin Type            Used    Total 
+------------------------------------|------------------------------------
+Input         :   27          27    |  I/O              :    67      75
+Output        :   29          29    |  GCK/IO           :     3       3
+Bidirectional :   16          16    |  GTS/IO           :     2       2
+GCK           :    1           1    |  GSR/IO           :     1       1
+GTS           :    0           0    |
+GSR           :    0           0    |
+                 ----        ----
+        Total     73          73
+
+End of Mapped Resource Summary
+*************************  Summary of Mapped Logic  ************************
+
+** 45 Outputs **
+
+Signal                      Total Total Loc     Pin  Pin     Pin     
+Name                        Pts   Inps          No.  Type    Use     
+A<4>                        2     3     FB1_2   15   I/O     I/O     
+OEr_n                       1     2     FB1_3   16   I/O     O       
+A<1>                        2     3     FB1_4   21   I/O     I/O     
+A<3>                        2     3     FB1_5   17   I/O     I/O     
+A<2>                        2     3     FB1_8   19   I/O     I/O     
+CSr_n                       1     2     FB1_9   20   I/O     O       
+A<0>                        2     3     FB1_10  26   I/O     I/O     
+D<7>                        3     4     FB1_11  22   I/O     I/O     
+WE_n                        1     2     FB1_12  24   GCK/I/O O       
+CS_n                        1     2     FB1_14  25   GCK/I/O O       
+D<6>                        3     4     FB1_15  27   I/O     I/O     
+D<0>                        3     4     FB1_17  30   I/O     I/O     
+CS1                         0     0     FB2_3   99   I/O     O       
+seg<6>                      2     3     FB2_8   5    GTS/I/O O       
+dig<0>                      2     3     FB2_9   6    GTS/I/O O       
+A<7>                        2     3     FB2_10  9    I/O     I/O     
+A<6>                        2     3     FB2_14  11   I/O     I/O     
+A<5>                        2     3     FB2_16  13   I/O     I/O     
+D<5>                        3     4     FB3_2   31   I/O     I/O     
+D<1>                        3     4     FB3_3   32   I/O     I/O     
+D<3>                        3     4     FB3_4   36   I/O     I/O     
+D<4>                        3     4     FB3_5   34   I/O     I/O     
+D<2>                        3     4     FB3_6   35   I/O     I/O     
+OE_n                        1     2     FB3_8   37   I/O     O       
+seg<0>                      2     3     FB3_10  45   I/O     O       
+TX                          2     3     FB3_11  39   I/O     O       
+col3                        1     2     FB3_12  41   I/O     O       
+col2                        1     2     FB3_14  42   I/O     O       
+col1                        1     2     FB3_15  43   I/O     O       
+col0                        1     2     FB3_16  44   I/O     O       
+RESET_IN                    1     4     FB4_3   84   I/O     O       
+READY                       0     0     FB4_5   87   I/O     O       
+dig<3>                      2     3     FB5_4   48   I/O     O       
+seg<3>                      2     3     FB5_8   57   I/O     O       
+seg<4>                      2     3     FB5_9   58   I/O     O       
+seg<7>                      0     0     FB5_11  60   I/O     O       
+seg<1>                      2     3     FB5_12  62   I/O     O       
+dig<1>                      2     3     FB5_14  63   I/O     O       
+dig<2>                      2     3     FB5_15  65   I/O     O       
+seg<2>                      2     3     FB5_16  61   I/O     O       
+
+Signal                      Total Total Loc     Pin  Pin     Pin     
+Name                        Pts   Inps          No.  Type    Use     
+seg<5>                      2     3     FB5_17  66   I/O     O       
+SND                         2     3     FB6_2   67   I/O     O       
+X1                          1     1     FB6_3   68   I/O     O       
+RST75                       1     4     FB6_4   75   I/O     O       
+SID                         1     1     FB6_9   73   I/O     O       
+
+** 28 Inputs **
+
+Signal                      Loc     Pin  Pin     Pin     
+Name                                No.  Type    Use     
+AH10                        FB1_6   18   I/O     I
+clk                         FB1_16  29   GCK/I/O GCK
+AH12                        FB2_4   4    I/O     I
+RST                         FB2_5   1    GSR/I/O I
+AH14                        FB2_6   3    I/O     I
+AH13                        FB2_11  8    I/O     I
+AH8                         FB2_12  10   I/O     I
+AH9                         FB2_15  12   I/O     I
+AH11                        FB2_17  14   I/O     I
+RX                          FB3_9   38   I/O     I
+row4                        FB3_17  51   I/O     I
+CLKOUT                      FB4_2   83   I/O     I
+HLDA                        FB4_4   82   I/O     I
+IOM                         FB4_6   88   I/O     I
+S1                          FB4_8   89   I/O     I
+RDn                         FB4_9   91   I/O     I
+WRn                         FB4_11  92   I/O     I
+ALE                         FB4_12  93   I/O     I
+S0                          FB4_16  94   I/O     I
+A15                         FB4_17  97   I/O     I
+row3                        FB5_2   52   I/O     I
+row2                        FB5_3   54   I/O     I
+row1                        FB5_5   55   I/O     I
+row0                        FB5_6   56   I/O     I
+X2                          FB6_5   69   I/O     I
+RSTOUT                      FB6_6   70   I/O     I
+SOD                         FB6_8   72   I/O     I
+INTAn                       FB6_17  80   I/O     I
+
+Legend:
+Pin No. - ~ - User Assigned
+*************************  Summary of UnMapped Logic  ************************
+
+** 401 Buried Nodes **
+
+Signal                      Total Total User
+Name                        Pts   Inps  Assignment
+$OpTx$BIN_AND$196257        1     4     
+$OpTx$BIN_AND$196258        1     6     
+$OpTx$BIN_AND$196259        1     4     
+$OpTx$BIN_AND$196261        1     2     
+$OpTx$BIN_AND$196263        1     2     
+$OpTx$BIN_AND$196264        1     2     
+$OpTx$BIN_AND$196270        1     2     
+$OpTx$BIN_AND$196276        1     2     
+$OpTx$BIN_AND$196288        1     2     
+$OpTx$BIN_AND$196290        1     2     
+$OpTx$BIN_AND$196292        1     2     
+$OpTx$BIN_AND$196293        1     2     
+$OpTx$BIN_AND$196295        1     2     
+$OpTx$BIN_AND$196305        1     2     
+$OpTx$BIN_AND$196307        1     2     
+$OpTx$BIN_AND$196308        1     2     
+$OpTx$BIN_AND$196310        1     2     
+$OpTx$BIN_AND$196318        1     2     
+$OpTx$BIN_AND$196320        1     2     
+$OpTx$BIN_AND$196326        1     2     
+$OpTx$BIN_AND$196327        1     2     
+$OpTx$BIN_AND$196329        1     2     
+$OpTx$BIN_AND$196337        1     2     
+$OpTx$BIN_AND$196341        1     2     
+$OpTx$BIN_AND$196342        1     2     
+$OpTx$BIN_AND$196344        1     2     
+$OpTx$BIN_AND$196350        1     2     
+$OpTx$BIN_AND$196351        1     2     
+$OpTx$BIN_AND$196353        1     2     
+$OpTx$BIN_AND$196359        1     2     
+$OpTx$BIN_AND$196373        1     2     
+$OpTx$BIN_AND$196374        1     2     
+$OpTx$BIN_AND$196376        1     2     
+$OpTx$BIN_AND$196415        1     4     
+$OpTx$BIN_AND$196428        1     2     
+$OpTx$BIN_AND$196429        1     2     
+$OpTx$BIN_AND$196433        1     4     
+$OpTx$BIN_AND$196434        1     2     
+$OpTx$BIN_AND$196438        1     2     
+$OpTx$BIN_AND$196439        1     2     
+
+Signal                      Total Total User
+Name                        Pts   Inps  Assignment
+$OpTx$BIN_AND$196445        1     2     
+$OpTx$BIN_AND$196446        1     2     
+$OpTx$BIN_AND$196452        1     2     
+$OpTx$BIN_AND$196454        1     2     
+$OpTx$BIN_AND$196460        1     2     
+$OpTx$BIN_AND$196464        1     2     
+$OpTx$BIN_AND$196494        1     2     
+$OpTx$BIN_AND$196496        1     2     
+$OpTx$BIN_AND$196521        1     2     
+$OpTx$BIN_AND$196545        1     2     
+$OpTx$BIN_AND$196546        1     2     
+$OpTx$BIN_AND$196547        1     2     
+$OpTx$BIN_AND$196555        1     4     
+$OpTx$BIN_AND$196557        1     2     
+$OpTx$BIN_AND$196558        1     2     
+$OpTx$BIN_AND$196562        1     2     
+$OpTx$BIN_STEP$196218       1     2     
+$OpTx$BIN_STEP$196219       1     2     
+$OpTx$BIN_STEP$196220       1     2     
+$OpTx$BIN_STEP$196221       1     2     
+$OpTx$BIN_STEP$196222       1     2     
+$OpTx$BIN_STEP$196223       1     2     
+$OpTx$BIN_STEP$196224       1     2     
+$OpTx$BIN_STEP$196225       1     2     
+$OpTx$BIN_STEP$196226       1     2     
+$OpTx$BIN_STEP$196227       1     2     
+$OpTx$BIN_STEP$196228       1     2     
+$OpTx$BIN_STEP$196229       1     2     
+$OpTx$BIN_STEP$196230       1     2     
+$OpTx$BIN_STEP$196231       1     2     
+$OpTx$BIN_STEP$196232       1     2     
+$OpTx$BIN_STEP$196233       1     2     
+$OpTx$BIN_STEP$196234       1     2     
+$OpTx$BIN_STEP$196235       1     2     
+$OpTx$BIN_STEP$196236       1     2     
+$OpTx$BIN_STEP$196237       1     2     
+$OpTx$BIN_STEP$196238       1     2     
+$OpTx$BIN_STEP$196239       1     2     
+$OpTx$BIN_STEP$196240       1     2     
+$OpTx$BIN_STEP$196241       1     2     
+
+Signal                      Total Total User
+Name                        Pts   Inps  Assignment
+$OpTx$BIN_STEP$196242       1     2     
+$OpTx$BIN_STEP$196243       1     2     
+$OpTx$BIN_STEP$196244       1     2     
+$OpTx$BIN_STEP$196245       1     2     
+$OpTx$BIN_STEP$196246       1     2     
+$OpTx$BIN_STEP$196247       1     2     
+$OpTx$BIN_STEP$196248       1     2     
+$OpTx$BIN_STEP$196249       1     2     
+$OpTx$BIN_STEP$196250       1     2     
+$OpTx$BIN_STEP$196251       1     2     
+$OpTx$BIN_STEP$196252       1     2     
+$OpTx$BIN_STEP$196253       1     2     
+$OpTx$BIN_STEP$196266       1     2     
+$OpTx$BIN_STEP$196267       1     2     
+$OpTx$BIN_STEP$196268       1     2     
+$OpTx$BIN_STEP$196269       1     2     
+$OpTx$BIN_STEP$196272       1     2     
+$OpTx$BIN_STEP$196273       1     2     
+$OpTx$BIN_STEP$196275       1     4     
+$OpTx$BIN_STEP$196278       1     2     
+$OpTx$BIN_STEP$196279       1     2     
+$OpTx$BIN_STEP$196280       1     2     
+$OpTx$BIN_STEP$196281       1     2     
+$OpTx$BIN_STEP$196282       1     2     
+$OpTx$BIN_STEP$196283       1     2     
+$OpTx$BIN_STEP$196284       1     2     
+$OpTx$BIN_STEP$196285       1     2     
+$OpTx$BIN_STEP$196286       1     2     
+$OpTx$BIN_STEP$196287       1     2     
+$OpTx$BIN_STEP$196297       1     2     
+$OpTx$BIN_STEP$196298       1     4     
+$OpTx$BIN_STEP$196299       1     2     
+$OpTx$BIN_STEP$196300       1     2     
+$OpTx$BIN_STEP$196301       1     2     
+$OpTx$BIN_STEP$196302       1     2     
+$OpTx$BIN_STEP$196303       1     2     
+$OpTx$BIN_STEP$196304       1     2     
+$OpTx$BIN_STEP$196312       1     2     
+$OpTx$BIN_STEP$196313       1     2     
+$OpTx$BIN_STEP$196314       1     2     
+
+Signal                      Total Total User
+Name                        Pts   Inps  Assignment
+$OpTx$BIN_STEP$196315       1     2     
+$OpTx$BIN_STEP$196316       1     2     
+$OpTx$BIN_STEP$196317       1     2     
+$OpTx$BIN_STEP$196322       1     2     
+$OpTx$BIN_STEP$196323       1     2     
+$OpTx$BIN_STEP$196324       1     2     
+$OpTx$BIN_STEP$196325       1     2     
+$OpTx$BIN_STEP$196331       1     2     
+$OpTx$BIN_STEP$196332       1     2     
+$OpTx$BIN_STEP$196333       1     2     
+$OpTx$BIN_STEP$196334       1     2     
+$OpTx$BIN_STEP$196335       1     2     
+$OpTx$BIN_STEP$196336       1     2     
+$OpTx$BIN_STEP$196339       1     2     
+$OpTx$BIN_STEP$196340       1     2     
+$OpTx$BIN_STEP$196346       1     2     
+$OpTx$BIN_STEP$196347       1     2     
+$OpTx$BIN_STEP$196348       1     2     
+$OpTx$BIN_STEP$196349       1     2     
+$OpTx$BIN_STEP$196355       1     2     
+$OpTx$BIN_STEP$196356       1     2     
+$OpTx$BIN_STEP$196357       1     2     
+$OpTx$BIN_STEP$196358       1     2     
+$OpTx$BIN_STEP$196361       1     2     
+$OpTx$BIN_STEP$196362       1     2     
+$OpTx$BIN_STEP$196363       1     2     
+$OpTx$BIN_STEP$196364       1     2     
+$OpTx$BIN_STEP$196365       1     2     
+$OpTx$BIN_STEP$196366       1     2     
+$OpTx$BIN_STEP$196367       1     2     
+$OpTx$BIN_STEP$196368       1     2     
+$OpTx$BIN_STEP$196369       1     2     
+$OpTx$BIN_STEP$196370       1     2     
+$OpTx$BIN_STEP$196371       1     2     
+$OpTx$BIN_STEP$196372       1     2     
+$OpTx$BIN_STEP$196378       1     2     
+$OpTx$BIN_STEP$196379       1     2     
+$OpTx$BIN_STEP$196380       1     2     
+$OpTx$BIN_STEP$196381       1     2     
+$OpTx$BIN_STEP$196382       1     2     
+
+Signal                      Total Total User
+Name                        Pts   Inps  Assignment
+$OpTx$BIN_STEP$196383       1     2     
+$OpTx$BIN_STEP$196384       1     2     
+$OpTx$BIN_STEP$196385       1     2     
+$OpTx$BIN_STEP$196386       1     2     
+$OpTx$BIN_STEP$196387       1     2     
+$OpTx$BIN_STEP$196388       1     2     
+$OpTx$BIN_STEP$196389       1     2     
+$OpTx$BIN_STEP$196390       1     2     
+$OpTx$BIN_STEP$196391       1     2     
+$OpTx$BIN_STEP$196392       1     2     
+$OpTx$BIN_STEP$196393       1     2     
+$OpTx$BIN_STEP$196394       1     2     
+$OpTx$BIN_STEP$196395       1     2     
+$OpTx$BIN_STEP$196396       1     2     
+$OpTx$BIN_STEP$196397       1     2     
+$OpTx$BIN_STEP$196398       1     2     
+$OpTx$BIN_STEP$196399       1     2     
+$OpTx$BIN_STEP$196400       1     2     
+$OpTx$BIN_STEP$196401       1     2     
+$OpTx$BIN_STEP$196402       1     2     
+$OpTx$BIN_STEP$196403       1     2     
+$OpTx$BIN_STEP$196404       1     2     
+$OpTx$BIN_STEP$196405       1     2     
+$OpTx$BIN_STEP$196406       1     2     
+$OpTx$BIN_STEP$196407       1     2     
+$OpTx$BIN_STEP$196408       1     2     
+$OpTx$BIN_STEP$196409       1     2     
+$OpTx$BIN_STEP$196410       1     2     
+$OpTx$BIN_STEP$196411       1     2     
+$OpTx$BIN_STEP$196412       1     2     
+$OpTx$BIN_STEP$196417       1     4     
+$OpTx$BIN_STEP$196418       1     2     
+$OpTx$BIN_STEP$196419       1     2     
+$OpTx$BIN_STEP$196420       1     2     
+$OpTx$BIN_STEP$196421       1     2     
+$OpTx$BIN_STEP$196422       1     2     
+$OpTx$BIN_STEP$196423       1     2     
+$OpTx$BIN_STEP$196424       1     2     
+$OpTx$BIN_STEP$196425       1     2     
+$OpTx$BIN_STEP$196426       1     2     
+
+Signal                      Total Total User
+Name                        Pts   Inps  Assignment
+$OpTx$BIN_STEP$196427       1     2     
+$OpTx$BIN_STEP$196431       1     2     
+$OpTx$BIN_STEP$196432       1     4     
+$OpTx$BIN_STEP$196436       1     2     
+$OpTx$BIN_STEP$196437       1     2     
+$OpTx$BIN_STEP$196441       1     4     
+$OpTx$BIN_STEP$196442       1     2     
+$OpTx$BIN_STEP$196443       1     2     
+$OpTx$BIN_STEP$196444       1     2     
+$OpTx$BIN_STEP$196448       1     2     
+$OpTx$BIN_STEP$196449       1     2     
+$OpTx$BIN_STEP$196450       1     2     
+$OpTx$BIN_STEP$196451       1     2     
+$OpTx$BIN_STEP$196456       1     4     
+$OpTx$BIN_STEP$196457       1     2     
+$OpTx$BIN_STEP$196458       1     2     
+$OpTx$BIN_STEP$196459       1     2     
+$OpTx$BIN_STEP$196462       1     2     
+$OpTx$BIN_STEP$196463       1     4     
+$OpTx$BIN_STEP$196466       1     2     
+$OpTx$BIN_STEP$196467       1     2     
+$OpTx$BIN_STEP$196468       1     2     
+$OpTx$BIN_STEP$196469       1     2     
+$OpTx$BIN_STEP$196470       1     2     
+$OpTx$BIN_STEP$196471       1     2     
+$OpTx$BIN_STEP$196472       1     2     
+$OpTx$BIN_STEP$196473       1     2     
+$OpTx$BIN_STEP$196474       1     2     
+$OpTx$BIN_STEP$196475       1     2     
+$OpTx$BIN_STEP$196476       1     2     
+$OpTx$BIN_STEP$196477       1     2     
+$OpTx$BIN_STEP$196478       1     2     
+$OpTx$BIN_STEP$196479       1     2     
+$OpTx$BIN_STEP$196480       1     2     
+$OpTx$BIN_STEP$196481       1     2     
+$OpTx$BIN_STEP$196482       1     2     
+$OpTx$BIN_STEP$196483       1     2     
+$OpTx$BIN_STEP$196484       1     2     
+$OpTx$BIN_STEP$196485       1     2     
+$OpTx$BIN_STEP$196486       1     2     
+
+Signal                      Total Total User
+Name                        Pts   Inps  Assignment
+$OpTx$BIN_STEP$196487       1     2     
+$OpTx$BIN_STEP$196488       1     2     
+$OpTx$BIN_STEP$196489       1     2     
+$OpTx$BIN_STEP$196490       1     2     
+$OpTx$BIN_STEP$196491       1     2     
+$OpTx$BIN_STEP$196492       1     2     
+$OpTx$BIN_STEP$196493       1     2     
+$OpTx$BIN_STEP$196498       1     2     
+$OpTx$BIN_STEP$196499       1     2     
+$OpTx$BIN_STEP$196500       1     2     
+$OpTx$BIN_STEP$196501       1     2     
+$OpTx$BIN_STEP$196502       1     2     
+$OpTx$BIN_STEP$196503       1     2     
+$OpTx$BIN_STEP$196504       1     2     
+$OpTx$BIN_STEP$196505       1     2     
+$OpTx$BIN_STEP$196506       1     2     
+$OpTx$BIN_STEP$196507       1     2     
+$OpTx$BIN_STEP$196509       1     2     
+$OpTx$BIN_STEP$196510       1     2     
+$OpTx$BIN_STEP$196511       1     2     
+$OpTx$BIN_STEP$196512       1     2     
+$OpTx$BIN_STEP$196513       1     2     
+$OpTx$BIN_STEP$196514       1     2     
+$OpTx$BIN_STEP$196515       1     2     
+$OpTx$BIN_STEP$196516       1     2     
+$OpTx$BIN_STEP$196517       1     2     
+$OpTx$BIN_STEP$196518       1     2     
+$OpTx$BIN_STEP$196519       1     2     
+$OpTx$BIN_STEP$196520       1     2     
+$OpTx$BIN_STEP$196523       1     2     
+$OpTx$BIN_STEP$196524       1     2     
+$OpTx$BIN_STEP$196525       1     2     
+$OpTx$BIN_STEP$196526       1     2     
+$OpTx$BIN_STEP$196527       1     2     
+$OpTx$BIN_STEP$196528       1     2     
+$OpTx$BIN_STEP$196529       1     2     
+$OpTx$BIN_STEP$196530       1     2     
+$OpTx$BIN_STEP$196531       1     2     
+$OpTx$BIN_STEP$196532       1     2     
+$OpTx$BIN_STEP$196533       1     2     
+
+Signal                      Total Total User
+Name                        Pts   Inps  Assignment
+$OpTx$BIN_STEP$196534       1     2     
+$OpTx$BIN_STEP$196535       1     2     
+$OpTx$BIN_STEP$196536       1     2     
+$OpTx$BIN_STEP$196537       1     2     
+$OpTx$BIN_STEP$196538       1     2     
+$OpTx$BIN_STEP$196539       1     2     
+$OpTx$BIN_STEP$196540       1     2     
+$OpTx$BIN_STEP$196541       1     2     
+$OpTx$BIN_STEP$196542       1     2     
+$OpTx$BIN_STEP$196543       1     2     
+$OpTx$BIN_STEP$196544       1     2     
+$OpTx$BIN_STEP$196549       1     2     
+$OpTx$BIN_STEP$196550       1     2     
+$OpTx$BIN_STEP$196551       1     2     
+$OpTx$BIN_STEP$196552       1     2     
+$OpTx$BIN_STEP$196564       1     2     
+$OpTx$BIN_STEP$196565       1     2     
+$OpTx$BIN_STEP$196566       1     2     
+$OpTx$BIN_STEP$196567       1     2     
+$OpTx$BIN_STEP$196568       1     2     
+$OpTx$BIN_STEP$196569       1     2     
+$OpTx$FX_DC$195505          1     2     
+$OpTx$FX_DC$195506          1     2     
+$OpTx$FX_DC$195508          1     2     
+$OpTx$FX_DC$195513          1     2     
+$OpTx$FX_DC$195519          1     2     
+$OpTx$FX_DC$195522          1     2     
+$OpTx$FX_DC$195525          1     2     
+$OpTx$FX_DC$195583          1     2     
+$OpTx$FX_DC$195584          1     2     
+$OpTx$FX_DC$195589          2     2     
+$OpTx$FX_DC$195591          1     2     
+$OpTx$FX_DC$195592          1     2     
+$OpTx$FX_DC$195593          1     2     
+$OpTx$FX_DC$195596          1     2     
+$OpTx$FX_DC$195597          1     2     
+$OpTx$FX_DC$195598          1     2     
+$OpTx$FX_DC$195600          1     4     
+$OpTx$FX_DC$195601          1     2     
+$OpTx$FX_DC$195603          1     2     
+
+Signal                      Total Total User
+Name                        Pts   Inps  Assignment
+$OpTx$FX_DC$195604          1     4     
+$OpTx$FX_DC$195605          1     2     
+$OpTx$FX_DC$195606          1     2     
+$OpTx$FX_SC$195516          1     2     
+$OpTx$FX_SC$195517          1     2     
+$OpTx$FX_SC$195518          1     2     
+$OpTx$FX_SC$195520          1     2     
+$OpTx$FX_SC$195587          1     2     
+$OpTx$FX_SC$195590          1     2     
+A_7_IOBUFE/A_7_IOBUFE_TRST  1     2     
+BUF_baud_cnt<0>__$$INT      1     2     
+BUF_baud_cnt<2>__$$INT      1     2     
+BUF_baud_cnt<3>__$$INT      1     2     
+BUF_bit_cnt<0>__$$INT       1     2     
+BUF_bit_cnt<1>__$$INT       1     2     
+BUF_bit_cnt<2>__$$INT       1     2     
+BUF_reset_q__$$INT          1     4     
+BUF_rst_cnt<0>__$$INT       1     2     
+BUF_rst_cnt<1>__$$INT       1     2     
+BUF_rst_press__$$INT        1     2     
+BUF_rst_qcnt<0>__$$INT      1     2     
+BUF_rst_qcnt<1>__$$INT      1     2     
+BUF_state_FSM_FFd2__$$INT   1     2     
+BUF_state_FSM_FFd3__$$INT   1     2     
+BUF_tmr_cnt<0>__$$INT       2     2     
+BUF_x1_q                    2     2     
+RST75_r__$$INT              1     4     
+addr_latch<0>               2     3     
+addr_latch<1>               2     3     
+addr_latch<2>               2     3     
+addr_latch<3>               2     3     
+addr_latch<4>               2     3     
+addr_latch<5>               2     3     
+addr_latch<6>               2     3     
+addr_latch<7>               2     3     
+baud_cnt<0>                 2     3     
+baud_cnt<1>                 2     3     
+baud_cnt<2>                 2     3     
+baud_cnt<3>                 2     3     
+baud_cnt<4>                 2     3     
+
+Signal                      Total Total User
+Name                        Pts   Inps  Assignment
+baud_tick                   1     4     
+bit_cnt<0>                  2     3     
+bit_cnt<1>                  2     3     
+bit_cnt<2>                  2     3     
+bit_cnt<3>                  2     3     
+bus_ld_t1                   1     2     
+bus_ld_t2                   1     2     
+clkout_d                    1     1     
+cpu_rst_r                   1     3     
+fsm_rddone                  1     2     
+fsm_wrdone                  1     2     
+in_wb                       1     4     
+io_wr                       1     2     
+kbcol_wr06                  1     4     
+ld_tx_q                     2     3     
+rd_drive                    1     2     
+rd_seen                     2     3     
+rst_cnt<0>                  1     2     
+rst_cnt<1>                  1     2     
+rst_cnt<2>                  1     2     
+rst_meta                    1     1     
+rst_press                   1     2     
+rst_qcnt<0>                 1     2     
+rst_qcnt<1>                 1     2     
+rst_qcnt<2>                 1     2     
+rst_sync                    1     1     
+shreg<1>                    2     3     
+shreg<2>                    2     3     
+shreg<3>                    2     3     
+shreg<4>                    2     3     
+shreg<5>                    2     3     
+shreg<6>                    2     3     
+shreg<7>                    2     3     
+shreg<8>                    2     3     
+state_FSM_FFd1              2     3     
+state_FSM_FFd2              2     3     
+state_FSM_FFd3              2     3     
+t0_q                        0     0     
+tmr_cnt<0>                  1     1     
+tmr_cnt<1>                  1     2     
+
+Signal                      Total Total User
+Name                        Pts   Inps  Assignment
+wr_seen                     2     3     
+
+*******************************  Equations  ********************************
+
+********** Mapped Logic **********
+
+
+A_I(0) <= NOT ((NOT $OpTx$BIN_STEP$196514 AND $OpTx$BIN_STEP$196516));
+A(0) <= A_I(0) when A_OE(0) = '1' else 'Z';
+A_OE(0) <= NOT A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(1) <= NOT ((NOT $OpTx$BIN_STEP$196518 AND $OpTx$BIN_STEP$196520));
+A(1) <= A_I(1) when A_OE(1) = '1' else 'Z';
+A_OE(1) <= NOT A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(2) <= NOT (($OpTx$BIN_STEP$196528 AND $OpTx$BIN_STEP$196527));
+A(2) <= A_I(2) when A_OE(2) = '1' else 'Z';
+A_OE(2) <= NOT A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(3) <= NOT ((NOT $OpTx$BIN_STEP$196530 AND $OpTx$BIN_STEP$196532));
+A(3) <= A_I(3) when A_OE(3) = '1' else 'Z';
+A_OE(3) <= NOT A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(4) <= NOT ((NOT $OpTx$BIN_STEP$196534 AND $OpTx$BIN_STEP$196536));
+A(4) <= A_I(4) when A_OE(4) = '1' else 'Z';
+A_OE(4) <= NOT A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(5) <= NOT ((NOT $OpTx$BIN_STEP$196538 AND $OpTx$BIN_STEP$196540));
+A(5) <= A_I(5) when A_OE(5) = '1' else 'Z';
+A_OE(5) <= NOT A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(6) <= NOT ((NOT $OpTx$BIN_STEP$196542 AND $OpTx$BIN_STEP$196544));
+A(6) <= A_I(6) when A_OE(6) = '1' else 'Z';
+A_OE(6) <= NOT A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(7) <= NOT ((NOT $OpTx$BIN_STEP$196550 AND $OpTx$BIN_STEP$196552));
+A(7) <= A_I(7) when A_OE(7) = '1' else 'Z';
+A_OE(7) <= NOT A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+CS1 <= '1';
+
+
+CS_n <= (NOT in_wb AND NOT $OpTx$FX_DC$195525);
+
+
+CSr_n <= NOT ((NOT IOM AND NOT A15));
+
+FDCPE_D0: FDCPE port map (D_I(0),D(0),clk,cpu_rst_r,'0');
+D(0) <= ($OpTx$BIN_STEP$196221.LFBK AND 
+	NOT $OpTx$BIN_STEP$196219.LFBK);
+D(0) <= D_I(0) when D_OE(0) = '1' else 'Z';
+D_OE(0) <= in_wb;
+
+FDCPE_D1: FDCPE port map (D_I(1),D(1),clk,cpu_rst_r,'0');
+D(1) <= ($OpTx$BIN_STEP$196225.LFBK AND 
+	NOT $OpTx$BIN_STEP$196223.LFBK);
+D(1) <= D_I(1) when D_OE(1) = '1' else 'Z';
+D_OE(1) <= in_wb;
+
+FDCPE_D2: FDCPE port map (D_I(2),D(2),clk,cpu_rst_r,'0');
+D(2) <= ($OpTx$BIN_STEP$196229.LFBK AND 
+	NOT $OpTx$BIN_STEP$196227.LFBK);
+D(2) <= D_I(2) when D_OE(2) = '1' else 'Z';
+D_OE(2) <= in_wb;
+
+FDCPE_D3: FDCPE port map (D_I(3),D(3),clk,cpu_rst_r,'0');
+D(3) <= ($OpTx$BIN_STEP$196233.LFBK AND 
+	NOT $OpTx$BIN_STEP$196231.LFBK);
+D(3) <= D_I(3) when D_OE(3) = '1' else 'Z';
+D_OE(3) <= in_wb;
+
+FDCPE_D4: FDCPE port map (D_I(4),D(4),clk,cpu_rst_r,'0');
+D(4) <= ($OpTx$BIN_STEP$196237.LFBK AND 
+	NOT $OpTx$BIN_STEP$196235.LFBK);
+D(4) <= D_I(4) when D_OE(4) = '1' else 'Z';
+D_OE(4) <= in_wb;
+
+FDCPE_D5: FDCPE port map (D_I(5),D(5),clk,cpu_rst_r,'0');
+D(5) <= ($OpTx$BIN_STEP$196241.LFBK AND 
+	NOT $OpTx$BIN_STEP$196239.LFBK);
+D(5) <= D_I(5) when D_OE(5) = '1' else 'Z';
+D_OE(5) <= in_wb;
+
+FDCPE_D6: FDCPE port map (D_I(6),D(6),clk,cpu_rst_r,'0');
+D(6) <= ($OpTx$BIN_STEP$196245.LFBK AND 
+	NOT $OpTx$BIN_STEP$196243.LFBK);
+D(6) <= D_I(6) when D_OE(6) = '1' else 'Z';
+D_OE(6) <= in_wb;
+
+FDCPE_D7: FDCPE port map (D_I(7),D(7),clk,cpu_rst_r,'0');
+D(7) <= ($OpTx$BIN_STEP$196249.LFBK AND 
+	NOT $OpTx$BIN_STEP$196247.LFBK);
+D(7) <= D_I(7) when D_OE(7) = '1' else 'Z';
+D_OE(7) <= in_wb;
+
+
+OE_n <= NOT ((NOT state_FSM_FFd2 AND $OpTx$BIN_STEP$196564));
+
+
+OEr_n <= NOT ((NOT state_FSM_FFd2 AND $OpTx$BIN_STEP$196565));
+
+
+READY <= '1';
+
+FDCPE_RESET_IN: FDCPE port map (RESET_IN,RESET_IN_D,clk,'0','0');
+RESET_IN_D <= (NOT BUF_cpu_rst_r__$INT AND NOT $OpTx$BIN_STEP$196417.LFBK);
+
+FDCPE_RST75: FDCPE port map (RST75,RST75_D,clk,'0','0');
+RST75_D <= ($OpTx$FX_DC$195599 AND baud_tick.LFBK);
+
+
+SID <= RX;
+
+FDCPE_SND: FDCPE port map (SND,SND_D,clk,cpu_rst_r,'0');
+SND_D <= (NOT $OpTx$BIN_STEP$196253.LFBK AND 
+	NOT $OpTx$BIN_STEP$196252.LFBK);
+
+FDCPE_TX: FDCPE port map (TX,TX_D,clk,'0',cpu_rst_r);
+TX_D <= (NOT $OpTx$BIN_STEP$196251.LFBK AND 
+	NOT $OpTx$BIN_STEP$196250.LFBK);
+
+
+WE_n <= NOT ((state_FSM_FFd3 AND NOT $OpTx$FX_DC$195506));
+
+FDCPE_X1: FDCPE port map (X1,BUF_x1_q,clk,'0','0');
+
+FDCPE_col0: FDCPE port map (col0,col0_D,clk,'0','0');
+col0_D <= (NOT $OpTx$BIN_STEP$196419.LFBK AND 
+	NOT $OpTx$BIN_STEP$196418.LFBK);
+
+FDCPE_col1: FDCPE port map (col1,col1_D,clk,'0','0');
+col1_D <= (NOT $OpTx$BIN_STEP$196421.LFBK AND 
+	NOT $OpTx$BIN_STEP$196420.LFBK);
+
+FDCPE_col2: FDCPE port map (col2,col2_D,clk,'0','0');
+col2_D <= (NOT $OpTx$BIN_STEP$196423.LFBK AND 
+	NOT $OpTx$BIN_STEP$196422.LFBK);
+
+FDCPE_col3: FDCPE port map (col3,col3_D,clk,'0','0');
+col3_D <= (NOT $OpTx$BIN_STEP$196425.LFBK AND 
+	NOT $OpTx$BIN_STEP$196424.LFBK);
+
+FDCPE_dig0: FDCPE port map (dig(0),dig_D(0),clk,cpu_rst_r,'0');
+dig_D(0) <= (NOT $OpTx$BIN_STEP$196471.LFBK AND 
+	NOT $OpTx$BIN_STEP$196470.LFBK);
+
+FDCPE_dig1: FDCPE port map (dig(1),dig_D(1),clk,cpu_rst_r,'0');
+dig_D(1) <= (NOT $OpTx$BIN_STEP$196473.LFBK AND 
+	NOT $OpTx$BIN_STEP$196472.LFBK);
+
+FDCPE_dig2: FDCPE port map (dig(2),dig_D(2),clk,cpu_rst_r,'0');
+dig_D(2) <= (NOT $OpTx$BIN_STEP$196475.LFBK AND 
+	NOT $OpTx$BIN_STEP$196474.LFBK);
+
+FDCPE_dig3: FDCPE port map (dig(3),dig_D(3),clk,cpu_rst_r,'0');
+dig_D(3) <= (NOT $OpTx$BIN_STEP$196477.LFBK AND 
+	NOT $OpTx$BIN_STEP$196476.LFBK);
+
+FDCPE_seg0: FDCPE port map (seg(0),seg_D(0),clk,'0',cpu_rst_r);
+seg_D(0) <= (NOT $OpTx$BIN_STEP$196479.LFBK AND 
+	NOT $OpTx$BIN_STEP$196478.LFBK);
+
+FDCPE_seg1: FDCPE port map (seg(1),seg_D(1),clk,'0',cpu_rst_r);
+seg_D(1) <= (NOT $OpTx$BIN_STEP$196481.LFBK AND 
+	NOT $OpTx$BIN_STEP$196480.LFBK);
+
+FDCPE_seg2: FDCPE port map (seg(2),seg_D(2),clk,'0',cpu_rst_r);
+seg_D(2) <= (NOT $OpTx$BIN_STEP$196483.LFBK AND 
+	NOT $OpTx$BIN_STEP$196482.LFBK);
+
+FDCPE_seg3: FDCPE port map (seg(3),seg_D(3),clk,'0',cpu_rst_r);
+seg_D(3) <= (NOT $OpTx$BIN_STEP$196485.LFBK AND 
+	NOT $OpTx$BIN_STEP$196484.LFBK);
+
+FDCPE_seg4: FDCPE port map (seg(4),seg_D(4),clk,'0',cpu_rst_r);
+seg_D(4) <= (NOT $OpTx$BIN_STEP$196487.LFBK AND 
+	NOT $OpTx$BIN_STEP$196486.LFBK);
+
+FDCPE_seg5: FDCPE port map (seg(5),seg_D(5),clk,'0',cpu_rst_r);
+seg_D(5) <= (NOT $OpTx$BIN_STEP$196489.LFBK AND 
+	NOT $OpTx$BIN_STEP$196488.LFBK);
+
+FDCPE_seg6: FDCPE port map (seg(6),seg_D(6),clk,cpu_rst_r,'0');
+seg_D(6) <= (NOT $OpTx$BIN_STEP$196491.LFBK AND 
+	NOT $OpTx$BIN_STEP$196490.LFBK);
+
+
+seg(7) <= '1';
+
+********** UnMapped Logic **********
+
+** Buried Nodes **
+
+
+$OpTx$BIN_AND$196257.LFBK <= ($OpTx$FX_DC$195594 AND $OpTx$FX_DC$195583.LFBK);
+
+
+$OpTx$BIN_AND$196258 <= ($OpTx$BIN_AND$196254 AND $OpTx$BIN_AND$196255);
+
+
+$OpTx$BIN_AND$196259.LFBK <= ($OpTx$BIN_AND$196256 AND $OpTx$BIN_AND$196257.LFBK);
+
+
+$OpTx$BIN_AND$196261.LFBK <= (state_FSM_FFd1.LFBK AND NOT state_FSM_FFd2.LFBK);
+
+
+$OpTx$BIN_AND$196263.LFBK <= (NOT ALE AND NOT fsm_wrdone.LFBK);
+
+
+$OpTx$BIN_AND$196264.LFBK <= ($OpTx$FX_DC$195584.LFBK AND NOT fsm_rddone.LFBK);
+
+
+$OpTx$BIN_AND$196270.LFBK <= ($OpTx$FX_DC$195525 AND fsm_wrdone.LFBK);
+
+
+$OpTx$BIN_AND$196276.LFBK <= (NOT state_FSM_FFd2 AND BUF_state_FSM_FFd2__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196288 <= (ld_tx_q AND NOT bit_cnt(0));
+
+
+$OpTx$BIN_AND$196290 <= (baud_tick AND bit_cnt(1));
+
+
+$OpTx$BIN_AND$196292 <= (baud_tick AND NOT bit_cnt(1));
+
+
+$OpTx$BIN_AND$196293.LFBK <= (bit_cnt(3) AND BUF_bit_cnt(1)__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196295 <= (baud_tick AND NOT bit_cnt(0));
+
+
+$OpTx$BIN_AND$196305.LFBK <= (bit_cnt(1) AND NOT BUF_bit_cnt(2)__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196307 <= (NOT bit_cnt(0) AND bit_cnt(1));
+
+
+$OpTx$BIN_AND$196308.LFBK <= (baud_tick AND NOT bit_cnt(3).LFBK);
+
+
+$OpTx$BIN_AND$196310 <= (bit_cnt(0) AND NOT bit_cnt(1));
+
+
+$OpTx$BIN_AND$196318.LFBK <= (baud_tick.LFBK AND bit_cnt(2).LFBK);
+
+
+$OpTx$BIN_AND$196320.LFBK <= (NOT bit_cnt(2) AND baud_tick.LFBK);
+
+
+$OpTx$BIN_AND$196326 <= (NOT bit_cnt(3) AND BUF_bit_cnt(2)__$$INT);
+
+
+$OpTx$BIN_AND$196327.LFBK <= (bit_cnt(2) AND BUF_bit_cnt(0)__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196329 <= (baud_tick AND bit_cnt(3));
+
+
+$OpTx$BIN_AND$196337.LFBK <= (NOT baud_cnt(1) AND NOT BUF_baud_cnt(0)__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196341.LFBK <= (NOT baud_cnt(2) AND NOT BUF_baud_cnt(0)__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196342.LFBK <= (baud_cnt(1) AND $OpTx$FX_SC$195587.LFBK);
+
+
+$OpTx$BIN_AND$196344 <= (NOT baud_cnt(1) AND baud_cnt(2));
+
+
+$OpTx$BIN_AND$196350.LFBK <= (baud_cnt(2) AND BUF_baud_cnt(2)__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196351 <= (NOT baud_cnt(3) AND $OpTx$FX_SC$195587);
+
+
+$OpTx$BIN_AND$196353 <= (NOT baud_cnt(2) AND baud_cnt(3));
+
+
+$OpTx$BIN_AND$196359.LFBK <= (NOT fsm_wrdone.LFBK AND NOT $OpTx$FX_DC$195519.LFBK);
+
+
+$OpTx$BIN_AND$196373.LFBK <= (baud_cnt(3) AND BUF_baud_cnt(3)__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196374 <= (NOT baud_cnt(4) AND $OpTx$FX_SC$195587);
+
+
+$OpTx$BIN_AND$196376 <= (NOT baud_cnt(3) AND baud_cnt(4));
+
+
+$OpTx$BIN_AND$196415.LFBK <= ($OpTx$BIN_AND$196413 AND $OpTx$FX_DC$195591.LFBK);
+
+
+$OpTx$BIN_AND$196428.LFBK <= (NOT rst_qcnt(0).LFBK AND NOT BUF_x1_q.LFBK);
+
+
+$OpTx$BIN_AND$196429.LFBK <= (NOT X1 AND $OpTx$FX_DC$195589.LFBK);
+
+
+$OpTx$BIN_AND$196433.LFBK <= (NOT BUF_cpu_rst_r__$INT AND NOT rst_cnt(0).LFBK);
+
+
+$OpTx$BIN_AND$196434.LFBK <= ($OpTx$FX_DC$195591 AND NOT rst_press.LFBK);
+
+
+$OpTx$BIN_AND$196438.LFBK <= (rst_qcnt(0) AND BUF_rst_qcnt(0)__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196439.LFBK <= ($OpTx$FX_DC$195589 AND NOT rst_qcnt(1).LFBK);
+
+
+$OpTx$BIN_AND$196445 <= (NOT rst_press AND rst_cnt(0));
+
+
+$OpTx$BIN_AND$196446.LFBK <= (NOT rst_cnt(1) AND BUF_rst_cnt(0)__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196452.LFBK <= (rst_sync AND BUF_rst_press__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196454.LFBK <= (NOT rst_sync AND NOT BUF_rst_press__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196460.LFBK <= (NOT rst_press AND BUF_reset_q__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196464.LFBK <= (tmr_cnt(0) AND NOT BUF_tmr_cnt(0)__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196494 <= (NOT state_FSM_FFd1 AND NOT rd_seen);
+
+
+$OpTx$BIN_AND$196496.LFBK <= (NOT fsm_wrdone AND BUF_state_FSM_FFd2__$$INT.LFBK);
+
+
+$OpTx$BIN_AND$196521 <= (D(2) AND rd_drive);
+
+
+$OpTx$BIN_AND$196545 <= (NOT bit_cnt(0) AND NOT bit_cnt(1));
+
+
+$OpTx$BIN_AND$196546 <= (NOT bit_cnt(2) AND NOT bit_cnt(3));
+
+
+$OpTx$BIN_AND$196547 <= ($OpTx$FX_SC$195520 AND $OpTx$BIN_AND$196545);
+
+
+$OpTx$BIN_AND$196555.LFBK <= ($OpTx$BIN_AND$196553 AND baud_cnt(4).LFBK);
+
+
+$OpTx$BIN_AND$196557 <= (NOT fsm_rddone AND NOT ALE);
+
+
+$OpTx$BIN_AND$196558 <= (rd_seen AND $OpTx$FX_DC$195513);
+
+
+$OpTx$BIN_AND$196562.LFBK <= (NOT addr_latch(0).LFBK AND io_wr.LFBK);
+
+
+$OpTx$BIN_STEP$196218.LFBK <= ($OpTx$FX_SC$195517.LFBK AND bus_reg(0).LFBK);
+
+
+$OpTx$BIN_STEP$196219.LFBK <= (A(0).PIN AND $OpTx$FX_SC$195516.LFBK);
+
+
+$OpTx$BIN_STEP$196220.LFBK <= (D(0).PIN AND bus_ld_t1.LFBK);
+
+
+$OpTx$BIN_STEP$196221.LFBK <= (NOT $OpTx$BIN_STEP$196218.LFBK AND 
+	NOT $OpTx$BIN_STEP$196220.LFBK);
+
+
+$OpTx$BIN_STEP$196222.LFBK <= ($OpTx$FX_SC$195517.LFBK AND bus_reg(1).LFBK);
+
+
+$OpTx$BIN_STEP$196223.LFBK <= (A(1).PIN AND $OpTx$FX_SC$195516.LFBK);
+
+
+$OpTx$BIN_STEP$196224.LFBK <= (D(1).PIN AND bus_ld_t1.LFBK);
+
+
+$OpTx$BIN_STEP$196225.LFBK <= (NOT $OpTx$BIN_STEP$196222.LFBK AND 
+	NOT $OpTx$BIN_STEP$196224.LFBK);
+
+
+$OpTx$BIN_STEP$196226.LFBK <= ($OpTx$FX_SC$195517.LFBK AND bus_reg(2).LFBK);
+
+
+$OpTx$BIN_STEP$196227.LFBK <= (A(2).PIN AND $OpTx$FX_SC$195516.LFBK);
+
+
+$OpTx$BIN_STEP$196228.LFBK <= (D(2).PIN AND bus_ld_t1.LFBK);
+
+
+$OpTx$BIN_STEP$196229.LFBK <= (NOT $OpTx$BIN_STEP$196226.LFBK AND 
+	NOT $OpTx$BIN_STEP$196228.LFBK);
+
+
+$OpTx$BIN_STEP$196230.LFBK <= ($OpTx$FX_SC$195517.LFBK AND bus_reg(3).LFBK);
+
+
+$OpTx$BIN_STEP$196231.LFBK <= (A(3).PIN AND $OpTx$FX_SC$195516.LFBK);
+
+
+$OpTx$BIN_STEP$196232.LFBK <= (D(3).PIN AND bus_ld_t1.LFBK);
+
+
+$OpTx$BIN_STEP$196233.LFBK <= (NOT $OpTx$BIN_STEP$196230.LFBK AND 
+	NOT $OpTx$BIN_STEP$196232.LFBK);
+
+
+$OpTx$BIN_STEP$196234.LFBK <= ($OpTx$FX_SC$195517.LFBK AND bus_reg(4).LFBK);
+
+
+$OpTx$BIN_STEP$196235.LFBK <= (A(4).PIN AND $OpTx$FX_SC$195516.LFBK);
+
+
+$OpTx$BIN_STEP$196236.LFBK <= (D(4).PIN AND bus_ld_t1.LFBK);
+
+
+$OpTx$BIN_STEP$196237.LFBK <= (NOT $OpTx$BIN_STEP$196234.LFBK AND 
+	NOT $OpTx$BIN_STEP$196236.LFBK);
+
+
+$OpTx$BIN_STEP$196238.LFBK <= ($OpTx$FX_SC$195517.LFBK AND bus_reg(5).LFBK);
+
+
+$OpTx$BIN_STEP$196239.LFBK <= (A(5).PIN AND $OpTx$FX_SC$195516.LFBK);
+
+
+$OpTx$BIN_STEP$196240.LFBK <= (D(5).PIN AND bus_ld_t1.LFBK);
+
+
+$OpTx$BIN_STEP$196241.LFBK <= (NOT $OpTx$BIN_STEP$196238.LFBK AND 
+	NOT $OpTx$BIN_STEP$196240.LFBK);
+
+
+$OpTx$BIN_STEP$196242.LFBK <= ($OpTx$FX_SC$195517.LFBK AND bus_reg(6).LFBK);
+
+
+$OpTx$BIN_STEP$196243.LFBK <= (A(6).PIN AND $OpTx$FX_SC$195516.LFBK);
+
+
+$OpTx$BIN_STEP$196244.LFBK <= (D(6).PIN AND bus_ld_t1.LFBK);
+
+
+$OpTx$BIN_STEP$196245.LFBK <= (NOT $OpTx$BIN_STEP$196242.LFBK AND 
+	NOT $OpTx$BIN_STEP$196244.LFBK);
+
+
+$OpTx$BIN_STEP$196246.LFBK <= ($OpTx$FX_SC$195517.LFBK AND bus_reg(7).LFBK);
+
+
+$OpTx$BIN_STEP$196247.LFBK <= (A(7).PIN AND $OpTx$FX_SC$195516.LFBK);
+
+
+$OpTx$BIN_STEP$196248.LFBK <= (D(7).PIN AND bus_ld_t1.LFBK);
+
+
+$OpTx$BIN_STEP$196249.LFBK <= (NOT $OpTx$BIN_STEP$196246.LFBK AND 
+	NOT $OpTx$BIN_STEP$196248.LFBK);
+
+
+$OpTx$BIN_STEP$196250.LFBK <= (shreg(1) AND $OpTx$FX_SC$195590.LFBK);
+
+
+$OpTx$BIN_STEP$196251.LFBK <= (TX AND $OpTx$FX_SC$195587.LFBK);
+
+
+$OpTx$BIN_STEP$196252.LFBK <= (SND AND NOT $OpTx$FX_DC$195598.LFBK);
+
+
+$OpTx$BIN_STEP$196253.LFBK <= (A(4).PIN AND $OpTx$FX_DC$195598.LFBK);
+
+
+$OpTx$BIN_STEP$196266.LFBK <= (state_FSM_FFd3 AND NOT $OpTx$FX_DC$195593.LFBK);
+
+
+$OpTx$BIN_STEP$196267.LFBK <= ($OpTx$BIN_AND$196264.LFBK AND 
+	$OpTx$BIN_AND$196263.LFBK);
+
+
+$OpTx$BIN_STEP$196268.LFBK <= (NOT ALE AND $OpTx$BIN_AND$196261.LFBK);
+
+
+$OpTx$BIN_STEP$196269.LFBK <= (NOT $OpTx$BIN_STEP$196268.LFBK AND 
+	NOT $OpTx$BIN_STEP$196266.LFBK);
+
+
+$OpTx$BIN_STEP$196272.LFBK <= (state_FSM_FFd1.LFBK AND state_FSM_FFd3.LFBK);
+
+
+$OpTx$BIN_STEP$196273.LFBK <= ($OpTx$FX_DC$195593.LFBK AND 
+	$OpTx$BIN_AND$196270.LFBK);
+
+
+$OpTx$BIN_STEP$196275.LFBK <= (NOT $OpTx$BIN_STEP$196274 AND 
+	NOT $OpTx$BIN_STEP$196272.LFBK);
+
+
+$OpTx$BIN_STEP$196278.LFBK <= (NOT state_FSM_FFd3 AND NOT BUF_state_FSM_FFd3__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196279.LFBK <= (ALE AND $OpTx$BIN_AND$196276.LFBK);
+
+
+$OpTx$BIN_STEP$196280.LFBK <= (state_FSM_FFd1 AND NOT BUF_state_FSM_FFd2__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196281.LFBK <= (NOT $OpTx$BIN_STEP$196280.LFBK AND 
+	NOT $OpTx$BIN_STEP$196278.LFBK);
+
+
+$OpTx$BIN_STEP$196282.LFBK <= (addr_latch(0) AND NOT $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196283.LFBK <= (A(0).PIN AND $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196284.LFBK <= (addr_latch(1) AND NOT $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196285.LFBK <= (A(1).PIN AND $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196286.LFBK <= (addr_latch(2) AND NOT $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196287.LFBK <= (A(2).PIN AND $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196297.LFBK <= ($OpTx$BIN_AND$196290 AND NOT BUF_bit_cnt(1)__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196298 <= (NOT baud_tick AND NOT $OpTx$FX_DC$195594);
+
+
+$OpTx$BIN_STEP$196299 <= (NOT BUF_bit_cnt(2)__$$INT AND $OpTx$BIN_AND$196295);
+
+
+$OpTx$BIN_STEP$196300.LFBK <= ($OpTx$BIN_AND$196292 AND $OpTx$BIN_AND$196293.LFBK);
+
+
+$OpTx$BIN_STEP$196301 <= (NOT bit_cnt(1) AND $OpTx$BIN_AND$196288);
+
+
+$OpTx$BIN_STEP$196302 <= (NOT $OpTx$BIN_STEP$196301 AND NOT $OpTx$BIN_STEP$196298);
+
+
+$OpTx$BIN_STEP$196303.LFBK <= (NOT $OpTx$BIN_STEP$196300.LFBK AND 
+	NOT $OpTx$BIN_STEP$196297.LFBK);
+
+
+$OpTx$BIN_STEP$196304.LFBK <= (NOT $OpTx$BIN_STEP$196299 AND 
+	$OpTx$BIN_STEP$196303.LFBK);
+
+
+$OpTx$BIN_STEP$196312 <= (bit_cnt(1) AND $OpTx$FX_SC$195587);
+
+
+$OpTx$BIN_STEP$196313 <= (baud_tick AND $OpTx$BIN_AND$196310);
+
+
+$OpTx$BIN_STEP$196314.LFBK <= ($OpTx$BIN_AND$196307 AND $OpTx$BIN_AND$196308.LFBK);
+
+
+$OpTx$BIN_STEP$196315.LFBK <= (bit_cnt(2) AND $OpTx$BIN_AND$196305.LFBK);
+
+
+$OpTx$BIN_STEP$196316.LFBK <= (NOT $OpTx$BIN_STEP$196313 AND 
+	NOT $OpTx$BIN_STEP$196314.LFBK);
+
+
+$OpTx$BIN_STEP$196317.LFBK <= (NOT $OpTx$BIN_STEP$196312 AND 
+	NOT $OpTx$BIN_STEP$196315.LFBK);
+
+
+$OpTx$BIN_STEP$196322.LFBK <= (bit_cnt(2) AND $OpTx$FX_SC$195587.LFBK);
+
+
+$OpTx$BIN_STEP$196323 <= ($OpTx$FX_DC$195592.LFBK AND 
+	$OpTx$BIN_AND$196320.LFBK);
+
+
+$OpTx$BIN_STEP$196324.LFBK <= (NOT $OpTx$FX_DC$195592.LFBK AND 
+	$OpTx$BIN_AND$196318.LFBK);
+
+
+$OpTx$BIN_STEP$196325.LFBK <= (NOT $OpTx$BIN_STEP$196324.LFBK AND 
+	NOT $OpTx$BIN_STEP$196322.LFBK);
+
+
+$OpTx$BIN_STEP$196331 <= (bit_cnt(3) AND $OpTx$FX_SC$195587);
+
+
+$OpTx$BIN_STEP$196332 <= (NOT bit_cnt(1) AND $OpTx$BIN_AND$196329);
+
+
+$OpTx$BIN_STEP$196333.LFBK <= ($OpTx$BIN_AND$196326 AND $OpTx$BIN_AND$196327.LFBK);
+
+
+$OpTx$BIN_STEP$196334 <= (bit_cnt(3) AND NOT BUF_bit_cnt(2)__$$INT);
+
+
+$OpTx$BIN_STEP$196335.LFBK <= (NOT $OpTx$BIN_STEP$196332 AND 
+	NOT $OpTx$BIN_STEP$196333.LFBK);
+
+
+$OpTx$BIN_STEP$196336 <= (NOT $OpTx$BIN_STEP$196334 AND NOT $OpTx$BIN_STEP$196331);
+
+
+$OpTx$BIN_STEP$196339.LFBK <= ($OpTx$FX_SC$195587 AND $OpTx$BIN_AND$196337.LFBK);
+
+
+$OpTx$BIN_STEP$196340.LFBK <= (baud_cnt(1) AND BUF_baud_cnt(0)__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196346.LFBK <= (baud_cnt(2) AND BUF_baud_cnt(0)__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196347 <= ($OpTx$FX_SC$195587 AND $OpTx$BIN_AND$196344);
+
+
+$OpTx$BIN_STEP$196348.LFBK <= ($OpTx$BIN_AND$196341.LFBK AND 
+	$OpTx$BIN_AND$196342.LFBK);
+
+
+$OpTx$BIN_STEP$196349.LFBK <= (NOT $OpTx$BIN_STEP$196348.LFBK AND 
+	NOT $OpTx$BIN_STEP$196346.LFBK);
+
+
+$OpTx$BIN_STEP$196355.LFBK <= (baud_cnt(3) AND NOT BUF_baud_cnt(2)__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196356 <= ($OpTx$FX_SC$195587 AND $OpTx$BIN_AND$196353);
+
+
+$OpTx$BIN_STEP$196357.LFBK <= ($OpTx$BIN_AND$196351 AND $OpTx$BIN_AND$196350.LFBK);
+
+
+$OpTx$BIN_STEP$196358.LFBK <= (NOT $OpTx$BIN_STEP$196357.LFBK AND 
+	NOT $OpTx$BIN_STEP$196355.LFBK);
+
+
+$OpTx$BIN_STEP$196361.LFBK <= (NOT $OpTx$FX_DC$195603.LFBK AND 
+	$OpTx$BIN_AND$196359.LFBK);
+
+
+$OpTx$BIN_STEP$196362 <= (wr_seen AND NOT $OpTx$FX_DC$195601);
+
+
+$OpTx$BIN_STEP$196363.LFBK <= (addr_latch(3) AND NOT $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196364.LFBK <= (A(3).PIN AND $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196365.LFBK <= (addr_latch(4) AND NOT $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196366.LFBK <= (A(4).PIN AND $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196367.LFBK <= (addr_latch(5) AND NOT $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196368.LFBK <= (A(5).PIN AND $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196369.LFBK <= (addr_latch(6) AND NOT $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196370.LFBK <= (A(6).PIN AND $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196371.LFBK <= (addr_latch(7) AND NOT $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196372.LFBK <= (A(7).PIN AND $OpTx$FX_DC$195596.LFBK);
+
+
+$OpTx$BIN_STEP$196378.LFBK <= (baud_cnt(4) AND NOT BUF_baud_cnt(3)__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196379 <= ($OpTx$FX_SC$195587 AND $OpTx$BIN_AND$196376);
+
+
+$OpTx$BIN_STEP$196380.LFBK <= ($OpTx$BIN_AND$196374 AND $OpTx$BIN_AND$196373.LFBK);
+
+
+$OpTx$BIN_STEP$196381.LFBK <= (NOT $OpTx$BIN_STEP$196380.LFBK AND 
+	NOT $OpTx$BIN_STEP$196378.LFBK);
+
+
+$OpTx$BIN_STEP$196382.LFBK <= ($OpTx$FX_SC$195590.LFBK AND shreg(2).LFBK);
+
+
+$OpTx$BIN_STEP$196383.LFBK <= (shreg(1) AND $OpTx$FX_SC$195587.LFBK);
+
+
+$OpTx$BIN_STEP$196384 <= (ld_tx_q AND A(0).PIN);
+
+
+$OpTx$BIN_STEP$196385.LFBK <= (NOT $OpTx$BIN_STEP$196384 AND 
+	NOT $OpTx$BIN_STEP$196382.LFBK);
+
+
+$OpTx$BIN_STEP$196386.LFBK <= ($OpTx$FX_SC$195590.LFBK AND shreg(3).LFBK);
+
+
+$OpTx$BIN_STEP$196387.LFBK <= (shreg(2) AND $OpTx$FX_SC$195587.LFBK);
+
+
+$OpTx$BIN_STEP$196388 <= (ld_tx_q AND A(1).PIN);
+
+
+$OpTx$BIN_STEP$196389.LFBK <= (NOT $OpTx$BIN_STEP$196388 AND 
+	NOT $OpTx$BIN_STEP$196386.LFBK);
+
+
+$OpTx$BIN_STEP$196390.LFBK <= ($OpTx$FX_SC$195590.LFBK AND shreg(4).LFBK);
+
+
+$OpTx$BIN_STEP$196391.LFBK <= (shreg(3) AND $OpTx$FX_SC$195587.LFBK);
+
+
+$OpTx$BIN_STEP$196392 <= (ld_tx_q AND A(2).PIN);
+
+
+$OpTx$BIN_STEP$196393.LFBK <= (NOT $OpTx$BIN_STEP$196392 AND 
+	NOT $OpTx$BIN_STEP$196390.LFBK);
+
+
+$OpTx$BIN_STEP$196394.LFBK <= ($OpTx$FX_SC$195590.LFBK AND shreg(5).LFBK);
+
+
+$OpTx$BIN_STEP$196395.LFBK <= (shreg(4) AND $OpTx$FX_SC$195587.LFBK);
+
+
+$OpTx$BIN_STEP$196396 <= (ld_tx_q AND A(3).PIN);
+
+
+$OpTx$BIN_STEP$196397.LFBK <= (NOT $OpTx$BIN_STEP$196396 AND 
+	NOT $OpTx$BIN_STEP$196394.LFBK);
+
+
+$OpTx$BIN_STEP$196398.LFBK <= ($OpTx$FX_SC$195590.LFBK AND shreg(6).LFBK);
+
+
+$OpTx$BIN_STEP$196399.LFBK <= (shreg(5) AND $OpTx$FX_SC$195587.LFBK);
+
+
+$OpTx$BIN_STEP$196400 <= (ld_tx_q AND A(4).PIN);
+
+
+$OpTx$BIN_STEP$196401.LFBK <= (NOT $OpTx$BIN_STEP$196400 AND 
+	NOT $OpTx$BIN_STEP$196398.LFBK);
+
+
+$OpTx$BIN_STEP$196402.LFBK <= ($OpTx$FX_SC$195590.LFBK AND shreg(7).LFBK);
+
+
+$OpTx$BIN_STEP$196403.LFBK <= (shreg(6) AND $OpTx$FX_SC$195587.LFBK);
+
+
+$OpTx$BIN_STEP$196404 <= (ld_tx_q AND A(5).PIN);
+
+
+$OpTx$BIN_STEP$196405.LFBK <= (NOT $OpTx$BIN_STEP$196404 AND 
+	NOT $OpTx$BIN_STEP$196402.LFBK);
+
+
+$OpTx$BIN_STEP$196406.LFBK <= ($OpTx$FX_SC$195590.LFBK AND shreg(8).LFBK);
+
+
+$OpTx$BIN_STEP$196407.LFBK <= (shreg(7) AND $OpTx$FX_SC$195587.LFBK);
+
+
+$OpTx$BIN_STEP$196408 <= (ld_tx_q AND A(6).PIN);
+
+
+$OpTx$BIN_STEP$196409.LFBK <= (NOT $OpTx$BIN_STEP$196408 AND 
+	NOT $OpTx$BIN_STEP$196406.LFBK);
+
+
+$OpTx$BIN_STEP$196410 <= (NOT ld_tx_q AND shreg(8));
+
+
+$OpTx$BIN_STEP$196411.LFBK <= (A(7).PIN AND ld_tx_q.LFBK);
+
+
+$OpTx$BIN_STEP$196412.LFBK <= (NOT $OpTx$FX_SC$195590.LFBK AND 
+	NOT $OpTx$BIN_STEP$196411.LFBK);
+
+
+$OpTx$BIN_STEP$196417.LFBK <= ($OpTx$BIN_AND$196414 AND $OpTx$BIN_AND$196415.LFBK);
+
+
+$OpTx$BIN_STEP$196418.LFBK <= (col0 AND NOT kbcol_wr06.LFBK);
+
+
+$OpTx$BIN_STEP$196419.LFBK <= (A(4).PIN AND kbcol_wr06.LFBK);
+
+
+$OpTx$BIN_STEP$196420.LFBK <= (col1 AND NOT kbcol_wr06.LFBK);
+
+
+$OpTx$BIN_STEP$196421.LFBK <= (A(5).PIN AND kbcol_wr06.LFBK);
+
+
+$OpTx$BIN_STEP$196422.LFBK <= (col2 AND NOT kbcol_wr06.LFBK);
+
+
+$OpTx$BIN_STEP$196423.LFBK <= (A(6).PIN AND kbcol_wr06.LFBK);
+
+
+$OpTx$BIN_STEP$196424.LFBK <= (col3 AND NOT kbcol_wr06.LFBK);
+
+
+$OpTx$BIN_STEP$196425.LFBK <= (A(7).PIN AND kbcol_wr06.LFBK);
+
+
+$OpTx$BIN_STEP$196426.LFBK <= (rst_sync AND $OpTx$FX_DC$195604.LFBK);
+
+
+$OpTx$BIN_STEP$196427.LFBK <= (rst_press AND NOT $OpTx$FX_DC$195604.LFBK);
+
+
+$OpTx$BIN_STEP$196431.LFBK <= ($OpTx$BIN_AND$196428.LFBK AND 
+	$OpTx$BIN_AND$196429.LFBK);
+
+
+$OpTx$BIN_STEP$196432 <= (NOT $OpTx$FX_DC$195599 AND rst_qcnt(0).LFBK);
+
+
+$OpTx$BIN_STEP$196436.LFBK <= ($OpTx$BIN_AND$196433.LFBK AND 
+	$OpTx$BIN_AND$196434.LFBK);
+
+
+$OpTx$BIN_STEP$196437.LFBK <= (rst_cnt(0) AND NOT $OpTx$FX_DC$195600.LFBK);
+
+
+$OpTx$BIN_STEP$196441.LFBK <= (NOT $OpTx$FX_DC$195599 AND rst_qcnt(1).LFBK);
+
+
+$OpTx$BIN_STEP$196442.LFBK <= ($OpTx$BIN_AND$196438.LFBK AND 
+	$OpTx$BIN_AND$196439.LFBK);
+
+
+$OpTx$BIN_STEP$196443.LFBK <= (rst_qcnt(1) AND NOT BUF_rst_qcnt(0)__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196444.LFBK <= (NOT $OpTx$BIN_STEP$196443.LFBK AND 
+	NOT $OpTx$BIN_STEP$196441.LFBK);
+
+
+$OpTx$BIN_STEP$196448.LFBK <= (NOT $OpTx$FX_DC$195600 AND rst_cnt(1).LFBK);
+
+
+$OpTx$BIN_STEP$196449.LFBK <= ($OpTx$BIN_AND$196445 AND $OpTx$BIN_AND$196446.LFBK);
+
+
+$OpTx$BIN_STEP$196450.LFBK <= (NOT BUF_rst_cnt(0)__$$INT.LFBK AND rst_cnt(1).LFBK);
+
+
+$OpTx$BIN_STEP$196451.LFBK <= (NOT $OpTx$BIN_STEP$196450.LFBK AND 
+	NOT $OpTx$BIN_STEP$196448.LFBK);
+
+
+$OpTx$BIN_STEP$196456 <= (rst_qcnt(2) AND NOT $OpTx$FX_DC$195599);
+
+
+$OpTx$BIN_STEP$196457.LFBK <= (NOT $OpTx$FX_DC$195605 AND $OpTx$BIN_AND$196454.LFBK);
+
+
+$OpTx$BIN_STEP$196458.LFBK <= (NOT $OpTx$FX_DC$195605.LFBK AND 
+	$OpTx$BIN_AND$196452.LFBK);
+
+
+$OpTx$BIN_STEP$196459.LFBK <= (NOT $OpTx$BIN_STEP$196456 AND 
+	NOT $OpTx$BIN_STEP$196458.LFBK);
+
+
+$OpTx$BIN_STEP$196462.LFBK <= (NOT $OpTx$FX_DC$195606.LFBK AND 
+	$OpTx$BIN_AND$196460.LFBK);
+
+
+$OpTx$BIN_STEP$196463 <= (rst_cnt(2) AND BUF_cpu_rst_r__$INT);
+
+
+$OpTx$BIN_STEP$196466.LFBK <= (tmr_cnt(1) AND BUF_tmr_cnt(0)__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196467.LFBK <= (NOT tmr_cnt(1) AND $OpTx$BIN_AND$196464.LFBK);
+
+
+$OpTx$BIN_STEP$196468.LFBK <= (NOT RST75_r__$$INT.LFBK AND tmr_cnt(1).LFBK);
+
+
+$OpTx$BIN_STEP$196469.LFBK <= (NOT $OpTx$BIN_STEP$196466.LFBK AND 
+	NOT $OpTx$BIN_STEP$196468.LFBK);
+
+
+$OpTx$BIN_STEP$196470.LFBK <= (dig(0) AND NOT $OpTx$FX_DC$195598.LFBK);
+
+
+$OpTx$BIN_STEP$196471.LFBK <= (NOT A(0).PIN AND $OpTx$FX_DC$195598.LFBK);
+
+
+$OpTx$BIN_STEP$196472.LFBK <= (dig(1) AND NOT $OpTx$FX_DC$195598.LFBK);
+
+
+$OpTx$BIN_STEP$196473.LFBK <= (NOT A(1).PIN AND $OpTx$FX_DC$195598.LFBK);
+
+
+$OpTx$BIN_STEP$196474.LFBK <= (dig(2) AND NOT $OpTx$FX_DC$195598.LFBK);
+
+
+$OpTx$BIN_STEP$196475.LFBK <= (NOT A(2).PIN AND $OpTx$FX_DC$195598.LFBK);
+
+
+$OpTx$BIN_STEP$196476.LFBK <= (dig(3) AND NOT $OpTx$FX_DC$195598.LFBK);
+
+
+$OpTx$BIN_STEP$196477.LFBK <= (NOT A(3).PIN AND $OpTx$FX_DC$195598.LFBK);
+
+
+$OpTx$BIN_STEP$196478.LFBK <= (seg(0) AND NOT $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196479.LFBK <= (NOT A(0).PIN AND $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196480.LFBK <= (seg(1) AND NOT $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196481.LFBK <= (NOT A(1).PIN AND $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196482.LFBK <= (seg(2) AND NOT $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196483.LFBK <= (NOT A(2).PIN AND $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196484.LFBK <= (seg(3) AND NOT $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196485.LFBK <= (NOT A(3).PIN AND $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196486.LFBK <= (seg(4) AND NOT $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196487.LFBK <= (NOT A(4).PIN AND $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196488.LFBK <= (seg(5) AND NOT $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196489.LFBK <= (NOT A(5).PIN AND $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196490.LFBK <= (seg(6) AND NOT $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196491.LFBK <= (NOT A(6).PIN AND $OpTx$FX_DC$195597.LFBK);
+
+
+$OpTx$BIN_STEP$196492.LFBK <= (NOT state_FSM_FFd2.LFBK AND $OpTx$FX_DC$195584.LFBK);
+
+
+$OpTx$BIN_STEP$196493.LFBK <= (addr_latch(0).LFBK AND $OpTx$FX_DC$195583.LFBK);
+
+
+$OpTx$BIN_STEP$196498 <= (NOT rd_seen AND RDn);
+
+
+$OpTx$BIN_STEP$196499 <= (NOT state_FSM_FFd2 AND NOT rd_seen);
+
+
+$OpTx$BIN_STEP$196500.LFBK <= ($OpTx$FX_DC$195601 AND $OpTx$BIN_AND$196496.LFBK);
+
+
+$OpTx$BIN_STEP$196501.LFBK <= ($OpTx$BIN_AND$196494 AND 
+	BUF_state_FSM_FFd2__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196502 <= (state_FSM_FFd3 AND NOT rd_seen);
+
+
+$OpTx$BIN_STEP$196503 <= (NOT $OpTx$BIN_STEP$196502 AND NOT $OpTx$BIN_STEP$196499);
+
+
+$OpTx$BIN_STEP$196504.LFBK <= (NOT $OpTx$BIN_STEP$196498 AND 
+	NOT $OpTx$BIN_STEP$196501.LFBK);
+
+
+$OpTx$BIN_STEP$196505.LFBK <= (NOT $OpTx$BIN_STEP$196500.LFBK AND 
+	$OpTx$BIN_STEP$196504.LFBK);
+
+
+$OpTx$BIN_STEP$196506.LFBK <= (NOT $OpTx$FX_DC$195591.LFBK AND NOT rst_press.LFBK);
+
+
+$OpTx$BIN_STEP$196507.LFBK <= (rst_cnt(1) AND BUF_rst_cnt(1)__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196509.LFBK <= (BUF_rst_qcnt(0)__$$INT.LFBK AND rst_qcnt(2).LFBK);
+
+
+$OpTx$BIN_STEP$196510.LFBK <= (rst_qcnt(1) AND BUF_rst_qcnt(1)__$$INT.LFBK);
+
+
+$OpTx$BIN_STEP$196511.LFBK <= (NOT addr_latch(0).LFBK AND $OpTx$FX_DC$195583.LFBK);
+
+
+$OpTx$BIN_STEP$196512.LFBK <= (NOT WRn AND $OpTx$FX_DC$195601.LFBK);
+
+
+$OpTx$BIN_STEP$196513 <= (D(0) AND $OpTx$FX_SC$195518);
+
+
+$OpTx$BIN_STEP$196514 <= (addr_latch(0) AND NOT rd_drive);
+
+
+$OpTx$BIN_STEP$196515 <= (row0 AND $OpTx$FX_DC$195505);
+
+
+$OpTx$BIN_STEP$196516 <= (NOT $OpTx$BIN_STEP$196515 AND NOT $OpTx$BIN_STEP$196513);
+
+
+$OpTx$BIN_STEP$196517 <= (D(1) AND $OpTx$FX_SC$195518);
+
+
+$OpTx$BIN_STEP$196518 <= (addr_latch(1) AND NOT rd_drive);
+
+
+$OpTx$BIN_STEP$196519 <= (row1 AND $OpTx$FX_DC$195505);
+
+
+$OpTx$BIN_STEP$196520 <= (NOT $OpTx$BIN_STEP$196519 AND NOT $OpTx$BIN_STEP$196517);
+
+
+$OpTx$BIN_STEP$196523 <= (addr_latch(2) AND NOT rd_drive);
+
+
+$OpTx$BIN_STEP$196524 <= (NOT $OpTx$FX_DC$195522 AND $OpTx$BIN_AND$196521);
+
+
+$OpTx$BIN_STEP$196525 <= (row2 AND $OpTx$FX_SC$195520);
+
+
+$OpTx$BIN_STEP$196526 <= (D(2) AND addr_latch(2));
+
+
+$OpTx$BIN_STEP$196527 <= (NOT $OpTx$BIN_STEP$196525 AND NOT $OpTx$BIN_STEP$196524);
+
+
+$OpTx$BIN_STEP$196528 <= (NOT $OpTx$BIN_STEP$196526 AND NOT $OpTx$BIN_STEP$196523);
+
+
+$OpTx$BIN_STEP$196529 <= (D(3) AND $OpTx$FX_SC$195518);
+
+
+$OpTx$BIN_STEP$196530 <= (row3 AND $OpTx$FX_SC$195520);
+
+
+$OpTx$BIN_STEP$196531 <= (addr_latch(3) AND NOT rd_drive);
+
+
+$OpTx$BIN_STEP$196532 <= (NOT $OpTx$BIN_STEP$196531 AND NOT $OpTx$BIN_STEP$196529);
+
+
+$OpTx$BIN_STEP$196533 <= (D(4) AND $OpTx$FX_SC$195518);
+
+
+$OpTx$BIN_STEP$196534 <= (row4 AND $OpTx$FX_SC$195520);
+
+
+$OpTx$BIN_STEP$196535 <= (addr_latch(4) AND NOT rd_drive);
+
+
+$OpTx$BIN_STEP$196536 <= (NOT $OpTx$BIN_STEP$196535 AND NOT $OpTx$BIN_STEP$196533);
+
+
+$OpTx$BIN_STEP$196537 <= (D(5) AND $OpTx$FX_SC$195518);
+
+
+$OpTx$BIN_STEP$196538 <= (tmr_cnt(0) AND $OpTx$FX_SC$195520);
+
+
+$OpTx$BIN_STEP$196539 <= (addr_latch(5) AND NOT rd_drive);
+
+
+$OpTx$BIN_STEP$196540 <= (NOT $OpTx$BIN_STEP$196539 AND NOT $OpTx$BIN_STEP$196537);
+
+
+$OpTx$BIN_STEP$196541 <= (D(6) AND $OpTx$FX_SC$195518);
+
+
+$OpTx$BIN_STEP$196542 <= (tmr_cnt(1) AND $OpTx$FX_SC$195520);
+
+
+$OpTx$BIN_STEP$196543 <= (addr_latch(6) AND NOT rd_drive);
+
+
+$OpTx$BIN_STEP$196544 <= (NOT $OpTx$BIN_STEP$196543 AND NOT $OpTx$BIN_STEP$196541);
+
+
+$OpTx$BIN_STEP$196549 <= (D(7) AND $OpTx$FX_SC$195518);
+
+
+$OpTx$BIN_STEP$196550 <= ($OpTx$BIN_AND$196546 AND $OpTx$BIN_AND$196547);
+
+
+$OpTx$BIN_STEP$196551 <= (addr_latch(7) AND NOT rd_drive);
+
+
+$OpTx$BIN_STEP$196552 <= (NOT $OpTx$BIN_STEP$196551 AND NOT $OpTx$BIN_STEP$196549);
+
+
+$OpTx$BIN_STEP$196564 <= (NOT state_FSM_FFd3 AND NOT CS_n);
+
+
+$OpTx$BIN_STEP$196565 <= (NOT state_FSM_FFd3 AND NOT CSr_n);
+
+
+$OpTx$BIN_STEP$196566 <= (addr_latch(1) AND NOT addr_latch(2));
+
+
+$OpTx$BIN_STEP$196567 <= (addr_latch(0) AND IOM);
+
+
+$OpTx$BIN_STEP$196568.LFBK <= (ALE AND $OpTx$FX_DC$195506.LFBK);
+
+
+$OpTx$BIN_STEP$196569 <= (addr_latch(0) AND addr_latch(1));
+
+
+$OpTx$FX_DC$195505 <= ($OpTx$BIN_STEP$196567 AND $OpTx$BIN_STEP$196566);
+
+
+$OpTx$FX_DC$195506 <= (state_FSM_FFd1.LFBK AND NOT state_FSM_FFd2.LFBK);
+
+
+$OpTx$FX_DC$195508.LFBK <= ($OpTx$BIN_STEP$196568.LFBK AND NOT in_wb.LFBK);
+
+
+$OpTx$FX_DC$195513 <= (state_FSM_FFd2 AND NOT in_wb.LFBK);
+
+
+$OpTx$FX_DC$195519.LFBK <= (ALE AND NOT fsm_rddone.LFBK);
+
+
+$OpTx$FX_DC$195522 <= (IOM AND $OpTx$BIN_STEP$196569);
+
+
+$OpTx$FX_DC$195525 <= (NOT IOM AND A15);
+
+
+$OpTx$FX_DC$195583.LFBK <= (NOT addr_latch(1).LFBK AND io_wr.LFBK);
+
+
+$OpTx$FX_DC$195584.LFBK <= (state_FSM_FFd1.LFBK AND NOT state_FSM_FFd3.LFBK);
+
+
+$OpTx$FX_DC$195589 <= rst_press.LFBK
+	 XOR 
+$OpTx$FX_DC$195589 <= rst_sync.LFBK;
+
+
+$OpTx$FX_DC$195591 <= (CLKOUT AND NOT clkout_d.LFBK);
+
+
+$OpTx$FX_DC$195592.LFBK <= (bit_cnt(0).LFBK AND bit_cnt(1).LFBK);
+
+
+$OpTx$FX_DC$195593.LFBK <= (state_FSM_FFd1.LFBK AND state_FSM_FFd2.LFBK);
+
+
+$OpTx$FX_DC$195596.LFBK <= (ALE AND $OpTx$BIN_STEP$196492.LFBK);
+
+
+$OpTx$FX_DC$195597.LFBK <= (NOT addr_latch(2).LFBK AND $OpTx$BIN_STEP$196511.LFBK);
+
+
+$OpTx$FX_DC$195598.LFBK <= ($OpTx$BIN_STEP$196493.LFBK AND NOT addr_latch(2).LFBK);
+
+
+$OpTx$FX_DC$195600 <= (NOT BUF_cpu_rst_r__$INT AND NOT $OpTx$BIN_STEP$196506.LFBK);
+
+
+$OpTx$FX_DC$195601 <= (state_FSM_FFd2.LFBK AND $OpTx$FX_DC$195584.LFBK);
+
+
+$OpTx$FX_DC$195603.LFBK <= (NOT wr_seen AND NOT $OpTx$BIN_STEP$196512.LFBK);
+
+
+$OpTx$FX_DC$195604.LFBK <= ($OpTx$BIN_STEP$196508 AND 
+	$OpTx$BIN_STEP$196509.LFBK);
+
+
+$OpTx$FX_DC$195605 <= (NOT rst_qcnt(2) AND NOT $OpTx$BIN_STEP$196510.LFBK);
+
+
+$OpTx$FX_DC$195606.LFBK <= (NOT rst_cnt(2) AND NOT $OpTx$BIN_STEP$196507.LFBK);
+
+
+$OpTx$FX_SC$195516.LFBK <= (NOT bus_ld_t1.LFBK AND bus_ld_t2.LFBK);
+
+
+$OpTx$FX_SC$195517.LFBK <= (NOT bus_ld_t1.LFBK AND NOT bus_ld_t2.LFBK);
+
+
+$OpTx$FX_SC$195518 <= (rd_drive AND NOT $OpTx$FX_DC$195505);
+
+
+$OpTx$FX_SC$195520 <= (rd_drive AND $OpTx$FX_DC$195505);
+
+
+$OpTx$FX_SC$195587 <= (NOT ld_tx_q.LFBK AND NOT baud_tick.LFBK);
+
+
+$OpTx$FX_SC$195590.LFBK <= (NOT ld_tx_q.LFBK AND baud_tick.LFBK);
+
+
+A_7_IOBUFE/A_7_IOBUFE_TRST <= (NOT rd_drive AND NOT in_wb);
+
+
+BUF_baud_cnt(0)__$$INT.LFBK <= (NOT baud_cnt(0) AND $OpTx$FX_SC$195587.LFBK);
+
+
+BUF_baud_cnt(2)__$$INT.LFBK <= (NOT $OpTx$BIN_STEP$196347 AND 
+	$OpTx$BIN_STEP$196349.LFBK);
+
+
+BUF_baud_cnt(3)__$$INT.LFBK <= (NOT $OpTx$BIN_STEP$196356 AND 
+	$OpTx$BIN_STEP$196358.LFBK);
+
+
+BUF_bit_cnt(0)__$$INT.LFBK <= ($OpTx$BIN_STEP$196302 AND 
+	$OpTx$BIN_STEP$196304.LFBK);
+
+
+BUF_bit_cnt(1)__$$INT.LFBK <= ($OpTx$BIN_STEP$196317.LFBK AND 
+	$OpTx$BIN_STEP$196316.LFBK);
+
+
+BUF_bit_cnt(2)__$$INT <= ($OpTx$BIN_STEP$196325.LFBK AND 
+	NOT $OpTx$BIN_STEP$196323.LFBK);
+
+
+BUF_reset_q__$$INT.LFBK <= (NOT BUF_cpu_rst_r__$INT AND NOT $OpTx$BIN_STEP$196417.LFBK);
+
+
+BUF_rst_cnt(0)__$$INT.LFBK <= (NOT $OpTx$BIN_STEP$196437.LFBK AND 
+	NOT $OpTx$BIN_STEP$196436.LFBK);
+
+
+BUF_rst_cnt(1)__$$INT.LFBK <= (NOT $OpTx$BIN_STEP$196449.LFBK AND 
+	$OpTx$BIN_STEP$196451.LFBK);
+
+
+BUF_rst_press__$$INT.LFBK <= (NOT $OpTx$BIN_STEP$196427.LFBK AND 
+	NOT $OpTx$BIN_STEP$196426.LFBK);
+
+
+BUF_rst_qcnt(0)__$$INT.LFBK <= (NOT $OpTx$BIN_STEP$196431.LFBK AND 
+	NOT $OpTx$BIN_STEP$196432.LFBK);
+
+
+BUF_rst_qcnt(1)__$$INT.LFBK <= (NOT $OpTx$BIN_STEP$196442.LFBK AND 
+	$OpTx$BIN_STEP$196444.LFBK);
+
+
+BUF_state_FSM_FFd2__$$INT.LFBK <= (NOT $OpTx$BIN_STEP$196267.LFBK AND 
+	$OpTx$BIN_STEP$196269.LFBK);
+
+
+BUF_state_FSM_FFd3__$$INT.LFBK <= (NOT $OpTx$BIN_STEP$196273.LFBK AND 
+	$OpTx$BIN_STEP$196275.LFBK);
+
+
+BUF_tmr_cnt(0)__$$INT.LFBK <= tmr_cnt(0).LFBK
+	 XOR 
+BUF_tmr_cnt(0)__$$INT.LFBK <= RST75_r__$$INT.LFBK;
+
+
+BUF_x1_q <= x1_q.LFBK
+	 XOR 
+BUF_x1_q <= t0_q.LFBK;
+
+
+RST75_r__$$INT.LFBK <= ($OpTx$FX_DC$195599 AND baud_tick.LFBK);
+
+FDCPE_addr_latch0: FDCPE port map (addr_latch(0),addr_latch_D(0),clk,cpu_rst_r,'0');
+addr_latch_D(0) <= (NOT $OpTx$BIN_STEP$196283.LFBK AND 
+	NOT $OpTx$BIN_STEP$196282.LFBK);
+
+FDCPE_addr_latch1: FDCPE port map (addr_latch(1),addr_latch_D(1),clk,cpu_rst_r,'0');
+addr_latch_D(1) <= (NOT $OpTx$BIN_STEP$196285.LFBK AND 
+	NOT $OpTx$BIN_STEP$196284.LFBK);
+
+FDCPE_addr_latch2: FDCPE port map (addr_latch(2),addr_latch_D(2),clk,cpu_rst_r,'0');
+addr_latch_D(2) <= (NOT $OpTx$BIN_STEP$196287.LFBK AND 
+	NOT $OpTx$BIN_STEP$196286.LFBK);
+
+FDCPE_addr_latch3: FDCPE port map (addr_latch(3),addr_latch_D(3),clk,cpu_rst_r,'0');
+addr_latch_D(3) <= (NOT $OpTx$BIN_STEP$196364.LFBK AND 
+	NOT $OpTx$BIN_STEP$196363.LFBK);
+
+FDCPE_addr_latch4: FDCPE port map (addr_latch(4),addr_latch_D(4),clk,cpu_rst_r,'0');
+addr_latch_D(4) <= (NOT $OpTx$BIN_STEP$196366.LFBK AND 
+	NOT $OpTx$BIN_STEP$196365.LFBK);
+
+FDCPE_addr_latch5: FDCPE port map (addr_latch(5),addr_latch_D(5),clk,cpu_rst_r,'0');
+addr_latch_D(5) <= (NOT $OpTx$BIN_STEP$196368.LFBK AND 
+	NOT $OpTx$BIN_STEP$196367.LFBK);
+
+FDCPE_addr_latch6: FDCPE port map (addr_latch(6),addr_latch_D(6),clk,cpu_rst_r,'0');
+addr_latch_D(6) <= (NOT $OpTx$BIN_STEP$196370.LFBK AND 
+	NOT $OpTx$BIN_STEP$196369.LFBK);
+
+FDCPE_addr_latch7: FDCPE port map (addr_latch(7),addr_latch_D(7),clk,cpu_rst_r,'0');
+addr_latch_D(7) <= (NOT $OpTx$BIN_STEP$196372.LFBK AND 
+	NOT $OpTx$BIN_STEP$196371.LFBK);
+
+FDCPE_baud_cnt0: FDCPE port map (baud_cnt(0),baud_cnt_D(0),clk,cpu_rst_r,'0');
+baud_cnt_D(0) <= (NOT baud_cnt(0) AND $OpTx$FX_SC$195587.LFBK);
+
+FDCPE_baud_cnt1: FDCPE port map (baud_cnt(1),baud_cnt_D(1),clk,cpu_rst_r,'0');
+baud_cnt_D(1) <= (NOT $OpTx$BIN_STEP$196339.LFBK AND 
+	NOT $OpTx$BIN_STEP$196340.LFBK);
+
+FDCPE_baud_cnt2: FDCPE port map (baud_cnt(2),baud_cnt_D(2),clk,cpu_rst_r,'0');
+baud_cnt_D(2) <= (NOT $OpTx$BIN_STEP$196347 AND 
+	$OpTx$BIN_STEP$196349.LFBK);
+
+FDCPE_baud_cnt3: FDCPE port map (baud_cnt(3),baud_cnt_D(3),clk,cpu_rst_r,'0');
+baud_cnt_D(3) <= (NOT $OpTx$BIN_STEP$196356 AND 
+	$OpTx$BIN_STEP$196358.LFBK);
+
+FDCPE_baud_cnt4: FDCPE port map (baud_cnt(4),baud_cnt_D(4),clk,cpu_rst_r,'0');
+baud_cnt_D(4) <= (NOT $OpTx$BIN_STEP$196379 AND 
+	$OpTx$BIN_STEP$196381.LFBK);
+
+
+baud_tick <= ($OpTx$BIN_AND$196554 AND $OpTx$BIN_AND$196555.LFBK);
+
+FDCPE_bit_cnt0: FDCPE port map (bit_cnt(0),bit_cnt_D(0),clk,cpu_rst_r,'0');
+bit_cnt_D(0) <= ($OpTx$BIN_STEP$196302 AND 
+	$OpTx$BIN_STEP$196304.LFBK);
+
+FDCPE_bit_cnt1: FDCPE port map (bit_cnt(1),bit_cnt_D(1),clk,cpu_rst_r,'0');
+bit_cnt_D(1) <= ($OpTx$BIN_STEP$196317.LFBK AND 
+	$OpTx$BIN_STEP$196316.LFBK);
+
+FDCPE_bit_cnt2: FDCPE port map (bit_cnt(2),bit_cnt_D(2),clk,cpu_rst_r,'0');
+bit_cnt_D(2) <= (NOT $OpTx$BIN_STEP$196323 AND 
+	$OpTx$BIN_STEP$196325.LFBK);
+
+FDCPE_bit_cnt3: FDCPE port map (bit_cnt(3),bit_cnt_D(3),clk,cpu_rst_r,'0');
+bit_cnt_D(3) <= ($OpTx$BIN_STEP$196336 AND 
+	$OpTx$BIN_STEP$196335.LFBK);
+
+
+bus_ld_t1.LFBK <= (NOT IOM AND $OpTx$FX_DC$195508.LFBK);
+
+
+bus_ld_t2.LFBK <= (NOT WRn AND $OpTx$FX_DC$195513.LFBK);
+
+FDCPE_clkout_d.LFBK: FDCPE port map (clkout_d.LFBK,CLKOUT,clk,'0','0');
+
+FDCPE_cpu_rst_r: FDCPE port map (cpu_rst_r,BUF_cpu_rst_r__$INT,clk,'0','0');
+
+
+fsm_rddone <= (RDn AND rd_seen.LFBK);
+
+
+fsm_wrdone <= (WRn AND wr_seen.LFBK);
+
+
+in_wb <= NOT ((NOT $OpTx$BIN_STEP$196560 AND NOT state_FSM_FFd3.LFBK));
+
+
+io_wr.LFBK <= (IOM AND bus_ld_t2.LFBK);
+
+
+kbcol_wr06.LFBK <= ($OpTx$BIN_AND$196561 AND $OpTx$BIN_AND$196562.LFBK);
+
+FDCPE_ld_tx_q: FDCPE port map (ld_tx_q,ld_tx_q_D,clk,cpu_rst_r,'0');
+ld_tx_q_D <= ($OpTx$BIN_AND$196258 AND $OpTx$BIN_AND$196259.LFBK);
+
+
+rd_drive <= ($OpTx$BIN_AND$196557 AND $OpTx$BIN_AND$196558);
+
+FDCPE_rd_seen: FDCPE port map (rd_seen,rd_seen_D,clk,cpu_rst_r,'0');
+rd_seen_D <= ($OpTx$BIN_STEP$196503 AND 
+	$OpTx$BIN_STEP$196505.LFBK);
+
+FDCPE_rst_cnt0: FDCPE port map (rst_cnt(0),rst_cnt_D(0),clk,'0','0');
+rst_cnt_D(0) <= (NOT $OpTx$BIN_STEP$196437.LFBK AND 
+	NOT $OpTx$BIN_STEP$196436.LFBK);
+
+FDCPE_rst_cnt1: FDCPE port map (rst_cnt(1),rst_cnt_D(1),clk,'0','0');
+rst_cnt_D(1) <= (NOT $OpTx$BIN_STEP$196449.LFBK AND 
+	$OpTx$BIN_STEP$196451.LFBK);
+
+FDCPE_rst_cnt2: FDCPE port map (rst_cnt(2),rst_cnt_D(2),clk,'0','0');
+rst_cnt_D(2) <= (NOT $OpTx$BIN_STEP$196463 AND 
+	NOT $OpTx$BIN_STEP$196462.LFBK);
+
+FDCPE_rst_meta: FDCPE port map (rst_meta,RST,clk,'0','0');
+
+FDCPE_rst_press: FDCPE port map (rst_press,rst_press_D,clk,'0','0');
+rst_press_D <= (NOT $OpTx$BIN_STEP$196427.LFBK AND 
+	NOT $OpTx$BIN_STEP$196426.LFBK);
+
+FDCPE_rst_qcnt0: FDCPE port map (rst_qcnt(0),rst_qcnt_D(0),clk,'0','0');
+rst_qcnt_D(0) <= (NOT $OpTx$BIN_STEP$196432 AND 
+	NOT $OpTx$BIN_STEP$196431.LFBK);
+
+FDCPE_rst_qcnt1: FDCPE port map (rst_qcnt(1),rst_qcnt_D(1),clk,'0','0');
+rst_qcnt_D(1) <= (NOT $OpTx$BIN_STEP$196442.LFBK AND 
+	$OpTx$BIN_STEP$196444.LFBK);
+
+FDCPE_rst_qcnt2: FDCPE port map (rst_qcnt(2),rst_qcnt_D(2),clk,'0','0');
+rst_qcnt_D(2) <= ($OpTx$BIN_STEP$196459.LFBK AND 
+	NOT $OpTx$BIN_STEP$196457.LFBK);
+
+FDCPE_rst_sync: FDCPE port map (rst_sync,rst_meta,clk,'0','0');
+
+FDCPE_shreg1: FDCPE port map (shreg(1),shreg_D(1),clk,'0',cpu_rst_r);
+shreg_D(1) <= ($OpTx$BIN_STEP$196385.LFBK AND 
+	NOT $OpTx$BIN_STEP$196383.LFBK);
+
+FDCPE_shreg2: FDCPE port map (shreg(2),shreg_D(2),clk,'0',cpu_rst_r);
+shreg_D(2) <= ($OpTx$BIN_STEP$196389.LFBK AND 
+	NOT $OpTx$BIN_STEP$196387.LFBK);
+
+FDCPE_shreg3: FDCPE port map (shreg(3),shreg_D(3),clk,'0',cpu_rst_r);
+shreg_D(3) <= ($OpTx$BIN_STEP$196393.LFBK AND 
+	NOT $OpTx$BIN_STEP$196391.LFBK);
+
+FDCPE_shreg4: FDCPE port map (shreg(4),shreg_D(4),clk,'0',cpu_rst_r);
+shreg_D(4) <= ($OpTx$BIN_STEP$196397.LFBK AND 
+	NOT $OpTx$BIN_STEP$196395.LFBK);
+
+FDCPE_shreg5: FDCPE port map (shreg(5),shreg_D(5),clk,'0',cpu_rst_r);
+shreg_D(5) <= ($OpTx$BIN_STEP$196401.LFBK AND 
+	NOT $OpTx$BIN_STEP$196399.LFBK);
+
+FDCPE_shreg6: FDCPE port map (shreg(6),shreg_D(6),clk,'0',cpu_rst_r);
+shreg_D(6) <= ($OpTx$BIN_STEP$196405.LFBK AND 
+	NOT $OpTx$BIN_STEP$196403.LFBK);
+
+FDCPE_shreg7: FDCPE port map (shreg(7),shreg_D(7),clk,'0',cpu_rst_r);
+shreg_D(7) <= ($OpTx$BIN_STEP$196409.LFBK AND 
+	NOT $OpTx$BIN_STEP$196407.LFBK);
+
+FDCPE_shreg8: FDCPE port map (shreg(8),shreg_D(8),clk,'0',cpu_rst_r);
+shreg_D(8) <= (NOT $OpTx$BIN_STEP$196410 AND 
+	$OpTx$BIN_STEP$196412.LFBK);
+
+FDCPE_state_FSM_FFd1: FDCPE port map (state_FSM_FFd1,state_FSM_FFd1_D,clk,cpu_rst_r,'0');
+state_FSM_FFd1_D <= (NOT $OpTx$BIN_STEP$196279.LFBK AND 
+	$OpTx$BIN_STEP$196281.LFBK);
+
+FDCPE_state_FSM_FFd2: FDCPE port map (state_FSM_FFd2,state_FSM_FFd2_D,clk,cpu_rst_r,'0');
+state_FSM_FFd2_D <= (NOT $OpTx$BIN_STEP$196267.LFBK AND 
+	$OpTx$BIN_STEP$196269.LFBK);
+
+FDCPE_state_FSM_FFd3: FDCPE port map (state_FSM_FFd3,state_FSM_FFd3_D,clk,cpu_rst_r,'0');
+state_FSM_FFd3_D <= (NOT $OpTx$BIN_STEP$196273.LFBK AND 
+	$OpTx$BIN_STEP$196275.LFBK);
+
+FTCPE_t0_q: FTCPE port map (t0_q,'1',clk,'0','0');
+
+FTCPE_tmr_cnt0: FTCPE port map (tmr_cnt(0),RST75_r__$$INT.LFBK,clk,'0','0');
+
+FDCPE_tmr_cnt1: FDCPE port map (tmr_cnt(1),tmr_cnt_D(1),clk,'0','0');
+tmr_cnt_D(1) <= (NOT $OpTx$BIN_STEP$196467.LFBK AND 
+	$OpTx$BIN_STEP$196469.LFBK);
+
+FDCPE_wr_seen: FDCPE port map (wr_seen,wr_seen_D,clk,cpu_rst_r,'0');
+wr_seen_D <= (NOT $OpTx$BIN_STEP$196362 AND 
+	NOT $OpTx$BIN_STEP$196361.LFBK);
+
+Register Legend:
+ FDCPE (Q,D,C,CLR,PRE); 
+ FTCPE (Q,D,C,CLR,PRE); 
+ LDCP  (Q,D,G,CLR,PRE); 
+
+****************************  Compiler Options  ****************************
+
+Following is a list of all global compiler options used by the fitter run.
+
+Device(s) Specified                         : xc95108-15-PQ100
+Optimization Method                         : DENSITY
+Multi-Level Logic Optimization              : ON
+Ignore Timing Specifications                : OFF
+Default Register Power Up Value             : LOW
+Keep User Location Constraints              : ON
+What-You-See-Is-What-You-Get                : OFF
+Exhaustive Fitting                          : ON
+Keep Unused Inputs                          : ON
+Slew Rate                                   : FAST
+Power Mode                                  : STD
+Ground on Unused IOs                        : ON
+Global Clock Optimization                   : ON
+Global Set/Reset Optimization               : ON
+Global Ouput Enable Optimization            : ON
+FASTConnect/UIM optimzation                 : ON
+Local Feedback                              : OFF
+Pin Feedback                                : OFF
+Input Limit                                 : 1
+Pterm Limit                                 : 1
