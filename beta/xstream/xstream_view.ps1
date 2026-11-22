@@ -59,13 +59,30 @@
 #   8. Косметика: в статусе "ресинк {N} Б" -> "ресинков {N}" (Resyncs -
 #      счётчик, не байты); статус и «Итог» показывают рестарты; SelfTest
 #      6/6 -> 7/7 (кейс 3b: пауза 1 с + скачок SEQ = рестарт, не гэп).
+#
+# v1.3.0 (загрузка Intel HEX без выхода из клиента; пара fw v2.0.6):
+#   9. КНОПКА/ХОТКЕЙ "Загрузить HEX (L)": выбор .hex -> валидация ВСЕХ
+#      записей ДО переключения порта (контрольные суммы, счётчик длины) ->
+#      диалог "нажмите B на плате" -> порт ЗАКРЫВАЕТСЯ и открывается
+#      заново 4800 8N2 (верифицированные настройки отчёта об отладке
+#      загрузчика; пейсинг 2 мс/символ + 10 мс/строка, параметры
+#      -LoadCharDelayMs/-LoadLineDelayMs) -> построчная передача с
+#      прогрессом в строке статуса и DoEvents (окно живое) -> пауза 0,8 с
+#      -> порт обратно 1000000 8N1 -> таймер приёма возобновляется,
+#      ресинк по A5 5A. Плата показывает прогресс сама (v2.0.6: счётчик
+#      записей на индикаторе), при ошибке - EEEE + SOS до Enter.
+#   10. Test-HexRecord: чистая функция валидации записи Intel HEX
+#      (контрольная сумма mod 256, соответствие счётчика длины) -
+#      покрыта SelfTest-кейсом 8 (валидная/битая/EOF/мусор), 7/7 -> 8/8.
 # ======================================================================
 param(
     [string]$Port = "",
     [int]$Baud = 1000000,
     [string]$Log = "",
     [switch]$SelfTest,
-    [double]$FontSize = 13
+    [double]$FontSize = 13,
+    [int]$LoadCharDelayMs = 2,     # v1.3: пауза между СИМВОЛАМИ при загрузке hex
+    [int]$LoadLineDelayMs = 10     # v1.3: пауза между СТРОКАМИ hex (верифицировано отчётом)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -106,6 +123,41 @@ function Write-Log([string]$kind, [int]$seq, [double]$dt, [int]$total, [int]$rs,
         $line = $ts + "," + $kind + "," + $seq + "," + $dt.ToString("F1", $inv) + "," + $total + "," + $rs + "," + $gaps
         $script:LogSw.WriteLine($line)
     }
+}
+
+# ---------------------------------------------------------------- Intel HEX
+# Test-HexRecord (v1.3): валидация ОДНОЙ записи Intel HEX.
+# ":nnaaaatt[dd...]cc" - сумма ВСЕХ байт записи (nn+aa+aa+tt+dd..+cc)
+# mod 256 == 0; длина = nn + 5. Возвращает hashtable:
+#   Ok ($true/$false), Data (байт данных, 0 для EOF/пустой),
+#   Empty (пустая строка - пропускаем), Err (текст причины).
+# Чистая функция - покрыта SelfTest-кейсом 8.
+function Test-HexRecord([string]$line) {
+    $t = $line.Trim()
+    if ($t -eq "") { return @{ Ok = $true; Data = 0; Empty = $true; Err = "" } }
+    if (-not $t.StartsWith(":")) { return @{ Ok = $false; Data = 0; Empty = $false; Err = "нет ':'" } }
+    $hex = $t.Substring(1)
+    if (($hex.Length -lt 10) -or (($hex.Length % 2) -ne 0)) {
+        return @{ Ok = $false; Data = 0; Empty = $false; Err = "длина поля" }
+    }
+    $bytes = [byte[]]::new([int]($hex.Length / 2))
+    for ($i = 0; $i -lt $bytes.Length; $i++) {
+        $b = 0
+        $s2 = $hex.Substring(2 * $i, 2)
+        if (-not [int]::TryParse($s2, [System.Globalization.NumberStyles]::HexNumber,
+                                 [System.Globalization.CultureInfo]::InvariantCulture, [ref]$b)) {
+            return @{ Ok = $false; Data = 0; Empty = $false; Err = "не hex '$s2'" }
+        }
+        $bytes[$i] = [byte]$b
+    }
+    $s = 0
+    foreach ($b in $bytes) { $s = ($s + $b) -band 0xFF }
+    if ($s -ne 0) { return @{ Ok = $false; Data = 0; Empty = $false; Err = "сумма {0:X2}h" -f $s } }
+    $cnt = $bytes[0]
+    if ($bytes.Length -ne ($cnt + 5)) {
+        return @{ Ok = $false; Data = 0; Empty = $false; Err = "cnt=$cnt, полей $($bytes.Length - 5)" }
+    }
+    return @{ Ok = $true; Data = $cnt; Empty = $false; Err = "" }
 }
 
 # ---------------------------------------------------------------- парсер
@@ -267,7 +319,27 @@ function Invoke-SelfTest {
     if ($line -ne "ПРИВЕТ") { Write-Host "  FAIL: CP1251-декод ('$line')"; $fail++ }
     else { Write-Host "  OK: CP1251-декод payload -> 'ПРИВЕТ'" }
 
-    if ($fail -eq 0) { Write-Host "SELFTEST: 7/7 ПРОЙДЕНЫ" }
+    # 5) Test-HexRecord (v1.3): валидатор записей Intel HEX для загрузчика
+    # строим валидную запись данных: cnt=4, addr=8000, typ=00, dd=C3 C8 07 00
+    $payload = @(0x04, 0x80, 0x00, 0x00, 0xC3, 0xC8, 0x07, 0x00)
+    $cc = (0x100 - (($payload | ForEach-Object { $_ } | Measure-Object -Sum).Sum % 256)) % 256
+    $rec = ":" + (($payload + $cc | ForEach-Object { "{0:X2}" -f $_ }) -join "")
+    $r = Test-HexRecord $rec
+    if (-not $r.Ok -or $r.Data -ne 4) { Write-Host "  FAIL: валидатор '$rec' -> Ok=$($r.Ok) Data=$($r.Data) Err=$($r.Err)"; $fail++ }
+    else { Write-Host "  OK: валидатор: '$rec' -> Ok, данных 4 Б" }
+    # битая сумма: последняя цифра cc+1
+    $bad = $rec.Substring(0, $rec.Length - 2) + ("{0:X2}" -f (($cc + 1) -band 0xFF))
+    $r = Test-HexRecord $bad
+    if ($r.Ok) { Write-Host "  FAIL: битая сумма не поймана: '$bad'"; $fail++ }
+    else { Write-Host "  OK: валидатор: битая контрольная сумма поймана ($($r.Err))" }
+    $r = Test-HexRecord ":00000001FF"                       # штатный EOF
+    if (-not $r.Ok -or $r.Data -ne 0) { Write-Host "  FAIL: EOF-запись не валидна"; $fail++ }
+    else { Write-Host "  OK: валидатор: ':00000001FF' (EOF) -> Ok, данных 0" }
+    $r = Test-HexRecord "не hex вообще"
+    if ($r.Ok) { Write-Host "  FAIL: мусор принят за запись"; $fail++ }
+    else { Write-Host "  OK: валидатор: мусор отклонён ($($r.Err))" }
+
+    if ($fail -eq 0) { Write-Host "SELFTEST: 8/8 ПРОЙДЕНЫ" }
     else { Write-Host "SELFTEST: ПРОВАЛОВ $fail"; exit 1 }
 }
 
@@ -286,9 +358,10 @@ $script:RxRate = 0.0
 $script:LastRateTicks = $script:StartTicks
 $script:RxBuf = [byte[]]::new(16384)   # переиспользуемый буфер опроса порта
 $script:LastRestarts = 0               # v1.2.2: сколько рестартов уже отражено в CSV (строки "R")
+$script:LoadBusy = $false              # v1.3: активна ли передача hex (защита от реэнтранта)
 
 $form = [System.Windows.Forms.Form]::new()
-$form.Text = "XSTREAM v1 - 80x25 ($Port @ $Baud 8N1)"
+$form.Text = "XSTREAM v1.3 - 80x25 ($Port @ $Baud 8N1) | HEX LOAD (L)"
 $form.StartPosition = "Manual"
 $form.BackColor = [System.Drawing.Color]::FromArgb(12, 12, 16)
 $panel = [System.Windows.Forms.Panel]::new()
@@ -302,6 +375,20 @@ $status.BackColor = [System.Drawing.Color]::FromArgb(12, 12, 16)
 $status.ForeColor = [System.Drawing.Color]::FromArgb(140, 220, 140)
 $status.Font = [System.Drawing.Font]::new("Consolas", 10)
 $form.Controls.Add($status)
+# v1.3: кнопка загрузки hex (Dock=Top добавляется ПОСЛЕ status: док-разметка
+# идёт в обратном порядке коллекции Controls - status/Bottom, кнопка/Top,
+# panel/Fill достаётся остаток; BringToFront панели ниже сохраняет это)
+$btnLoad = [System.Windows.Forms.Button]::new()
+$btnLoad.Text = "Загрузить HEX на плату (L)"
+$btnLoad.Dock = "Top"
+$btnLoad.Height = 32
+$btnLoad.Font = [System.Drawing.Font]::new("Consolas", 10)
+$btnLoad.FlatStyle = "Flat"
+$btnLoad.BackColor = [System.Drawing.Color]::FromArgb(24, 34, 24)
+$btnLoad.ForeColor = [System.Drawing.Color]::FromArgb(190, 255, 190)
+$form.Controls.Add($btnLoad)
+# хоткей L: KeyPreview - форма получает нажатия раньше контролов
+$form.KeyPreview = $true
 # double-buffering панели через рефлексию (свойство защищённое):
 $flags = [System.Reflection.BindingFlags]"Instance,NonPublic"
 $null = $panel.GetType().GetProperty("DoubleBuffered", $flags).SetValue($panel, $true, $null)
@@ -321,6 +408,89 @@ $panel.Add_Paint({
         $e.Graphics.DrawString($line, $font, $brush, 8, 6 + $r * [int]($font.Height))
     }
 })
+
+# ------------------------------------------------------- загрузка Intel HEX
+# Invoke-HexLoad (v1.3): выбор файла -> валидация -> порт 4800 8N2 ->
+# передача с пейсингом -> порт обратно 1000000 8N1. Работает на UI-потоке:
+# таймер приёма остановлен, окно живёт через DoEvents. Плата: B (LOADM)
+# до отправки; прогресс - счётчик записей на индикаторе (fw v2.0.6),
+# ошибка - EEEE + SOS до Enter на плате.
+function Invoke-HexLoad {
+    if ($script:LoadBusy) { return }               # защита от повторного пуска
+    if ($null -eq $script:PortObj) { return }
+    $dlg = [System.Windows.Forms.OpenFileDialog]::new()
+    $dlg.Filter = "Intel HEX (*.hex)|*.hex|Все файлы|*.*"
+    $dlg.Title = "Файл для LOADM (4800 8N2 -> SID платы)"
+    if ($dlg.ShowDialog() -ne "OK") { return }
+
+    # --- валидация ДО переключения порта: битый файл железо не трогает ---
+    $lines = [System.IO.File]::ReadAllLines($dlg.FileName)
+    $recs = [System.Collections.Generic.List[string]]::new()
+    $dataBytes = 0
+    foreach ($ln in $lines) {
+        $r = Test-HexRecord $ln
+        if (-not $r.Ok) {
+            [void][System.Windows.Forms.MessageBox]::Show(
+                "Файл не является корректным Intel HEX:`n" + $dlg.FileName + "`n`nЗапись: " + $ln + "`nОшибка: " + $r.Err,
+                "HEX-валидация", 0, 48)
+            return
+        }
+        if (-not $r.Empty) { $recs.Add($ln.Trim()); $dataBytes += $r.Data }
+    }
+    if ($recs.Count -eq 0) {
+        [void][System.Windows.Forms.MessageBox]::Show("В файле нет записей Intel HEX.", "HEX-валидация", 0, 48)
+        return
+    }
+
+    $res = [System.Windows.Forms.MessageBox]::Show(
+        "Файл: " + [System.IO.Path]::GetFileName($dlg.FileName) + "`nЗаписей: " + $recs.Count + ", байт данных: " + $dataBytes + "`n`n1. Нажмите B на плате (LOADM) - индикатор покажет 'L'.`n2. Затем OK здесь - пойдёт передача 4800 8N2.`n`nИндикатор платы = счётчик принятых записей; успех - возврат в меню,`nошибка - EEEE + звук SOS до нажатия Enter на плате.",
+        "Загрузка HEX", 1, 64)
+    if ($res -ne "OK") { return }
+
+    $script:LoadBusy = $true
+    $script:timer.Stop()
+    $btnLoad.Enabled = $false
+    $port = $null
+    try {
+        $script:PortObj.Close()
+        $port = [System.IO.Ports.SerialPort]::new($Port, 4800, [System.IO.Ports.Parity]::None, 8, [System.IO.Ports.StopBits]::Two)
+        $port.WriteTimeout = 5000
+        $port.Open()
+        $port.DiscardInBuffer()
+        $port.DiscardOutBuffer()
+
+        $k = 0
+        foreach ($rec in $recs) {
+            $k++
+            foreach ($ch in $rec.ToCharArray()) {
+                $port.Write([string]$ch)
+                if ($LoadCharDelayMs -gt 0) { Start-Sleep -Milliseconds $LoadCharDelayMs }
+            }
+            if ($LoadLineDelayMs -gt 0) { Start-Sleep -Milliseconds $LoadLineDelayMs }
+            $status.Text = "LOAD: запись $k/$($recs.Count) ($dataBytes байт данных) - индикатор платы = счётчик записей"
+            [void][System.Windows.Forms.Application]::DoEvents()
+        }
+        Start-Sleep -Milliseconds 800     # плате: EOF -> тик -> меню -> поток 1M
+        $status.Text = "LOAD: отправлено записей $k, байт данных $dataBytes. Успех = меню на плате; EEEE+SOS = нажмите Enter на плате"
+    } catch {
+        [void][System.Windows.Forms.MessageBox]::Show("Ошибка передачи: " + $_.Exception.Message, "HEX-загрузка", 0, 48)
+        $status.Text = "LOAD: ошибка передачи - " + $_.Exception.Message
+    } finally {
+        try { if ($null -ne $port -and $port.IsOpen) { $port.Close() } } catch { }
+        try {
+            $script:PortObj = [System.IO.Ports.SerialPort]::new($Port, $Baud, [System.IO.Ports.Parity]::None, 8, [System.IO.Ports.StopBits]::One)
+            $script:PortObj.ReadBufferSize = 262144
+            $script:PortObj.ReadTimeout = 500
+            $script:PortObj.Open()
+            $script:PortObj.DiscardInBuffer()
+        } catch {
+            $status.Text = "ПОРТ $Port не открыт повторно: " + $_.Exception.Message
+        }
+        $btnLoad.Enabled = $true
+        $script:LoadBusy = $false
+        $script:timer.Start()
+    }
+}
 
 function Open-Port {
     $script:PortObj = [System.IO.Ports.SerialPort]::new($Port, $Baud, [System.IO.Ports.Parity]::None, 8, [System.IO.Ports.StopBits]::One)
@@ -381,6 +551,12 @@ $null = $timer.Add_Tick({
     } catch { }
 })
 $timer.Start()
+
+# v1.3: запуск загрузки - кнопкой или клавишей L (KeyPreview на форме)
+$btnLoad.Add_Click({ Invoke-HexLoad })
+$form.Add_KeyDown({
+    if ($_.KeyCode -eq "L") { Invoke-HexLoad }
+})
 
 $form.Add_FormClosed({
     try {
