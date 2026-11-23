@@ -30,6 +30,12 @@ v2.0, ни v2.0.1 из `rom/` — это отдельная сборка под 
   fsm_wrdone/rddone, rd_drive, bus_ld_t1/t2, kbcol_wr06); $OpTx$FX_DC ×2
   в FB6 — экспорт птермов таймера (timer_irq_tick), к keep отношения не
   имеет; baud_tick с keep МЦ не занял (репликация птерма).
+- `v37G02_opt_decisions.md` — план оптимизации (проверен по .rpt, 11-23):
+  снятие keep ранжировано (4 чистых МЦ + 2 свопами; rd_drive/io_wr/io_wr_tx
+  несущие — входы ФБ-потребителей исчерпаны) и перевод RESET_CPU с
+  PTC-клока CLKOUT на ce_3125 = baud_cnt[2:0]==111 (единый домен GCK3,
+  −1 вход FB4 — не FB5!, ширина сброса 3,25..4,125 такта CLKOUT
+  сохранена, RESET_IN не зависит от исправности CPU).
 - `fw_monitor_ACdE_tm_xstream_v2_0_3.{asm,hex,lst}` — монитор v2.0.3
   (база — сборка близнеца: KSCOL B/C, RAMT паттерн/граница FFD8h,
   TMIARM->RET; чистка TMTINY/дубля LXI; документация под v37G01;
