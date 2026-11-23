@@ -1,6 +1,6 @@
 ﻿#!/usr/bin/env pwsh
 # ======================================================================
-# XSTREAM_VIEW.PS1 v1.2.2 -- клиент XSTREAM: приём потока 80x25 из платы
+# XSTREAM_VIEW.PS1 v1.3.1 -- клиент XSTREAM: приём потока 80x25 из платы
 # (fw xstream_v1) в GUI-окно PowerShell.
 #
 # ПРОВОД: 1 000 000 8N1; кадр = A5 5A [SEQ] + 2000 Б (80x25, row-major).
@@ -74,6 +74,16 @@
 #   10. Test-HexRecord: чистая функция валидации записи Intel HEX
 #      (контрольная сумма mod 256, соответствие счётчика длины) -
 #      покрыта SelfTest-кейсом 8 (валидная/битая/EOF/мусор), 7/7 -> 8/8.
+#
+# v1.3.1 (первый железный запуск v1.3.0: при кнопке окно "Ошибка
+#   передачи: Значение PortName не может быть пустым"):
+#   11. УРОК 13 (в продолжение урока 3 про скоуп): имена переменных PS
+#      НЕЧУВСТВИТЕЛЬНЫ К РЕГИСТРУ. Локальная "$port = $null" в
+#      Invoke-HexLoad - это ТО ЖЕ ИМЯ, что параметр скрипта "$Port":
+#      присваивание затирало его в локальном скоупе функции, .ctor
+#      SerialPort получал PortName=$null (у Open-Port такого локала
+#      нет - поэтому основной поток экрана работал). Локал переименован
+#      в $portLoad; параметр читается как $Port.
 # ======================================================================
 param(
     [string]$Port = "",
@@ -361,7 +371,7 @@ $script:LastRestarts = 0               # v1.2.2: сколько рестарто
 $script:LoadBusy = $false              # v1.3: активна ли передача hex (защита от реэнтранта)
 
 $form = [System.Windows.Forms.Form]::new()
-$form.Text = "XSTREAM v1.3 - 80x25 ($Port @ $Baud 8N1) | HEX LOAD (L)"
+$form.Text = "XSTREAM v1.3.1 - 80x25 ($Port @ $Baud 8N1) | HEX LOAD (L)"
 $form.StartPosition = "Manual"
 $form.BackColor = [System.Drawing.Color]::FromArgb(12, 12, 16)
 $panel = [System.Windows.Forms.Panel]::new()
@@ -450,20 +460,24 @@ function Invoke-HexLoad {
     $script:LoadBusy = $true
     $script:timer.Stop()
     $btnLoad.Enabled = $false
-    $port = $null
+    $portLoad = $null
     try {
         $script:PortObj.Close()
-        $port = [System.IO.Ports.SerialPort]::new($Port, 4800, [System.IO.Ports.Parity]::None, 8, [System.IO.Ports.StopBits]::Two)
-        $port.WriteTimeout = 5000
-        $port.Open()
-        $port.DiscardInBuffer()
-        $port.DiscardOutBuffer()
+        # ВАЖНО (урок 13, v1.3.1): локал называется $portLoad, НЕ $port -
+        # имена PS НЕЧУВСТВИТЕЛЬНЫ К РЕГИСТРУ, "$port" = параметр скрипта
+        # "$Port", и "$port = $null" затирал имя порта: .ctor получал
+        # PortName=$null ("Значение PortName не может быть пустым").
+        $portLoad = [System.IO.Ports.SerialPort]::new($Port, 4800, [System.IO.Ports.Parity]::None, 8, [System.IO.Ports.StopBits]::Two)
+        $portLoad.WriteTimeout = 5000
+        $portLoad.Open()
+        $portLoad.DiscardInBuffer()
+        $portLoad.DiscardOutBuffer()
 
         $k = 0
         foreach ($rec in $recs) {
             $k++
             foreach ($ch in $rec.ToCharArray()) {
-                $port.Write([string]$ch)
+                $portLoad.Write([string]$ch)
                 if ($LoadCharDelayMs -gt 0) { Start-Sleep -Milliseconds $LoadCharDelayMs }
             }
             if ($LoadLineDelayMs -gt 0) { Start-Sleep -Milliseconds $LoadLineDelayMs }
@@ -476,7 +490,7 @@ function Invoke-HexLoad {
         [void][System.Windows.Forms.MessageBox]::Show("Ошибка передачи: " + $_.Exception.Message, "HEX-загрузка", 0, 48)
         $status.Text = "LOAD: ошибка передачи - " + $_.Exception.Message
     } finally {
-        try { if ($null -ne $port -and $port.IsOpen) { $port.Close() } } catch { }
+        try { if ($null -ne $portLoad -and $portLoad.IsOpen) { $portLoad.Close() } } catch { }
         try {
             $script:PortObj = [System.IO.Ports.SerialPort]::new($Port, $Baud, [System.IO.Ports.Parity]::None, 8, [System.IO.Ports.StopBits]::One)
             $script:PortObj.ReadBufferSize = 262144
