@@ -24,6 +24,12 @@ v2.0, ни v2.0.1 из `rom/` — это отдельная сборка под 
 - `retro_pcld_top.jed` / `.rpt` — успешный фит: 102/108 МЦ (94%),
   ПТ 41%, 6 свободных МЦ в FB3; GSR и GCK3 захвачены (см. Global
   Resources rpt).
+- `v37G01_rpt_busreg_keep_analysis.md` — посигнальный разбор .rpt (11-23):
+  bus_reg — ровно 1 экз. (8×FDCPE на ногах D0–D7, закопанных реплик нет);
+  9 комбинаторных МЦ в FB1/FB2/FB4 съел keep (in_wb, io_wr, io_wr_tx,
+  fsm_wrdone/rddone, rd_drive, bus_ld_t1/t2, kbcol_wr06); $OpTx$FX_DC ×2
+  в FB6 — экспорт птермов таймера (timer_irq_tick), к keep отношения не
+  имеет; baud_tick с keep МЦ не занял (репликация птерма).
 - `fw_monitor_ACdE_tm_xstream_v2_0_3.{asm,hex,lst}` — монитор v2.0.3
   (база — сборка близнеца: KSCOL B/C, RAMT паттерн/граница FFD8h,
   TMIARM->RET; чистка TMTINY/дубля LXI; документация под v37G01;
