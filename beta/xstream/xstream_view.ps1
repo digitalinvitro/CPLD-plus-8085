@@ -1,6 +1,6 @@
 ﻿#!/usr/bin/env pwsh
 # ======================================================================
-# XSTREAM_VIEW.PS1 v1.3.1 -- клиент XSTREAM: приём потока 80x25 из платы
+# XSTREAM_VIEW.PS1 v1.3.2 -- клиент XSTREAM: приём потока 80x25 из платы
 # (fw xstream_v1) в GUI-окно PowerShell.
 #
 # ПРОВОД: 1 000 000 8N1; кадр = A5 5A [SEQ] + 2000 Б (80x25, row-major).
@@ -84,6 +84,17 @@
 #      SerialPort получал PortName=$null (у Open-Port такого локала
 #      нет - поэтому основной поток экрана работал). Локал переименован
 #      в $portLoad; параметр читается как $Port.
+#
+# v1.3.2 (по просьбе после железного прогона: окно открывалось мелким,
+#   разворачивали вручную):
+#   12. Окно сразу максимизировано: Location = рабочая область основного
+#      монитора, WindowState=Maximized (максимизация идёт в монитор
+#      Location - при StartPosition=Manual иначе не гарантировать).
+#   13. Автоскейл шрифта на Add_Resize панели: перебор 48..6pt, берётся
+#      крупнейший, влезающий в 80 колонок (MeasureString одного символа,
+#      GenericTypographic - без паддинга) и 25 строк (font.Height).
+#      Подмена $script:font видна Paint'у через динамический скоуп
+#      (урок 3), переподписка не нужна. Пол - 6pt, потолок 48pt.
 # ======================================================================
 param(
     [string]$Port = "",
@@ -371,8 +382,14 @@ $script:LastRestarts = 0               # v1.2.2: сколько рестарто
 $script:LoadBusy = $false              # v1.3: активна ли передача hex (защита от реэнтранта)
 
 $form = [System.Windows.Forms.Form]::new()
-$form.Text = "XSTREAM v1.3.1 - 80x25 ($Port @ $Baud 8N1) | HEX LOAD (L)"
+$form.Text = "XSTREAM v1.3.2 - 80x25 ($Port @ $Baud 8N1) | HEX LOAD (L)"
 $form.StartPosition = "Manual"
+# v1.3.2: окно сразу на весь экран монитора (просьба после первого
+# железного прогона: разворачивали вручную). Maximized = рабочая область
+# монитора, содержащего Location; поэтому Location ставится на основной
+# монитор ДО максимизации - иначе при Manual может развернуться не туда.
+$form.Location = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Location
+$form.WindowState = [System.Windows.Forms.FormWindowState]::Maximized
 $form.BackColor = [System.Drawing.Color]::FromArgb(12, 12, 16)
 $panel = [System.Windows.Forms.Panel]::new()
 $panel.Dock = "Fill"
@@ -417,6 +434,41 @@ $panel.Add_Paint({
         if ($line.TrimEnd().Length -gt 0) { $brush = $green }
         $e.Graphics.DrawString($line, $font, $brush, 8, 6 + $r * [int]($font.Height))
     }
+})
+
+# v1.3.2: автоскейл шрифта под размер панели - 80x25 занимает весь экран
+# (при максимизации Consolas 13pt оставлял бы чёрные поля). На Resize
+# перебираем пункты 48..6 и берём крупнейший, влезающий И по ширине
+# (80 колонок: MeasureString одного символа с GenericTypographic - без
+# паддинга), и по высоте (25 строк * font.Height). Paint читает $font из
+# скрипт-скоупа (динамический скоуп, урок 3), поэтому подмена
+# $script:font подхватывается без переподписки. Локалы НЕ конфликтуют с
+# параметрами по регистру (урок 13): $ft/$pt/$sf/$best/$fit/$old/$charW.
+$script:CurFontPt = [double]$FontSize
+$panel.Add_Resize({
+    try {
+        $g = $panel.CreateGraphics()
+        try {
+            $sf = [System.Drawing.StringFormat]::GenericTypographic
+            $availW = $panel.ClientSize.Width - 16
+            $availH = $panel.ClientSize.Height - 12
+            $best = 6.0
+            for ($pt = 48; $pt -ge 6; $pt -= 1) {
+                $ft = [System.Drawing.Font]::new("Consolas", [double]$pt)
+                $charW = $g.MeasureString("X", $ft, 0, $sf).Width
+                $fit = (($charW * $Cols) -le $availW) -and (($ft.Height * $Rows) -le $availH)
+                $ft.Dispose()
+                if ($fit) { $best = [double]$pt; break }
+            }
+            if ($best -ne $script:CurFontPt) {
+                $script:CurFontPt = $best
+                $old = $script:font
+                $script:font = [System.Drawing.Font]::new("Consolas", $best)
+                if ($null -ne $old) { $old.Dispose() }
+            }
+        } finally { $g.Dispose() }
+        $panel.Invalidate()
+    } catch { }
 })
 
 # ------------------------------------------------------- загрузка Intel HEX
