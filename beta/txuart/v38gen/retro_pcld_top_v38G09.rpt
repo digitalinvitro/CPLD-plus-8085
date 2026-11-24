@@ -1,0 +1,1526 @@
+ 
+cpldfit:  version P.20131013                        Xilinx Inc.
+                                  No Fit Report
+Design Name: retro_pcld_top                      Date: 11-24-2026,  9:57PM
+Device Used: XC95108-15-PQ100
+Fitting Status: Placement Failed
+
+**************************  Errors and Warnings  ***************************
+
+WARNING:Cpld - Unable to retrieve the path to the iSE Project Repository. Will
+   use the default filename of 'retro_pcld_top.ise'.
+INFO:Cpld - Inferring BUFG constraint for signal 'clk' based upon the LOC
+   constraint 'P29'. It is recommended that you declare this BUFG explicitedly
+   in your design. Note that for certain device families the output of a BUFG
+   constraint can not drive a gated clock, and the BUFG constraint will be
+   ignored.
+WARNING:Cpld:897 - Unable to map all desired signals into function block, FB1.
+   Buffering output signal A<4> to allow all signals assigned to this function
+   block to be placed.
+WARNING:Cpld:896 - Unable to map all desired signals into function block, FB3,
+   because too many function block product terms are required. Buffering output
+   signal D<5> to allow all signals assigned to this function block to be
+   placed.
+WARNING:Cpld:896 - Unable to map all desired signals into function block, FB3,
+   because too many function block product terms are required. Buffering output
+   signal D<4> to allow all signals assigned to this function block to be
+   placed.
+WARNING:Cpld:896 - Unable to map all desired signals into function block, FB3,
+   because too many function block product terms are required. Buffering output
+   signal D<3> to allow all signals assigned to this function block to be
+   placed.
+WARNING:Cpld:896 - Unable to map all desired signals into function block, FB3,
+   because too many function block product terms are required. Buffering output
+   signal D<2> to allow all signals assigned to this function block to be
+   placed.
+WARNING:Cpld:896 - Unable to map all desired signals into function block, FB3,
+   because too many function block product terms are required. Buffering output
+   signal D<1> to allow all signals assigned to this function block to be
+   placed.
+ERROR:Cpld:892 - Cannot place signal D<1>_BUFR. Consider reducing the collapsing
+   input limit or the product term limit to prevent the fitter from creating
+   high input and/or high product term functions.
+ERROR:Cpld:868 - Cannot fit the design into any of the specified devices with
+   the selected implementation options.
+*************************  Mapped Resource Summary  **************************
+
+Macrocells     Product Terms    Function Block   Registers      Pins           
+Used/Tot       Used/Tot         Inps Used/Tot    Used/Tot       Used/Tot       
+106/108 ( 98%) 332 /540  ( 61%) 211/216 ( 98%)   78 /108 ( 72%) 73 /81  ( 90%)
+
+** Function Block Resources **
+
+Function    Mcells      FB Inps     Signals     Pterms      IO          
+Block       Used/Tot    Used/Tot    Used        Used/Tot    Used/Tot    
+FB1          18/18*      36/36*      36          76/90      12/14
+FB2          18/18*      35/36       36          73/90       6/14
+FB3          18/18*      36/36*      51          41/90      12/14
+FB4          16/18       35/36       45          75/90       2/13
+FB5          18/18*      34/36       34          42/90       9/13
+FB6          18/18*      35/36       38          25/90       5/13
+             -----       -----                   -----       -----     
+            106/108     211/216                 332/540     46/81 
+
+* - Resource is exhausted
+
+** Global Control Resources **
+
+Global clock net(s) unused.
+Global output enable net(s) unused.
+Global set/reset net(s) unused.
+
+** Pin Resources **
+
+Signal Type    Required     Mapped  |  Pin Type            Used    Total 
+------------------------------------|------------------------------------
+Input         :   25          25    |  I/O              :    67      75
+Output        :   30          30    |  GCK/IO           :     3       3
+Bidirectional :   16          16    |  GTS/IO           :     2       2
+GCK           :    1           1    |  GSR/IO           :     1       1
+GTS           :    0           0    |
+GSR           :    1           1    |
+                 ----        ----
+        Total     73          73
+
+** Power Data **
+
+There are 112 macrocells in high performance mode (MCHP).
+There are 0 macrocells in low power mode (MCLP).
+End of Mapped Resource Summary
+*************************  Summary of Mapped Logic  ************************
+
+** 46 Outputs **
+
+Signal                          Total Total Loc     Pin  Pin     Pin     
+Name                            Pts   Inps          No.  Type    Use     
+A<4>                            2     2     FB1_2   15   I/O     I/O     
+OEr_n                           2     5     FB1_3   16   I/O     O       
+A<1>                            8     10    FB1_4   21   I/O     I/O     
+A<3>                            8     10    FB1_5   17   I/O     I/O     
+A<2>                            8     10    FB1_8   19   I/O     I/O     
+CSr_n                           1     2     FB1_9   20   I/O     O       
+A<0>                            8     9     FB1_10  26   I/O     I/O     
+D<7>                            7     13    FB1_11  22   I/O     I/O     
+WE_n                            1     2     FB1_12  24   GCK/I/O O       
+CS_n                            3     5     FB1_14  25   GCK/I/O O       
+D<6>                            7     13    FB1_15  27   I/O     I/O     
+D<0>                            7     13    FB1_17  30   I/O     I/O     
+CS1                             0     0     FB2_3   99   I/O     O       
+seg<6>                          2     8     FB2_8   5    GTS/I/O O       
+dig<0>                          2     8     FB2_9   6    GTS/I/O O       
+A<7>                            8     13    FB2_10  9    I/O     I/O     
+A<6>                            8     10    FB2_14  11   I/O     I/O     
+A<5>                            8     10    FB2_16  13   I/O     I/O     
+D<5>                            2     2     FB3_2   31   I/O     I/O     
+D<1>                            2     2     FB3_3   32   I/O     I/O     
+D<3>                            2     2     FB3_4   36   I/O     I/O     
+D<4>                            2     2     FB3_5   34   I/O     I/O     
+D<2>                            2     2     FB3_6   35   I/O     I/O     
+OE_n                            1     6     FB3_8   37   I/O     O       
+seg<0>                          2     9     FB3_10  45   I/O     O       
+TX                              3     20    FB3_11  39   I/O     O       
+col3                            2     9     FB3_12  41   I/O     O       
+col2                            2     9     FB3_14  42   I/O     O       
+col1                            2     9     FB3_15  43   I/O     O       
+col0                            2     9     FB3_16  44   I/O     O       
+RESET_IN                        2     4     FB4_3   84   I/O     O       
+READY                           0     0     FB4_5   87   I/O     O       
+dig<3>                          2     8     FB5_4   48   I/O     O       
+seg<3>                          2     8     FB5_8   57   I/O     O       
+seg<4>                          2     8     FB5_9   58   I/O     O       
+seg<7>                          0     0     FB5_11  60   I/O     O       
+seg<1>                          2     8     FB5_12  62   I/O     O       
+dig<1>                          2     8     FB5_14  63   I/O     O       
+dig<2>                          2     8     FB5_15  65   I/O     O       
+seg<2>                          2     8     FB5_16  61   I/O     O       
+
+Signal                          Total Total Loc     Pin  Pin     Pin     
+Name                            Pts   Inps          No.  Type    Use     
+seg<5>                          2     8     FB5_17  66   I/O     O       
+SND                             2     8     FB6_2   67   I/O     O       
+X1                              1     1     FB6_3   68   I/O     O       
+RST75                           1     16    FB6_4   75   I/O     O       
+X2                              1     1     FB6_5   69   I/O     O       
+SID                             1     1     FB6_9   73   I/O     O       
+
+** 60 Buried Nodes **
+
+Signal                          Total Total Loc     
+Name                            Pts   Inps          
+t0_q                            0     0     FB1_1   
+addr_latch<3>                   2     6     FB1_6   
+addr_latch<0>                   2     6     FB1_7   
+A_7_IOBUFE/A_7_IOBUFE_TRST      2     5     FB1_13  
+state_FSM_FFd3                  4     8     FB1_16  
+state_FSM_FFd1                  4     7     FB1_18  
+tmr_cnt<1>                      1     7     FB2_1   
+u_txuart/shreg<8>               11    18    FB2_2   
+u_txuart/bit_cnt<1>             2     10    FB2_4   
+addr_latch<7>                   2     6     FB2_5   
+addr_latch<6>                   2     6     FB2_6   
+$OpTx$FX_DC$233                 2     16    FB2_7   
+state_FSM_FFd2                  3     5     FB2_11  
+$OpTx$FX_DC$225                 4     7     FB2_12  
+u_txuart/bit_cnt<0>             5     16    FB2_13  
+u_txuart/baud_cnt<2>            5     16    FB2_15  
+BUF_u_txuart/baud_cnt<3>__$INT  6     16    FB2_17  
+u_txuart/bit_cnt<3>             2     10    FB2_18  
+u_txuart/baud_cnt<0>            2     18    FB3_1   
+u_rxuart/rx_busy                2     9     FB3_7   
+rx_data<2>                      3     10    FB3_9   
+rx_data<1>                      3     10    FB3_13  
+rx_data<0>                      3     10    FB3_17  
+u_txuart/baud_cnt<1>            4     18    FB3_18  
+u_txuart/shreg<1>               8     21    FB4_1   
+u_txuart/shreg<2>               8     21    FB4_2   
+u_txuart/shreg<3>               8     21    FB4_4   
+u_txuart/shreg<4>               8     21    FB4_7   
+u_txuart/shreg<5>               8     21    FB4_8   
+u_txuart/shreg<6>               8     21    FB4_9   
+u_txuart/shreg<7>               8     21    FB4_11  
+A<4>_BUFR                       7     9     FB4_12  
+addr_latch<4>                   2     6     FB4_13  
+addr_latch<5>                   2     6     FB4_14  
+u_reset_cpu/tt<0>               2     2     FB4_15  
+u_reset_cpu/tt<1>               2     3     FB4_16  
+tmr_cnt<0>                      1     6     FB4_17  
+u_txuart/baud_cnt<3>            1     1     FB4_18  
+addr_latch<2>                   2     6     FB5_1   
+addr_latch<1>                   2     6     FB5_2   
+
+Signal                          Total Total Loc     
+Name                            Pts   Inps          
+u_rxuart/os_cnt<3>              3     7     FB5_3   
+u_rxuart/os_cnt<2>              3     7     FB5_5   
+rx_data<7>                      3     8     FB5_6   
+rx_data<6>                      3     9     FB5_7   
+rx_data<3>                      3     9     FB5_10  
+bus_reg<7>/bus_reg<7>_TRST      3     5     FB5_13  
+u_rxuart/os_cnt<0>              4     7     FB5_18  
+u_txuart/bit_cnt<2>             1     8     FB6_1   
+tmr_cnt<9>                      1     15    FB6_6   
+tmr_cnt<8>                      1     14    FB6_7   
+tmr_cnt<7>                      1     13    FB6_8   
+tmr_cnt<6>                      1     12    FB6_10  
+tmr_cnt<5>                      1     11    FB6_11  
+tmr_cnt<4>                      1     10    FB6_12  
+tmr_cnt<3>                      1     9     FB6_13  
+tmr_cnt<2>                      1     8     FB6_14  
+u_txuart/baud_cnt<4>            2     4     FB6_15  
+u_rxuart/os_cnt<1>              2     5     FB6_16  
+rx_data<5>                      3     9     FB6_17  
+rx_data<4>                      3     9     FB6_18  
+
+** 27 Inputs **
+
+Signal                          Loc     Pin  Pin     Pin     
+Name                                    No.  Type    Use     
+AH10                            FB1_6   18   I/O     I
+clk                             FB1_16  29   GCK/I/O GCK
+AH12                            FB2_4   4    I/O     I
+RST                             FB2_5   1    GSR/I/O GSR/I
+AH14                            FB2_6   3    I/O     I
+AH13                            FB2_11  8    I/O     I
+AH8                             FB2_12  10   I/O     I
+AH9                             FB2_15  12   I/O     I
+AH11                            FB2_17  14   I/O     I
+RX                              FB3_9   38   I/O     I
+row4                            FB3_17  51   I/O     I
+CLKOUT                          FB4_2   83   I/O     I
+HLDA                            FB4_4   82   I/O     I
+IOM                             FB4_6   88   I/O     I
+S1                              FB4_8   89   I/O     I
+RDn                             FB4_9   91   I/O     I
+WRn                             FB4_11  92   I/O     I
+ALE                             FB4_12  93   I/O     I
+S0                              FB4_16  94   I/O     I
+A15                             FB4_17  97   I/O     I
+row3                            FB5_2   52   I/O     I
+row2                            FB5_3   54   I/O     I
+row1                            FB5_5   55   I/O     I
+row0                            FB5_6   56   I/O     I
+RSTOUT                          FB6_6   70   I/O     I
+SOD                             FB6_8   72   I/O     I
+INTAn                           FB6_17  80   I/O     I
+
+Legend:
+Pin No. - ~ - User Assigned
+*************************  Summary of UnMapped Logic  ************************
+
+** 6 Buried Nodes **
+
+Signal                          Total Total User
+Name                            Pts   Inps  Assignment
+D<1>_BUFR                       6     12    
+D<2>_BUFR                       6     12    
+D<3>_BUFR                       6     12    
+D<4>_BUFR                       6     12    
+D<5>_BUFR                       6     12    
+rx_ready                        7     14    
+
+**************************  Function Block Details  ************************
+Legend:
+Total Pt     - Total product terms used by the macrocell signal
+Imp Pt       - Product terms imported from other macrocells
+Exp Pt       - Product terms exported to other macrocells
+               in direction shown
+Unused Pt    - Unused local product terms remaining in macrocell
+Loc          - Location where logic was mapped in device
+Pin Type/Use - I  - Input             GCK - Global Clock
+               O  - Output            GTS - Global Output Enable
+              (b) - Buried macrocell  GSR - Global Set/Reset
+X(@)         - Signal used as input (wire-AND input) to the macrocell logic.
+               The number of Signals Used may exceed the number of FB Inputs
+               Used due to wire-ANDing in the switch matrix.
+Pin No.      - ~  - User Assigned
+*********************************** FB1  ***********************************
+Number of function block inputs used/remaining:               36/0
+Number of signals used by logic mapping into function block:  36
+Signal              Total   Imp   Exp Unused  Loc     Pin   Pin     Pin
+Name                Pt      Pt    Pt  Pt               #    Type    Use
+t0_q                  0       0     0   5     FB1_1         (b)     (b)
+A<4>                  2       0     0   3     FB1_2   15    I/O     I/O
+OEr_n                 2       0   \/3   0     FB1_3   16    I/O     O
+A<1>                  8       3<-   0   0     FB1_4   21    I/O     I/O
+A<3>                  8       3<-   0   0     FB1_5   17    I/O     I/O
+addr_latch<3>         2       0   /\3   0     FB1_6   18    I/O     I
+addr_latch<0>         2       0   \/2   1     FB1_7         (b)     (b)
+A<2>                  8       3<-   0   0     FB1_8   19    I/O     I/O
+CSr_n                 1       0   /\1   3     FB1_9   20    I/O     O
+A<0>                  8       3<-   0   0     FB1_10  26    I/O     I/O
+D<7>                  7       5<- /\3   0     FB1_11  22    I/O     I/O
+WE_n                  1       1<- /\5   0     FB1_12  24    GCK/I/O O
+A_7_IOBUFE/A_7_IOBUFE_TRST
+                      2       0   /\1   2     FB1_13        (b)     (b)
+CS_n                  3       0   \/2   0     FB1_14  25    GCK/I/O O
+D<6>                  7       2<-   0   0     FB1_15  27    I/O     I/O
+state_FSM_FFd3        4       0   \/1   0     FB1_16  29    GCK/I/O GCK
+D<0>                  7       2<-   0   0     FB1_17  30    I/O     I/O
+state_FSM_FFd1        4       0   /\1   0     FB1_18        (b)     (b)
+
+Signals Used by Logic in Function Block
+  1: $OpTx$FX_DC$225             13: A<7>.PIN          25: addr_latch<3> 
+  2: A15                         14: A<6>.PIN          26: bus_reg<7>/bus_reg<7>_TRST 
+  3: A<4>_BUFR                   15: D<0>.PIN          27: row0 
+  4: ALE                         16: A<3>.PIN          28: row1 
+  5: A_7_IOBUFE/A_7_IOBUFE_TRST  17: A<0>.PIN          29: row2 
+  6: D<0>                        18: D<7>.PIN          30: row3 
+  7: D<1>                        19: D<6>.PIN          31: rx_data<0> 
+  8: D<2>                        20: RDn               32: rx_data<6> 
+  9: D<3>                        21: WRn               33: rx_data<7> 
+ 10: D<6>                        22: addr_latch<0>     34: state_FSM_FFd1 
+ 11: D<7>                        23: addr_latch<1>     35: state_FSM_FFd2 
+ 12: IOM                         24: addr_latch<2>     36: state_FSM_FFd3 
+
+Signal                        1         2         3         4 Signals FB
+Name                0----+----0----+----0----+----0----+----0 Used    Inputs
+t0_q                 ........................................ 0       0
+A<4>                 ..X.X................................... 2       2
+OEr_n                .X.........X.....................XXX.... 5       5
+A<1>                 ...XX.X....X.......X.XX....X.....XX..... 10      10
+A<3>                 ...XX...X..X.......X.X..X....X...XX..... 10      10
+addr_latch<3>        ...X...........X........X........XXX.... 6       6
+addr_latch<0>        ...X............X....X...........XXX.... 6       6
+A<2>                 ...XX..X...X.......X.X.X....X....XX..... 10      10
+CSr_n                .X.........X............................ 2       2
+A<0>                 ...XXX.....X.......X.X....X......XX..... 9       9
+D<7>                 X.........XXX....X.XXX...X......XXXX.... 13      13
+WE_n                 .................................XX..... 2       2
+A_7_IOBUFE/A_7_IOBUFE_TRST 
+                     ...X...............X.....X.......XX..... 5       5
+CS_n                 .X.........X.....................XXX.... 5       5
+D<6>                 X........X.X.X....XXXX...X.....X.XXX.... 13      13
+state_FSM_FFd3       .X.X.......X.......XX............XXX.... 8       8
+D<0>                 X....X.....X..X.X..XXX...X....X..XXX.... 13      13
+state_FSM_FFd1       .X.........X.......XX............XXX.... 7       7
+                    0----+----1----+----2----+----3----+----4
+                              0         0         0         0
+*********************************** FB2  ***********************************
+Number of function block inputs used/remaining:               35/1
+Number of signals used by logic mapping into function block:  36
+Signal              Total   Imp   Exp Unused  Loc     Pin   Pin     Pin
+Name                Pt      Pt    Pt  Pt               #    Type    Use
+tmr_cnt<1>            1       0   \/4   0     FB2_1         (b)     (b)
+u_txuart/shreg<8>    11       6<-   0   0     FB2_2   98    I/O     (b)
+CS1                   0       0   /\2   3     FB2_3   99    I/O     O
+u_txuart/bit_cnt<1>   2       0     0   3     FB2_4   4     I/O     I
+addr_latch<7>         2       0     0   3     FB2_5   1     GSR/I/O GSR/I
+addr_latch<6>         2       0     0   3     FB2_6   3     I/O     I
+$OpTx$FX_DC$233       2       0     0   3     FB2_7         (b)     (b)
+seg<6>                2       0   \/1   2     FB2_8   5     GTS/I/O O
+dig<0>                2       1<- \/4   0     FB2_9   6     GTS/I/O O
+A<7>                  8       4<- \/1   0     FB2_10  9     I/O     I/O
+state_FSM_FFd2        3       1<- \/3   0     FB2_11  8     I/O     I
+$OpTx$FX_DC$225       4       3<- \/4   0     FB2_12  10    I/O     I
+u_txuart/bit_cnt<0>   5       4<- \/4   0     FB2_13        (b)     (b)
+A<6>                  8       4<- \/1   0     FB2_14  11    I/O     I/O
+u_txuart/baud_cnt<2>
+                      5       1<- \/1   0     FB2_15  12    I/O     I
+A<5>                  8       3<-   0   0     FB2_16  13    I/O     I/O
+BUF_u_txuart/baud_cnt<3>__$INT
+                      6       3<- /\2   0     FB2_17  14    I/O     I
+u_txuart/bit_cnt<3>   2       0   /\3   0     FB2_18        (b)     (b)
+
+Signals Used by Logic in Function Block
+  1: ALE                         13: addr_latch<1>     25: tmr_cnt<9> 
+  2: A_7_IOBUFE/A_7_IOBUFE_TRST  14: addr_latch<2>     26: tx_baud_tick 
+  3: D<5>                        15: addr_latch<5>     27: u_txuart/baud_cnt<0> 
+  4: D<6>                        16: addr_latch<6>     28: u_txuart/baud_cnt<1> 
+  5: D<7>                        17: addr_latch<7>     29: u_txuart/baud_cnt<2> 
+  6: IOM                         18: dig<0>            30: u_txuart/baud_cnt<3> 
+  7: A<7>.PIN                    19: rx_ready          31: u_txuart/baud_cnt<4> 
+  8: A<6>.PIN                    20: seg<6>            32: u_txuart/bit_cnt<0> 
+  9: A<0>.PIN                    21: state_FSM_FFd1    33: u_txuart/bit_cnt<1> 
+ 10: RDn                         22: state_FSM_FFd2    34: u_txuart/bit_cnt<2> 
+ 11: WRn                         23: state_FSM_FFd3    35: u_txuart/bit_cnt<3> 
+ 12: addr_latch<0>               24: tmr_cnt<0>        36: u_txuart/shreg<8> 
+
+Signal                        1         2         3         4 Signals FB
+Name                0----+----0----+----0----+----0----+----0 Used    Inputs
+tmr_cnt<1>           .......................X.X@@@@@......... 7       2
+u_txuart/shreg<8>    .....XX...X..X......XXX..X@@@@@XXXXX.... 18      13
+CS1                  ........................................ 0       0
+u_txuart/bit_cnt<1>  .........................X@@@@@XXXX..... 10      5
+addr_latch<7>        X.....X.........X...XXX................. 6       6
+addr_latch<6>        X......X.......X....XXX................. 6       6
+$OpTx$FX_DC$233      .....X....X..X......XXX..X@@@@@XXXX..... 16      11
+seg<6>               .....X.X..XX.......XXXX................. 8       8
+dig<0>               .....X..X.X.X....X..XXX................. 8       8
+A<7>                 XX..XX...X.X....X...XX.........XXXX..... 13      13
+state_FSM_FFd2       X........X..........XXX................. 5       5
+$OpTx$FX_DC$225      .....X...XXX........XXX................. 7       7
+u_txuart/bit_cnt<0>  .....X....X..X......XXX..X@@@@@XXXX..... 16      11
+A<6>                 XX.X.X...X.X...X..X.XX.................. 10      10
+u_txuart/baud_cnt<2> 
+                     .....X....X..X......XXX..X@@@@@XXXX..... 16      11
+A<5>                 XXX..X...X.X..X.....XX..X............... 10      10
+BUF_u_txuart/baud_cnt<3>__$INT 
+                     .....X....X..X......XXX..X@@@@@XXXX..... 16      11
+u_txuart/bit_cnt<3>  .........................X@@@@@XXXX..... 10      5
+                    0----+----1----+----2----+----3----+----4
+                              0         0         0         0
+*********************************** FB3  ***********************************
+Number of function block inputs used/remaining:               36/0
+Number of signals used by logic mapping into function block:  51
+Signal              Total   Imp   Exp Unused  Loc     Pin   Pin     Pin
+Name                Pt      Pt    Pt  Pt               #    Type    Use
+u_txuart/baud_cnt<0>
+                      2       0     0   3     FB3_1         (b)     (b)
+D<5>                  2       0     0   3     FB3_2   31    I/O     I/O
+D<1>                  2       0     0   3     FB3_3   32    I/O     I/O
+D<3>                  2       0     0   3     FB3_4   36    I/O     I/O
+D<4>                  2       0     0   3     FB3_5   34    I/O     I/O
+D<2>                  2       0     0   3     FB3_6   35    I/O     I/O
+u_rxuart/rx_busy      2       0     0   3     FB3_7         (b)     (b)
+OE_n                  1       0     0   4     FB3_8   37    I/O     O
+rx_data<2>            3       0     0   2     FB3_9   38    I/O     I
+seg<0>                2       0     0   3     FB3_10  45    I/O     O
+TX                    3       0     0   2     FB3_11  39    I/O     O
+col3                  2       0     0   3     FB3_12  41    I/O     O
+rx_data<1>            3       0     0   2     FB3_13        (b)     (b)
+col2                  2       0     0   3     FB3_14  42    I/O     O
+col1                  2       0     0   3     FB3_15  43    I/O     O
+col0                  2       0     0   3     FB3_16  44    I/O     O
+rx_data<0>            3       0     0   2     FB3_17  51    I/O     I
+u_txuart/baud_cnt<1>
+                      4       0     0   1     FB3_18        (b)     (b)
+
+Signals Used by Logic in Function Block
+  1: A15               18: WRn                         35: t0_q 
+  2: D<1>_BUFR         19: addr_latch<0>               36: tx_baud_tick 
+  3: D<2>_BUFR         20: addr_latch<2>               37: u_rxuart/os_cnt<0> 
+  4: D<3>_BUFR         21: addr_latch<3>               38: u_rxuart/os_cnt<1> 
+  5: D<4>_BUFR         22: bus_reg<7>/bus_reg<7>_TRST  39: u_rxuart/os_cnt<2> 
+  6: D<5>_BUFR         23: col0                        40: u_rxuart/os_cnt<3> 
+  7: FC_0_.OUT         24: col1                        41: u_rxuart/rx_busy 
+  8: FC_1_.OUT         25: col2                        42: u_txuart/baud_cnt<0> 
+  9: FC_2_.OUT         26: col3                        43: u_txuart/baud_cnt<1> 
+ 10: IOM               27: rx_data<0>                  44: u_txuart/baud_cnt<2> 
+ 11: A<7>.PIN          28: rx_data<1>                  45: u_txuart/baud_cnt<3> 
+ 12: A<6>.PIN          29: rx_data<2>                  46: u_txuart/baud_cnt<4> 
+ 13: A<5>.PIN          30: rx_data<3>                  47: u_txuart/bit_cnt<0> 
+ 14: A<4>.PIN          31: seg<0>                      48: u_txuart/bit_cnt<1> 
+ 15: A<0>.PIN          32: state_FSM_FFd1              49: u_txuart/bit_cnt<2> 
+ 16: RX                33: state_FSM_FFd2              50: u_txuart/bit_cnt<3> 
+ 17: TX                34: state_FSM_FFd3              51: u_txuart/shreg<1> 
+
+Signal                        1         2         3         4         5         6 Signals FB
+Name                0----+----0----+----0----+----0----+----0----+----0----+----0 Used    Inputs
+u_txuart/baud_cnt<0> 
+                     ......XX.X.......X.@...........X@@.X.....@@@@@@@@@.......... 18      6
+D<5>                 .....X...............X...................................... 2       2
+D<1>                 .X...................X...................................... 2       2
+D<3>                 ...X.................X...................................... 2       2
+D<4>                 ....X................X...................................... 2       2
+D<2>                 ..X..................X...................................... 2       2
+u_rxuart/rx_busy     ........X......X..........X.......@.@@@@X................... 9       4
+OE_n                 X.....X..X.....................X@@.......................... 6       4
+rx_data<2>           ........X......X............XX....@.@@@@X................... 10      5
+seg<0>               ......X..X....X..XX...........XX@@.......................... 9       7
+TX                   ......XX.X......XX.@...........X@@.X.....@@@@@@@@@X......... 20      8
+col3                 ......X..XX......X..X....X.....X@@.......................... 9       7
+rx_data<1>           ........X......X...........XX.....@.@@@@X................... 10      5
+col2                 ......X..X.X.....X..X...X......X@@.......................... 9       7
+col1                 ......X..X..X....X..X..X.......X@@.......................... 9       7
+col0                 ......X..X...X...X..X.X........X@@.......................... 9       7
+rx_data<0>           ........X......X..........XX......@.@@@@X................... 10      5
+u_txuart/baud_cnt<1> 
+                     ......XX.X.......X.@...........X@@.X.....@@@@@@@@@.......... 18      6
+                    0----+----1----+----2----+----3----+----4----+----5----+----6
+                              0         0         0         0         0         0
+*********************************** FB4  ***********************************
+Number of function block inputs used/remaining:               35/1
+Number of signals used by logic mapping into function block:  45
+Signal              Total   Imp   Exp Unused  Loc     Pin   Pin     Pin
+Name                Pt      Pt    Pt  Pt               #    Type    Use
+u_txuart/shreg<1>     8       3<-   0   0     FB4_1         (b)     (b)
+u_txuart/shreg<2>     8       3<-   0   0     FB4_2   83    I/O     I
+RESET_IN              2       0   /\3   0     FB4_3   84    I/O     O
+u_txuart/shreg<3>     8       3<-   0   0     FB4_4   82    I/O     I
+READY                 0       0   /\3   2     FB4_5   87    I/O     O
+(unused)              0       0   \/4   1     FB4_6   88    I/O     I
+u_txuart/shreg<4>     8       4<- \/1   0     FB4_7         (b)     (b)
+u_txuart/shreg<5>     8       3<-   0   0     FB4_8   89    I/O     I
+u_txuart/shreg<6>     8       5<- /\2   0     FB4_9   91    I/O     I
+(unused)              0       0   /\5   0     FB4_10        (b)     (b)
+u_txuart/shreg<7>     8       3<-   0   0     FB4_11  92    I/O     I
+A<4>_BUFR             7       5<- /\3   0     FB4_12  93    I/O     I
+addr_latch<4>         2       2<- /\5   0     FB4_13        (b)     (b)
+addr_latch<5>         2       0   /\2   1     FB4_14  95    I/O     (b)
+u_reset_cpu/tt<0>     2       0     0   3     FB4_15  96    I/O     (b)
+u_reset_cpu/tt<1>     2       0     0   3     FB4_16  94    I/O     I
+tmr_cnt<0>            1       0     0   4     FB4_17  97    I/O     I
+u_txuart/baud_cnt<3>
+                      1       0   \/3   1     FB4_18        (b)     (b)
+
+Signals Used by Logic in Function Block
+  1: $OpTx$FX_DC$233                 16: RESET_IN              31: u_txuart/baud_cnt<2> 
+  2: ALE                             17: WRn                   32: u_txuart/baud_cnt<3> 
+  3: BUF_u_txuart/baud_cnt<3>__$INT  18: addr_latch<0>         33: u_txuart/baud_cnt<4> 
+  4: CLKOUT                          19: addr_latch<2>         34: u_txuart/bit_cnt<0> 
+  5: D<4>                            20: addr_latch<4>         35: u_txuart/bit_cnt<1> 
+  6: FC_1_.OUT                       21: addr_latch<5>         36: u_txuart/bit_cnt<2> 
+  7: IOM                             22: row4                  37: u_txuart/bit_cnt<3> 
+  8: A<6>.PIN                        23: state_FSM_FFd1        38: u_txuart/shreg<1> 
+  9: A<5>.PIN                        24: state_FSM_FFd2        39: u_txuart/shreg<2> 
+ 10: A<4>.PIN                        25: state_FSM_FFd3        40: u_txuart/shreg<3> 
+ 11: A<3>.PIN                        26: tx_baud_tick          41: u_txuart/shreg<4> 
+ 12: A<2>.PIN                        27: u_reset_cpu/tt<0>     42: u_txuart/shreg<5> 
+ 13: A<1>.PIN                        28: u_reset_cpu/tt<1>     43: u_txuart/shreg<6> 
+ 14: A<0>.PIN                        29: u_txuart/baud_cnt<0>  44: u_txuart/shreg<7> 
+ 15: RDn                             30: u_txuart/baud_cnt<1>  45: u_txuart/shreg<8> 
+
+Signal                        1         2         3         4         5 Signals FB
+Name                0----+----0----+----0----+----0----+----0----+----0 Used    Inputs
+u_txuart/shreg<1>    X....XX......X..X.X...XXXX..@@@@@XXXXXX........... 21      16
+u_txuart/shreg<2>    X....XX.....X...X.X...XXXX..@@@@@XXXX.XX.......... 21      16
+RESET_IN             ...X...........X..........XX...................... 4       4
+u_txuart/shreg<3>    X....XX....X....X.X...XXXX..@@@@@XXXX..XX......... 21      16
+READY                .................................................. 0       0
+u_txuart/shreg<4>    X....XX...X.....X.X...XXXX..@@@@@XXXX...XX........ 21      16
+u_txuart/shreg<5>    X....XX..X......X.X...XXXX..@@@@@XXXX....XX....... 21      16
+u_txuart/shreg<6>    X....XX.X.......X.@...XXXX..@@@@@@@@@.....XX...... 21      11
+u_txuart/shreg<7>    X....XXX........X.X...XXXX..@@@@@XXXX......XX..... 21      16
+A<4>_BUFR            .X..X.X.......X..X.X.XXX.......................... 9       9
+addr_latch<4>        .X.......X.........X..XXX......................... 6       6
+addr_latch<5>        .X......X...........X.XXX......................... 6       6
+u_reset_cpu/tt<0>    ...X...........X.................................. 2       2
+u_reset_cpu/tt<1>    ...X...........X..........X....................... 3       3
+tmr_cnt<0>           .........................X..@@@@@................. 6       1
+u_txuart/baud_cnt<3> 
+                     ..X............................................... 1       1
+                    0----+----1----+----2----+----3----+----4----+----5
+                              0         0         0         0         0
+*********************************** FB5  ***********************************
+Number of function block inputs used/remaining:               34/2
+Number of signals used by logic mapping into function block:  34
+Signal              Total   Imp   Exp Unused  Loc     Pin   Pin     Pin
+Name                Pt      Pt    Pt  Pt               #    Type    Use
+addr_latch<2>         2       0     0   3     FB5_1         (b)     (b)
+addr_latch<1>         2       0     0   3     FB5_2   52    I/O     I
+u_rxuart/os_cnt<3>    3       0     0   2     FB5_3   54    I/O     I
+dig<3>                2       0     0   3     FB5_4   48    I/O     O
+u_rxuart/os_cnt<2>    3       0     0   2     FB5_5   55    I/O     I
+rx_data<7>            3       0     0   2     FB5_6   56    I/O     I
+rx_data<6>            3       0     0   2     FB5_7         (b)     (b)
+seg<3>                2       0     0   3     FB5_8   57    I/O     O
+seg<4>                2       0     0   3     FB5_9   58    I/O     O
+rx_data<3>            3       0     0   2     FB5_10        (b)     (b)
+seg<7>                0       0     0   5     FB5_11  60    I/O     O
+seg<1>                2       0     0   3     FB5_12  62    I/O     O
+bus_reg<7>/bus_reg<7>_TRST
+                      3       0     0   2     FB5_13        (b)     (b)
+dig<1>                2       0     0   3     FB5_14  63    I/O     O
+dig<2>                2       0     0   3     FB5_15  65    I/O     O
+seg<2>                2       0     0   3     FB5_16  61    I/O     O
+seg<5>                2       0     0   3     FB5_17  66    I/O     O
+u_rxuart/os_cnt<0>    4       0     0   1     FB5_18        (b)     (b)
+
+Signals Used by Logic in Function Block
+  1: ALE               13: addr_latch<2>     24: seg<4> 
+  2: IOM               14: dig<1>            25: seg<5> 
+  3: A<5>.PIN          15: dig<2>            26: state_FSM_FFd1 
+  4: A<4>.PIN          16: dig<3>            27: state_FSM_FFd2 
+  5: A<3>.PIN          17: rx_data<3>        28: state_FSM_FFd3 
+  6: A<2>.PIN          18: rx_data<4>        29: t0_q 
+  7: A<1>.PIN          19: rx_data<6>        30: u_rxuart/os_cnt<0> 
+  8: RST               20: rx_data<7>        31: u_rxuart/os_cnt<1> 
+  9: RX                21: seg<1>            32: u_rxuart/os_cnt<2> 
+ 10: WRn               22: seg<2>            33: u_rxuart/os_cnt<3> 
+ 11: addr_latch<0>     23: seg<3>            34: u_rxuart/rx_busy 
+ 12: addr_latch<1>    
+
+Signal                        1         2         3         4 Signals FB
+Name                0----+----0----+----0----+----0----+----0 Used    Inputs
+addr_latch<2>        X....X......X............XXX............ 6       6
+addr_latch<1>        X.....X....X.............XXX............ 6       6
+u_rxuart/os_cnt<3>   ........X...................XXXXXX...... 7       7
+dig<3>               .X..X....X.X...X.........XXX............ 8       8
+u_rxuart/os_cnt<2>   ........X...................XXXXXX...... 7       7
+rx_data<7>           ........X..........X........XXXXXX...... 8       8
+rx_data<6>           ........X.........XX........XXXXXX...... 9       9
+seg<3>               .X..X....XX...........X..XXX............ 8       8
+seg<4>               .X.X.....XX............X.XXX............ 8       8
+rx_data<3>           ........X.......XX..........XXXXXX...... 9       9
+seg<7>               ........................................ 0       0
+seg<1>               .X....X..XX.........X....XXX............ 8       8
+bus_reg<7>/bus_reg<7>_TRST 
+                     X......X.................XXX............ 5       5
+dig<1>               .X....X..X.X.X...........XXX............ 8       8
+dig<2>               .X...X...X.X..X..........XXX............ 8       8
+seg<2>               .X...X...XX..........X...XXX............ 8       8
+seg<5>               .XX......XX.............XXXX............ 8       8
+u_rxuart/os_cnt<0>   ........X...................XXXXXX...... 7       7
+                    0----+----1----+----2----+----3----+----4
+                              0         0         0         0
+*********************************** FB6  ***********************************
+Number of function block inputs used/remaining:               35/1
+Number of signals used by logic mapping into function block:  38
+Signal              Total   Imp   Exp Unused  Loc     Pin   Pin     Pin
+Name                Pt      Pt    Pt  Pt               #    Type    Use
+u_txuart/bit_cnt<2>   1       0     0   4     FB6_1         (b)     (b)
+SND                   2       0     0   3     FB6_2   67    I/O     O
+X1                    1       0     0   4     FB6_3   68    I/O     O
+RST75                 1       0     0   4     FB6_4   75    I/O     O
+X2                    1       0     0   4     FB6_5   69    I/O     O
+tmr_cnt<9>            1       0     0   4     FB6_6   70    I/O     I
+tmr_cnt<8>            1       0     0   4     FB6_7         (b)     (b)
+tmr_cnt<7>            1       0     0   4     FB6_8   72    I/O     I
+SID                   1       0     0   4     FB6_9   73    I/O     O
+tmr_cnt<6>            1       0     0   4     FB6_10        (b)     (b)
+tmr_cnt<5>            1       0     0   4     FB6_11  74    I/O     (b)
+tmr_cnt<4>            1       0     0   4     FB6_12  76    I/O     (b)
+tmr_cnt<3>            1       0     0   4     FB6_13        (b)     (b)
+tmr_cnt<2>            1       0     0   4     FB6_14  78    I/O     (b)
+u_txuart/baud_cnt<4>
+                      2       0     0   3     FB6_15  79    I/O     (b)
+u_rxuart/os_cnt<1>    2       0     0   3     FB6_16  81    I/O     (b)
+rx_data<5>            3       0     0   2     FB6_17  80    I/O     I
+rx_data<4>            3       0     0   2     FB6_18        (b)     (b)
+
+Signals Used by Logic in Function Block
+  1: $OpTx$FX_DC$233                 14: state_FSM_FFd3    27: u_rxuart/os_cnt<0> 
+  2: BUF_u_txuart/baud_cnt<3>__$INT  15: t0_q              28: u_rxuart/os_cnt<1> 
+  3: IOM                             16: tmr_cnt<0>        29: u_rxuart/os_cnt<2> 
+  4: A<4>.PIN                        17: tmr_cnt<1>        30: u_rxuart/os_cnt<3> 
+  5: RX                              18: tmr_cnt<2>        31: u_rxuart/rx_busy 
+  6: SND                             19: tmr_cnt<3>        32: u_txuart/baud_cnt<0> 
+  7: WRn                             20: tmr_cnt<4>        33: u_txuart/baud_cnt<1> 
+  8: addr_latch<1>                   21: tmr_cnt<5>        34: u_txuart/baud_cnt<2> 
+  9: rx_data<4>                      22: tmr_cnt<6>        35: u_txuart/baud_cnt<3> 
+ 10: rx_data<5>                      23: tmr_cnt<7>        36: u_txuart/baud_cnt<4> 
+ 11: rx_data<6>                      24: tmr_cnt<8>        37: u_txuart/bit_cnt<0> 
+ 12: state_FSM_FFd1                  25: tmr_cnt<9>        38: u_txuart/bit_cnt<1> 
+ 13: state_FSM_FFd2                  26: tx_baud_tick     
+
+Signal                        1         2         3         4 Signals FB
+Name                0----+----0----+----0----+----0----+----0 Used    Inputs
+u_txuart/bit_cnt<2>  .........................X.....@@@@@XX.. 8       3
+SND                  ..XX.XXX...XXX.......................... 8       8
+X1                   ..............X......................... 1       1
+RST75                ...............XXXXXXXXXXX.....@@@@@.... 16      11
+X2                   ..............X......................... 1       1
+tmr_cnt<9>           ...............XXXXXXXXX.X.....@@@@@.... 15      10
+tmr_cnt<8>           ...............XXXXXXXX..X.....@@@@@.... 14      9
+tmr_cnt<7>           ...............XXXXXXX...X.....@@@@@.... 13      8
+SID                  ....X................................... 1       1
+tmr_cnt<6>           ...............XXXXXX....X.....@@@@@.... 12      7
+tmr_cnt<5>           ...............XXXXX.....X.....@@@@@.... 11      6
+tmr_cnt<4>           ...............XXXX......X.....@@@@@.... 10      5
+tmr_cnt<3>           ...............XXX.......X.....@@@@@.... 9       4
+tmr_cnt<2>           ...............XX........X.....@@@@@.... 8       3
+u_txuart/baud_cnt<4> 
+                     XX................................XX.... 4       4
+u_rxuart/os_cnt<1>   ....X.........X...........XX..X......... 5       5
+rx_data<5>           ....X....XX...X...........XXXXX......... 9       9
+rx_data<4>           ....X...XX....X...........XXXXX......... 9       9
+                    0----+----1----+----2----+----3----+----4
+                              0         0         0         0
+*******************************  Equations  ********************************
+
+********** Mapped Logic **********
+
+
+$OpTx$FX_DC$225 <= ((NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2)
+	OR (state_FSM_FFd1 AND NOT state_FSM_FFd2 AND NOT state_FSM_FFd3 AND 
+	NOT WRn)
+	OR (NOT state_FSM_FFd1 AND state_FSM_FFd2 AND NOT state_FSM_FFd3 AND 
+	NOT WRn)
+	OR (NOT RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT addr_latch(0)));
+
+
+$OpTx$FX_DC$233 <= ((tx_baud_tick)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT u_txuart/bit_cnt(0) AND NOT u_txuart/bit_cnt(1) AND 
+	NOT u_txuart/bit_cnt(2) AND NOT u_txuart/bit_cnt(3) AND addr_latch(2) AND NOT WRn));
+
+
+A_I(0) <= ((ALE AND addr_latch(0))
+	OR (RDn AND addr_latch(0))
+	OR (state_FSM_FFd1 AND addr_latch(0))
+	OR (NOT state_FSM_FFd2 AND addr_latch(0))
+	OR (D(0) AND NOT IOM AND addr_latch(0))
+	OR (IOM AND addr_latch(0) AND row0)
+	OR (D(0) AND NOT ALE AND NOT RDn AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND NOT addr_latch(0)));
+A(0) <= A_I(0) when A_OE(0) = '1' else 'Z';
+A_OE(0) <= A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(1) <= ((D(1) AND NOT ALE AND NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2)
+	OR (D(1) AND NOT ALE AND NOT RDn AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND NOT addr_latch(0))
+	OR (NOT ALE AND NOT RDn AND IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND addr_latch(0) AND row1)
+	OR (ALE AND addr_latch(1))
+	OR (RDn AND addr_latch(1))
+	OR (state_FSM_FFd1 AND addr_latch(1))
+	OR (NOT state_FSM_FFd2 AND addr_latch(1)));
+A(1) <= A_I(1) when A_OE(1) = '1' else 'Z';
+A_OE(1) <= A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(2) <= ((D(2) AND NOT ALE AND NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2)
+	OR (D(2) AND NOT ALE AND NOT RDn AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND NOT addr_latch(0))
+	OR (NOT ALE AND NOT RDn AND IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND addr_latch(0) AND row2)
+	OR (ALE AND addr_latch(2))
+	OR (RDn AND addr_latch(2))
+	OR (state_FSM_FFd1 AND addr_latch(2))
+	OR (NOT state_FSM_FFd2 AND addr_latch(2)));
+A(2) <= A_I(2) when A_OE(2) = '1' else 'Z';
+A_OE(2) <= A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(3) <= ((D(3) AND NOT ALE AND NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2)
+	OR (D(3) AND NOT ALE AND NOT RDn AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND NOT addr_latch(0))
+	OR (NOT ALE AND NOT RDn AND IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND addr_latch(0) AND row3)
+	OR (ALE AND addr_latch(3))
+	OR (RDn AND addr_latch(3))
+	OR (state_FSM_FFd1 AND addr_latch(3))
+	OR (NOT state_FSM_FFd2 AND addr_latch(3)));
+A(3) <= A_I(3) when A_OE(3) = '1' else 'Z';
+A_OE(3) <= A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(4) <= A(4)_BUFR;
+A(4) <= A_I(4) when A_OE(4) = '1' else 'Z';
+A_OE(4) <= A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A(4)_BUFR <= ((ALE AND addr_latch(4))
+	OR (RDn AND addr_latch(4))
+	OR (D(4) AND NOT ALE AND NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2)
+	OR (D(4) AND NOT ALE AND NOT RDn AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND NOT addr_latch(0))
+	OR (NOT ALE AND NOT RDn AND IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND addr_latch(0) AND row4)
+	OR (state_FSM_FFd1 AND addr_latch(4))
+	OR (NOT state_FSM_FFd2 AND addr_latch(4)));
+
+
+A_I(5) <= ((D(5) AND NOT ALE AND NOT RDn AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND NOT addr_latch(0))
+	OR (D(5) AND NOT ALE AND NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2)
+	OR (NOT ALE AND NOT RDn AND IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND addr_latch(0) AND tmr_cnt(9))
+	OR (ALE AND addr_latch(5))
+	OR (RDn AND addr_latch(5))
+	OR (state_FSM_FFd1 AND addr_latch(5))
+	OR (NOT state_FSM_FFd2 AND addr_latch(5)));
+A(5) <= A_I(5) when A_OE(5) = '1' else 'Z';
+A_OE(5) <= A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(6) <= ((ALE AND addr_latch(6))
+	OR (D(6) AND NOT ALE AND NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2)
+	OR (D(6) AND NOT ALE AND NOT RDn AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND NOT addr_latch(0))
+	OR (NOT ALE AND NOT RDn AND IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND addr_latch(0) AND rx_ready)
+	OR (RDn AND addr_latch(6))
+	OR (state_FSM_FFd1 AND addr_latch(6))
+	OR (NOT state_FSM_FFd2 AND addr_latch(6)));
+A(6) <= A_I(6) when A_OE(6) = '1' else 'Z';
+A_OE(6) <= A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_I(7) <= ((ALE AND addr_latch(7))
+	OR (D(7) AND NOT ALE AND NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2)
+	OR (D(7) AND NOT ALE AND NOT RDn AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND NOT addr_latch(0))
+	OR (NOT ALE AND NOT RDn AND IOM AND NOT state_FSM_FFd1 AND 
+	state_FSM_FFd2 AND addr_latch(0) AND NOT u_txuart/bit_cnt(0) AND 
+	NOT u_txuart/bit_cnt(1) AND NOT u_txuart/bit_cnt(2) AND NOT u_txuart/bit_cnt(3))
+	OR (RDn AND addr_latch(7))
+	OR (state_FSM_FFd1 AND addr_latch(7))
+	OR (NOT state_FSM_FFd2 AND addr_latch(7)));
+A(7) <= A_I(7) when A_OE(7) = '1' else 'Z';
+A_OE(7) <= A_7_IOBUFE/A_7_IOBUFE_TRST;
+
+
+A_7_IOBUFE/A_7_IOBUFE_TRST <= ((bus_reg(7)/bus_reg(7)_TRST)
+	OR (NOT ALE AND NOT RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2));
+
+
+BUF_u_txuart/baud_cnt(3)__$INT <= ((tx_baud_tick)
+	OR (NOT u_txuart/baud_cnt(1) AND NOT u_txuart/baud_cnt(3))
+	OR (u_txuart/baud_cnt(0) AND u_txuart/baud_cnt(1) AND 
+	u_txuart/baud_cnt(2) AND u_txuart/baud_cnt(3))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT u_txuart/bit_cnt(0) AND NOT u_txuart/bit_cnt(1) AND 
+	NOT u_txuart/bit_cnt(2) AND NOT u_txuart/bit_cnt(3) AND addr_latch(2) AND NOT WRn)
+	OR (NOT u_txuart/baud_cnt(0) AND NOT u_txuart/baud_cnt(3))
+	OR (NOT u_txuart/baud_cnt(2) AND NOT u_txuart/baud_cnt(3)));
+
+
+CS1 <= '1';
+
+
+CS_n <= NOT (((NOT IOM AND A15)
+	OR (state_FSM_FFd1 AND state_FSM_FFd2)
+	OR (state_FSM_FFd1 AND state_FSM_FFd3)));
+
+
+CSr_n <= NOT ((NOT IOM AND NOT A15));
+
+FDCPE_D0: FDCPE port map (D_I(0),D(0),clk,RST,'0');
+D(0) <= ((RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(0).PIN)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(0).PIN)
+	OR (D(0) AND NOT $OpTx$FX_DC$225)
+	OR (NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	D(0).PIN)
+	OR (state_FSM_FFd1 AND NOT state_FSM_FFd2 AND NOT state_FSM_FFd3 AND 
+	NOT WRn AND A(0).PIN)
+	OR (NOT RDn AND IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT addr_latch(0) AND rx_data(0)));
+D(0) <= D_I(0) when D_OE(0) = '1' else 'Z';
+D_OE(0) <= bus_reg(7)/bus_reg(7)_TRST;
+
+
+D_I(1) <= D(1)_BUFR;
+D(1) <= D_I(1) when D_OE(1) = '1' else 'Z';
+D_OE(1) <= bus_reg(7)/bus_reg(7)_TRST;
+
+
+D_I(2) <= D(2)_BUFR;
+D(2) <= D_I(2) when D_OE(2) = '1' else 'Z';
+D_OE(2) <= bus_reg(7)/bus_reg(7)_TRST;
+
+
+D_I(3) <= D(3)_BUFR;
+D(3) <= D_I(3) when D_OE(3) = '1' else 'Z';
+D_OE(3) <= bus_reg(7)/bus_reg(7)_TRST;
+
+
+D_I(4) <= D(4)_BUFR;
+D(4) <= D_I(4) when D_OE(4) = '1' else 'Z';
+D_OE(4) <= bus_reg(7)/bus_reg(7)_TRST;
+
+
+D_I(5) <= D(5)_BUFR;
+D(5) <= D_I(5) when D_OE(5) = '1' else 'Z';
+D_OE(5) <= bus_reg(7)/bus_reg(7)_TRST;
+
+FDCPE_D6: FDCPE port map (D_I(6),D(6),clk,RST,'0');
+D(6) <= ((RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(6).PIN)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(6).PIN)
+	OR (D(6) AND NOT $OpTx$FX_DC$225)
+	OR (NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	D(6).PIN)
+	OR (state_FSM_FFd1 AND NOT state_FSM_FFd2 AND NOT state_FSM_FFd3 AND 
+	NOT WRn AND A(6).PIN)
+	OR (NOT RDn AND IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT addr_latch(0) AND rx_data(6)));
+D(6) <= D_I(6) when D_OE(6) = '1' else 'Z';
+D_OE(6) <= bus_reg(7)/bus_reg(7)_TRST;
+
+FDCPE_D7: FDCPE port map (D_I(7),D(7),clk,RST,'0');
+D(7) <= ((NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	D(7).PIN)
+	OR (state_FSM_FFd1 AND NOT state_FSM_FFd2 AND NOT state_FSM_FFd3 AND 
+	NOT WRn AND A(7).PIN)
+	OR (RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(7).PIN)
+	OR (NOT RDn AND IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT addr_latch(0) AND rx_data(7))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(7).PIN)
+	OR (D(7) AND NOT $OpTx$FX_DC$225));
+D(7) <= D_I(7) when D_OE(7) = '1' else 'Z';
+D_OE(7) <= bus_reg(7)/bus_reg(7)_TRST;
+
+
+
+
+
+
+OE_n <= NOT ((NOT IOM AND NOT state_FSM_FFd1 AND A15 AND NOT FC_0_.OUT));
+
+
+OEr_n <= NOT (((NOT IOM AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND NOT A15)
+	OR (NOT IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd3 AND NOT A15)));
+
+
+READY <= '1';
+
+FTCPE_RESET_IN: FTCPE port map (RESET_IN,RESET_IN_T,CLKOUT,RST,'0');
+RESET_IN_T <= (NOT RESET_IN AND u_reset_cpu/tt(0) AND u_reset_cpu/tt(1));
+
+FDCPE_RST75: FDCPE port map (RST75,RST75_D,clk,'0','0');
+RST75_D <= (tmr_cnt(0) AND tmr_cnt(1) AND tmr_cnt(2) AND 
+	tmr_cnt(3) AND tmr_cnt(4) AND tmr_cnt(5) AND tmr_cnt(6) AND 
+	tmr_cnt(7) AND tmr_cnt(8) AND tmr_cnt(9) AND tx_baud_tick);
+
+
+SID <= RX;
+
+FTCPE_SND: FTCPE port map (SND,SND_T,clk,RST,'0');
+SND_T <= ((IOM AND SND AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(1) AND NOT WRn AND NOT A(4).PIN)
+	OR (IOM AND NOT SND AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(1) AND NOT WRn AND A(4).PIN));
+
+FDCPE_TX: FDCPE port map (TX,TX_D,clk,'0',RST);
+TX_D <= ((NOT TX AND NOT tx_baud_tick)
+	OR (NOT u_txuart/shreg(1) AND tx_baud_tick)
+	OR (IOM AND NOT state_FSM_FFd1 AND NOT WRn AND FC_0_.OUT AND 
+	FC_1_.OUT));
+
+
+WE_n <= NOT ((state_FSM_FFd1 AND state_FSM_FFd2));
+
+FTCPE_X1: FTCPE port map (X1,t0_q,clk,'0','0');
+
+FTCPE_X2: FTCPE port map (X2,t0_q,clk,'0','0');
+
+FTCPE_addr_latch0: FTCPE port map (addr_latch(0),addr_latch_T(0),clk,RST,'0');
+addr_latch_T(0) <= ((ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND addr_latch(0) AND NOT A(0).PIN)
+	OR (ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND NOT addr_latch(0) AND A(0).PIN));
+
+FTCPE_addr_latch1: FTCPE port map (addr_latch(1),addr_latch_T(1),clk,RST,'0');
+addr_latch_T(1) <= ((ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND addr_latch(1) AND NOT A(1).PIN)
+	OR (ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND NOT addr_latch(1) AND A(1).PIN));
+
+FTCPE_addr_latch2: FTCPE port map (addr_latch(2),addr_latch_T(2),clk,RST,'0');
+addr_latch_T(2) <= ((ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND addr_latch(2) AND NOT A(2).PIN)
+	OR (ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND NOT addr_latch(2) AND A(2).PIN));
+
+FTCPE_addr_latch3: FTCPE port map (addr_latch(3),addr_latch_T(3),clk,RST,'0');
+addr_latch_T(3) <= ((ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND addr_latch(3) AND NOT A(3).PIN)
+	OR (ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND NOT addr_latch(3) AND A(3).PIN));
+
+FTCPE_addr_latch4: FTCPE port map (addr_latch(4),addr_latch_T(4),clk,RST,'0');
+addr_latch_T(4) <= ((ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND addr_latch(4) AND NOT A(4).PIN)
+	OR (ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND NOT addr_latch(4) AND A(4).PIN));
+
+FTCPE_addr_latch5: FTCPE port map (addr_latch(5),addr_latch_T(5),clk,RST,'0');
+addr_latch_T(5) <= ((ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND addr_latch(5) AND NOT A(5).PIN)
+	OR (ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND NOT addr_latch(5) AND A(5).PIN));
+
+FTCPE_addr_latch6: FTCPE port map (addr_latch(6),addr_latch_T(6),clk,RST,'0');
+addr_latch_T(6) <= ((ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND addr_latch(6) AND NOT A(6).PIN)
+	OR (ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND NOT addr_latch(6) AND A(6).PIN));
+
+FTCPE_addr_latch7: FTCPE port map (addr_latch(7),addr_latch_T(7),clk,RST,'0');
+addr_latch_T(7) <= ((ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND addr_latch(7) AND NOT A(7).PIN)
+	OR (ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	state_FSM_FFd3 AND NOT addr_latch(7) AND A(7).PIN));
+
+
+bus_reg(7)/bus_reg(7)_TRST <= ((state_FSM_FFd1 AND state_FSM_FFd2)
+	OR (state_FSM_FFd1 AND state_FSM_FFd3)
+	OR (NOT RST AND NOT ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3));
+
+FTCPE_col0: FTCPE port map (col0,col0_T,clk,'0','0');
+col0_T <= ((IOM AND NOT state_FSM_FFd1 AND addr_latch(3) AND NOT WRn AND 
+	col0 AND NOT A(4).PIN AND FC_0_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND addr_latch(3) AND NOT WRn AND 
+	NOT col0 AND A(4).PIN AND FC_0_.OUT));
+
+FTCPE_col1: FTCPE port map (col1,col1_T,clk,'0','0');
+col1_T <= ((IOM AND NOT state_FSM_FFd1 AND addr_latch(3) AND NOT WRn AND 
+	col1 AND NOT A(5).PIN AND FC_0_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND addr_latch(3) AND NOT WRn AND 
+	NOT col1 AND A(5).PIN AND FC_0_.OUT));
+
+FTCPE_col2: FTCPE port map (col2,col2_T,clk,'0','0');
+col2_T <= ((IOM AND NOT state_FSM_FFd1 AND addr_latch(3) AND NOT WRn AND 
+	col2 AND NOT A(6).PIN AND FC_0_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND addr_latch(3) AND NOT WRn AND 
+	NOT col2 AND A(6).PIN AND FC_0_.OUT));
+
+FTCPE_col3: FTCPE port map (col3,col3_T,clk,'0','0');
+col3_T <= ((IOM AND NOT state_FSM_FFd1 AND addr_latch(3) AND NOT WRn AND 
+	col3 AND NOT A(7).PIN AND FC_0_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND addr_latch(3) AND NOT WRn AND 
+	NOT col3 AND A(7).PIN AND FC_0_.OUT));
+
+FTCPE_dig0: FTCPE port map (dig(0),dig_T(0),clk,RST,'0');
+dig_T(0) <= ((IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(1) AND NOT WRn AND NOT A(0).PIN AND NOT dig(0))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(1) AND NOT WRn AND A(0).PIN AND dig(0)));
+
+FTCPE_dig1: FTCPE port map (dig(1),dig_T(1),clk,RST,'0');
+dig_T(1) <= ((IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(1) AND NOT WRn AND A(1).PIN AND dig(1))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(1) AND NOT WRn AND NOT A(1).PIN AND NOT dig(1)));
+
+FTCPE_dig2: FTCPE port map (dig(2),dig_T(2),clk,RST,'0');
+dig_T(2) <= ((IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(1) AND NOT WRn AND A(2).PIN AND dig(2))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(1) AND NOT WRn AND NOT A(2).PIN AND NOT dig(2)));
+
+FTCPE_dig3: FTCPE port map (dig(3),dig_T(3),clk,RST,'0');
+dig_T(3) <= ((IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(1) AND NOT WRn AND A(3).PIN AND dig(3))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(1) AND NOT WRn AND NOT A(3).PIN AND NOT dig(3)));
+
+FTCPE_rx_data0: FTCPE port map (rx_data(0),rx_data_T(0),clk,'0',RST);
+rx_data_T(0) <= ((NOT u_rxuart/rx_busy AND NOT rx_data(0) AND NOT RX)
+	OR (u_rxuart/rx_busy AND rx_data(0) AND NOT rx_data(1) AND 
+	FC_2_.OUT)
+	OR (u_rxuart/rx_busy AND NOT rx_data(0) AND rx_data(1) AND 
+	FC_2_.OUT));
+
+FTCPE_rx_data1: FTCPE port map (rx_data(1),rx_data_T(1),clk,'0',RST);
+rx_data_T(1) <= ((NOT u_rxuart/rx_busy AND NOT rx_data(1) AND NOT RX)
+	OR (u_rxuart/rx_busy AND rx_data(1) AND NOT rx_data(2) AND 
+	FC_2_.OUT)
+	OR (u_rxuart/rx_busy AND NOT rx_data(1) AND rx_data(2) AND 
+	FC_2_.OUT));
+
+FTCPE_rx_data2: FTCPE port map (rx_data(2),rx_data_T(2),clk,'0',RST);
+rx_data_T(2) <= ((NOT u_rxuart/rx_busy AND NOT rx_data(2) AND NOT RX)
+	OR (u_rxuart/rx_busy AND rx_data(2) AND NOT rx_data(3) AND 
+	FC_2_.OUT)
+	OR (u_rxuart/rx_busy AND NOT rx_data(2) AND rx_data(3) AND 
+	FC_2_.OUT));
+
+FTCPE_rx_data3: FTCPE port map (rx_data(3),rx_data_T(3),clk,'0',RST);
+rx_data_T(3) <= ((NOT u_rxuart/rx_busy AND NOT rx_data(3) AND NOT RX)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND rx_data(3) AND NOT rx_data(4) AND 
+	u_rxuart/os_cnt(3) AND t0_q)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND NOT rx_data(3) AND rx_data(4) AND 
+	u_rxuart/os_cnt(3) AND t0_q));
+
+FTCPE_rx_data4: FTCPE port map (rx_data(4),rx_data_T(4),clk,'0',RST);
+rx_data_T(4) <= ((NOT u_rxuart/rx_busy AND NOT rx_data(4) AND NOT RX)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND rx_data(4) AND NOT rx_data(5) AND 
+	u_rxuart/os_cnt(3) AND t0_q)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND NOT rx_data(4) AND rx_data(5) AND 
+	u_rxuart/os_cnt(3) AND t0_q));
+
+FTCPE_rx_data5: FTCPE port map (rx_data(5),rx_data_T(5),clk,'0',RST);
+rx_data_T(5) <= ((NOT u_rxuart/rx_busy AND NOT rx_data(5) AND NOT RX)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND rx_data(5) AND NOT rx_data(6) AND 
+	u_rxuart/os_cnt(3) AND t0_q)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND NOT rx_data(5) AND rx_data(6) AND 
+	u_rxuart/os_cnt(3) AND t0_q));
+
+FTCPE_rx_data6: FTCPE port map (rx_data(6),rx_data_T(6),clk,'0',RST);
+rx_data_T(6) <= ((NOT u_rxuart/rx_busy AND NOT rx_data(6) AND NOT RX)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND rx_data(6) AND NOT rx_data(7) AND 
+	u_rxuart/os_cnt(3) AND t0_q)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND NOT rx_data(6) AND rx_data(7) AND 
+	u_rxuart/os_cnt(3) AND t0_q));
+
+FTCPE_rx_data7: FTCPE port map (rx_data(7),rx_data_T(7),clk,'0',RST);
+rx_data_T(7) <= ((NOT u_rxuart/rx_busy AND rx_data(7) AND NOT RX)
+	OR (NOT u_rxuart/os_cnt(0) AND NOT u_rxuart/os_cnt(1) AND 
+	u_rxuart/os_cnt(2) AND rx_data(7) AND u_rxuart/os_cnt(3) AND NOT RX AND t0_q)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND NOT rx_data(7) AND 
+	u_rxuart/os_cnt(3) AND RX AND t0_q));
+
+FTCPE_seg0: FTCPE port map (seg(0),seg_T(0),clk,'0',RST);
+seg_T(0) <= ((IOM AND NOT state_FSM_FFd1 AND addr_latch(0) AND NOT WRn AND 
+	A(0).PIN AND seg(0) AND FC_0_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND addr_latch(0) AND NOT WRn AND 
+	NOT A(0).PIN AND NOT seg(0) AND FC_0_.OUT));
+
+FTCPE_seg1: FTCPE port map (seg(1),seg_T(1),clk,'0',RST);
+seg_T(1) <= ((IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(1).PIN AND seg(1))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND NOT A(1).PIN AND NOT seg(1)));
+
+FTCPE_seg2: FTCPE port map (seg(2),seg_T(2),clk,'0',RST);
+seg_T(2) <= ((IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(2).PIN AND seg(2))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND NOT A(2).PIN AND NOT seg(2)));
+
+FTCPE_seg3: FTCPE port map (seg(3),seg_T(3),clk,'0',RST);
+seg_T(3) <= ((IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(3).PIN AND seg(3))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND NOT A(3).PIN AND NOT seg(3)));
+
+FTCPE_seg4: FTCPE port map (seg(4),seg_T(4),clk,'0',RST);
+seg_T(4) <= ((IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(4).PIN AND seg(4))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND NOT A(4).PIN AND NOT seg(4)));
+
+FTCPE_seg5: FTCPE port map (seg(5),seg_T(5),clk,'0',RST);
+seg_T(5) <= ((IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(5).PIN AND seg(5))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND NOT A(5).PIN AND NOT seg(5)));
+
+FTCPE_seg6: FTCPE port map (seg(6),seg_T(6),clk,RST,'0');
+seg_T(6) <= ((IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(6).PIN AND seg(6))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND NOT A(6).PIN AND NOT seg(6)));
+
+
+seg(7) <= '1';
+
+FTCPE_state_FSM_FFd1: FTCPE port map (state_FSM_FFd1,state_FSM_FFd1_T,clk,RST,'0');
+state_FSM_FFd1_T <= ((state_FSM_FFd1 AND state_FSM_FFd2 AND state_FSM_FFd3)
+	OR (RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn)
+	OR (IOM AND state_FSM_FFd1 AND NOT state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND WRn)
+	OR (state_FSM_FFd1 AND NOT state_FSM_FFd2 AND NOT state_FSM_FFd3 AND 
+	WRn AND NOT A15));
+
+FTCPE_state_FSM_FFd2: FTCPE port map (state_FSM_FFd2,state_FSM_FFd2_T,clk,RST,'0');
+state_FSM_FFd2_T <= ((RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2)
+	OR (state_FSM_FFd1 AND state_FSM_FFd3)
+	OR (NOT ALE AND NOT state_FSM_FFd2 AND state_FSM_FFd3));
+
+FDCPE_state_FSM_FFd3: FDCPE port map (state_FSM_FFd3,state_FSM_FFd3_D,clk,RST,'0');
+state_FSM_FFd3_D <= ((ALE AND NOT state_FSM_FFd1 AND NOT state_FSM_FFd2)
+	OR (NOT RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2)
+	OR (state_FSM_FFd1 AND state_FSM_FFd2 AND NOT state_FSM_FFd3)
+	OR (NOT IOM AND state_FSM_FFd1 AND NOT state_FSM_FFd3 AND WRn AND 
+	A15));
+
+FTCPE_t0_q: FTCPE port map (t0_q,'1',clk,'0','0');
+
+FTCPE_tmr_cnt0: FTCPE port map (tmr_cnt(0),tx_baud_tick,clk,'0','0');
+
+FTCPE_tmr_cnt1: FTCPE port map (tmr_cnt(1),tmr_cnt_T(1),clk,'0','0');
+tmr_cnt_T(1) <= (tmr_cnt(0) AND tx_baud_tick);
+
+FTCPE_tmr_cnt2: FTCPE port map (tmr_cnt(2),tmr_cnt_T(2),clk,'0','0');
+tmr_cnt_T(2) <= (tmr_cnt(0) AND tmr_cnt(1) AND tx_baud_tick);
+
+FTCPE_tmr_cnt3: FTCPE port map (tmr_cnt(3),tmr_cnt_T(3),clk,'0','0');
+tmr_cnt_T(3) <= (tmr_cnt(0) AND tmr_cnt(1) AND tmr_cnt(2) AND 
+	tx_baud_tick);
+
+FTCPE_tmr_cnt4: FTCPE port map (tmr_cnt(4),tmr_cnt_T(4),clk,'0','0');
+tmr_cnt_T(4) <= (tmr_cnt(0) AND tmr_cnt(1) AND tmr_cnt(2) AND 
+	tmr_cnt(3) AND tx_baud_tick);
+
+FTCPE_tmr_cnt5: FTCPE port map (tmr_cnt(5),tmr_cnt_T(5),clk,'0','0');
+tmr_cnt_T(5) <= (tmr_cnt(0) AND tmr_cnt(1) AND tmr_cnt(2) AND 
+	tmr_cnt(3) AND tmr_cnt(4) AND tx_baud_tick);
+
+FTCPE_tmr_cnt6: FTCPE port map (tmr_cnt(6),tmr_cnt_T(6),clk,'0','0');
+tmr_cnt_T(6) <= (tmr_cnt(0) AND tmr_cnt(1) AND tmr_cnt(2) AND 
+	tmr_cnt(3) AND tmr_cnt(4) AND tmr_cnt(5) AND tx_baud_tick);
+
+FTCPE_tmr_cnt7: FTCPE port map (tmr_cnt(7),tmr_cnt_T(7),clk,'0','0');
+tmr_cnt_T(7) <= (tmr_cnt(0) AND tmr_cnt(1) AND tmr_cnt(2) AND 
+	tmr_cnt(3) AND tmr_cnt(4) AND tmr_cnt(5) AND tmr_cnt(6) AND 
+	tx_baud_tick);
+
+FTCPE_tmr_cnt8: FTCPE port map (tmr_cnt(8),tmr_cnt_T(8),clk,'0','0');
+tmr_cnt_T(8) <= (tmr_cnt(0) AND tmr_cnt(1) AND tmr_cnt(2) AND 
+	tmr_cnt(3) AND tmr_cnt(4) AND tmr_cnt(5) AND tmr_cnt(6) AND 
+	tmr_cnt(7) AND tx_baud_tick);
+
+FTCPE_tmr_cnt9: FTCPE port map (tmr_cnt(9),tmr_cnt_T(9),clk,'0','0');
+tmr_cnt_T(9) <= (tmr_cnt(0) AND tmr_cnt(1) AND tmr_cnt(2) AND 
+	tmr_cnt(3) AND tmr_cnt(4) AND tmr_cnt(5) AND tmr_cnt(6) AND 
+	tmr_cnt(7) AND tmr_cnt(8) AND tx_baud_tick);
+
+FTCPE_u_reset_cpu/tt0: FTCPE port map (u_reset_cpu/tt(0),RESET_IN,CLKOUT,RST,'0');
+
+FTCPE_u_reset_cpu/tt1: FTCPE port map (u_reset_cpu/tt(1),u_reset_cpu/tt_T(1),CLKOUT,RST,'0');
+u_reset_cpu/tt_T(1) <= (NOT RESET_IN AND u_reset_cpu/tt(0));
+
+FTCPE_u_rxuart/os_cnt0: FTCPE port map (u_rxuart/os_cnt(0),u_rxuart/os_cnt_T(0),clk,RST,'0');
+u_rxuart/os_cnt_T(0) <= ((u_rxuart/rx_busy AND NOT t0_q)
+	OR (NOT u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0))
+	OR (NOT u_rxuart/rx_busy AND RX)
+	OR (NOT u_rxuart/os_cnt(0) AND NOT u_rxuart/os_cnt(1) AND 
+	u_rxuart/os_cnt(2) AND u_rxuart/os_cnt(3)));
+
+FTCPE_u_rxuart/os_cnt1: FTCPE port map (u_rxuart/os_cnt(1),u_rxuart/os_cnt_T(1),clk,RST,'0');
+u_rxuart/os_cnt_T(1) <= ((u_rxuart/rx_busy AND u_rxuart/os_cnt(0) AND t0_q)
+	OR (NOT u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(1) AND NOT RX));
+
+FTCPE_u_rxuart/os_cnt2: FTCPE port map (u_rxuart/os_cnt(2),u_rxuart/os_cnt_T(2),clk,RST,'0');
+u_rxuart/os_cnt_T(2) <= ((NOT u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(2) AND NOT RX)
+	OR (u_rxuart/rx_busy AND u_rxuart/os_cnt(0) AND 
+	u_rxuart/os_cnt(1) AND t0_q)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND u_rxuart/os_cnt(3) AND t0_q));
+
+FTCPE_u_rxuart/os_cnt3: FTCPE port map (u_rxuart/os_cnt(3),u_rxuart/os_cnt_T(3),clk,RST,'0');
+u_rxuart/os_cnt_T(3) <= ((NOT u_rxuart/rx_busy AND u_rxuart/os_cnt(3) AND NOT RX)
+	OR (u_rxuart/rx_busy AND u_rxuart/os_cnt(0) AND 
+	u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND t0_q)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND u_rxuart/os_cnt(3) AND t0_q));
+
+FDCPE_u_rxuart/rx_busy: FDCPE port map (u_rxuart/rx_busy,u_rxuart/rx_busy_D,clk,RST,'0');
+u_rxuart/rx_busy_D <= ((NOT u_rxuart/rx_busy AND RX)
+	OR (u_rxuart/rx_busy AND NOT rx_data(0) AND FC_2_.OUT));
+
+FTCPE_u_txuart/baud_cnt0: FTCPE port map (u_txuart/baud_cnt(0),u_txuart/baud_cnt_T(0),clk,RST,'0');
+u_txuart/baud_cnt_T(0) <= ((NOT u_txuart/baud_cnt(0) AND tx_baud_tick)
+	OR (IOM AND NOT state_FSM_FFd1 AND NOT u_txuart/baud_cnt(0) AND 
+	NOT WRn AND FC_0_.OUT AND FC_1_.OUT));
+
+FDCPE_u_txuart/baud_cnt1: FDCPE port map (u_txuart/baud_cnt(1),u_txuart/baud_cnt_D(1),clk,RST,'0');
+u_txuart/baud_cnt_D(1) <= ((tx_baud_tick)
+	OR (u_txuart/baud_cnt(0) AND u_txuart/baud_cnt(1))
+	OR (NOT u_txuart/baud_cnt(0) AND NOT u_txuart/baud_cnt(1))
+	OR (IOM AND NOT state_FSM_FFd1 AND NOT WRn AND FC_0_.OUT AND 
+	FC_1_.OUT));
+
+FDCPE_u_txuart/baud_cnt2: FDCPE port map (u_txuart/baud_cnt(2),u_txuart/baud_cnt_D(2),clk,RST,'0');
+u_txuart/baud_cnt_D(2) <= ((tx_baud_tick)
+	OR (u_txuart/baud_cnt(0) AND u_txuart/baud_cnt(1) AND 
+	u_txuart/baud_cnt(2))
+	OR (NOT u_txuart/baud_cnt(0) AND NOT u_txuart/baud_cnt(2))
+	OR (NOT u_txuart/baud_cnt(1) AND NOT u_txuart/baud_cnt(2))
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT u_txuart/bit_cnt(0) AND NOT u_txuart/bit_cnt(1) AND 
+	NOT u_txuart/bit_cnt(2) AND NOT u_txuart/bit_cnt(3) AND addr_latch(2) AND NOT WRn));
+
+FDCPE_u_txuart/baud_cnt3: FDCPE port map (u_txuart/baud_cnt(3),BUF_u_txuart/baud_cnt(3)__$INT,clk,RST,'0');
+
+FTCPE_u_txuart/baud_cnt4: FTCPE port map (u_txuart/baud_cnt(4),u_txuart/baud_cnt_T(4),clk,RST,'0');
+u_txuart/baud_cnt_T(4) <= ((u_txuart/baud_cnt(3) AND 
+	BUF_u_txuart/baud_cnt(3)__$INT AND NOT $OpTx$FX_DC$233)
+	OR (u_txuart/baud_cnt(4) AND 
+	BUF_u_txuart/baud_cnt(3)__$INT AND $OpTx$FX_DC$233));
+
+FDCPE_u_txuart/bit_cnt0: FDCPE port map (u_txuart/bit_cnt(0),u_txuart/bit_cnt_D(0),clk,RST,'0');
+u_txuart/bit_cnt_D(0) <= ((NOT u_txuart/bit_cnt(0) AND u_txuart/bit_cnt(2) AND 
+	tx_baud_tick)
+	OR (NOT u_txuart/bit_cnt(0) AND u_txuart/bit_cnt(1) AND 
+	NOT u_txuart/bit_cnt(3) AND tx_baud_tick)
+	OR (NOT u_txuart/bit_cnt(0) AND NOT u_txuart/bit_cnt(1) AND 
+	u_txuart/bit_cnt(3) AND tx_baud_tick)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT u_txuart/bit_cnt(0) AND NOT u_txuart/bit_cnt(1) AND 
+	NOT u_txuart/bit_cnt(2) AND NOT u_txuart/bit_cnt(3) AND addr_latch(2) AND NOT WRn)
+	OR (u_txuart/bit_cnt(0) AND NOT tx_baud_tick));
+
+FTCPE_u_txuart/bit_cnt1: FTCPE port map (u_txuart/bit_cnt(1),u_txuart/bit_cnt_T(1),clk,RST,'0');
+u_txuart/bit_cnt_T(1) <= ((u_txuart/bit_cnt(0) AND tx_baud_tick)
+	OR (u_txuart/bit_cnt(1) AND NOT u_txuart/bit_cnt(2) AND 
+	u_txuart/bit_cnt(3) AND tx_baud_tick));
+
+FTCPE_u_txuart/bit_cnt2: FTCPE port map (u_txuart/bit_cnt(2),u_txuart/bit_cnt_T(2),clk,RST,'0');
+u_txuart/bit_cnt_T(2) <= (u_txuart/bit_cnt(0) AND u_txuart/bit_cnt(1) AND 
+	tx_baud_tick);
+
+FTCPE_u_txuart/bit_cnt3: FTCPE port map (u_txuart/bit_cnt(3),u_txuart/bit_cnt_T(3),clk,RST,'0');
+u_txuart/bit_cnt_T(3) <= ((u_txuart/bit_cnt(0) AND u_txuart/bit_cnt(1) AND 
+	u_txuart/bit_cnt(2) AND tx_baud_tick)
+	OR (NOT u_txuart/bit_cnt(0) AND u_txuart/bit_cnt(1) AND 
+	NOT u_txuart/bit_cnt(2) AND u_txuart/bit_cnt(3) AND tx_baud_tick));
+
+FDCPE_u_txuart/shreg1: FDCPE port map (u_txuart/shreg(1),u_txuart/shreg_D(1),clk,'0',RST);
+u_txuart/shreg_D(1) <= ((u_txuart/shreg(2) AND WRn AND tx_baud_tick)
+	OR (u_txuart/shreg(2) AND tx_baud_tick AND NOT FC_1_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(0).PIN AND FC_1_.OUT)
+	OR (u_txuart/shreg(1) AND NOT $OpTx$FX_DC$233)
+	OR (NOT IOM AND u_txuart/shreg(2) AND tx_baud_tick)
+	OR (state_FSM_FFd1 AND u_txuart/shreg(2) AND 
+	tx_baud_tick)
+	OR (NOT state_FSM_FFd2 AND u_txuart/shreg(2) AND 
+	tx_baud_tick)
+	OR (state_FSM_FFd3 AND u_txuart/shreg(2) AND 
+	tx_baud_tick));
+
+FDCPE_u_txuart/shreg2: FDCPE port map (u_txuart/shreg(2),u_txuart/shreg_D(2),clk,'0',RST);
+u_txuart/shreg_D(2) <= ((u_txuart/shreg(3) AND WRn AND tx_baud_tick)
+	OR (u_txuart/shreg(3) AND tx_baud_tick AND NOT FC_1_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(1).PIN AND FC_1_.OUT)
+	OR (u_txuart/shreg(2) AND NOT $OpTx$FX_DC$233)
+	OR (NOT IOM AND u_txuart/shreg(3) AND tx_baud_tick)
+	OR (state_FSM_FFd1 AND u_txuart/shreg(3) AND 
+	tx_baud_tick)
+	OR (NOT state_FSM_FFd2 AND u_txuart/shreg(3) AND 
+	tx_baud_tick)
+	OR (state_FSM_FFd3 AND u_txuart/shreg(3) AND 
+	tx_baud_tick));
+
+FDCPE_u_txuart/shreg3: FDCPE port map (u_txuart/shreg(3),u_txuart/shreg_D(3),clk,'0',RST);
+u_txuart/shreg_D(3) <= ((u_txuart/shreg(4) AND WRn AND tx_baud_tick)
+	OR (u_txuart/shreg(4) AND tx_baud_tick AND NOT FC_1_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(2).PIN AND FC_1_.OUT)
+	OR (u_txuart/shreg(3) AND NOT $OpTx$FX_DC$233)
+	OR (NOT IOM AND u_txuart/shreg(4) AND tx_baud_tick)
+	OR (state_FSM_FFd1 AND u_txuart/shreg(4) AND 
+	tx_baud_tick)
+	OR (NOT state_FSM_FFd2 AND u_txuart/shreg(4) AND 
+	tx_baud_tick)
+	OR (state_FSM_FFd3 AND u_txuart/shreg(4) AND 
+	tx_baud_tick));
+
+FDCPE_u_txuart/shreg4: FDCPE port map (u_txuart/shreg(4),u_txuart/shreg_D(4),clk,'0',RST);
+u_txuart/shreg_D(4) <= ((state_FSM_FFd3 AND u_txuart/shreg(5) AND 
+	tx_baud_tick)
+	OR (u_txuart/shreg(5) AND WRn AND tx_baud_tick)
+	OR (u_txuart/shreg(5) AND tx_baud_tick AND NOT FC_1_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(3).PIN AND FC_1_.OUT)
+	OR (u_txuart/shreg(4) AND NOT $OpTx$FX_DC$233)
+	OR (NOT IOM AND u_txuart/shreg(5) AND tx_baud_tick)
+	OR (state_FSM_FFd1 AND u_txuart/shreg(5) AND 
+	tx_baud_tick)
+	OR (NOT state_FSM_FFd2 AND u_txuart/shreg(5) AND 
+	tx_baud_tick));
+
+FDCPE_u_txuart/shreg5: FDCPE port map (u_txuart/shreg(5),u_txuart/shreg_D(5),clk,'0',RST);
+u_txuart/shreg_D(5) <= ((u_txuart/shreg(6) AND WRn AND tx_baud_tick)
+	OR (u_txuart/shreg(6) AND tx_baud_tick AND NOT FC_1_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(4).PIN AND FC_1_.OUT)
+	OR (u_txuart/shreg(5) AND NOT $OpTx$FX_DC$233)
+	OR (NOT IOM AND u_txuart/shreg(6) AND tx_baud_tick)
+	OR (state_FSM_FFd1 AND u_txuart/shreg(6) AND 
+	tx_baud_tick)
+	OR (NOT state_FSM_FFd2 AND u_txuart/shreg(6) AND 
+	tx_baud_tick)
+	OR (state_FSM_FFd3 AND u_txuart/shreg(6) AND 
+	tx_baud_tick));
+
+FDCPE_u_txuart/shreg6: FDCPE port map (u_txuart/shreg(6),u_txuart/shreg_D(6),clk,'0',RST);
+u_txuart/shreg_D(6) <= ((NOT state_FSM_FFd2 AND u_txuart/shreg(7) AND 
+	tx_baud_tick)
+	OR (state_FSM_FFd3 AND u_txuart/shreg(7) AND 
+	tx_baud_tick)
+	OR (u_txuart/shreg(7) AND WRn AND tx_baud_tick)
+	OR (u_txuart/shreg(7) AND tx_baud_tick AND NOT FC_1_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(5).PIN AND FC_1_.OUT)
+	OR (u_txuart/shreg(6) AND NOT $OpTx$FX_DC$233)
+	OR (NOT IOM AND u_txuart/shreg(7) AND tx_baud_tick)
+	OR (state_FSM_FFd1 AND u_txuart/shreg(7) AND 
+	tx_baud_tick));
+
+FDCPE_u_txuart/shreg7: FDCPE port map (u_txuart/shreg(7),u_txuart/shreg_D(7),clk,'0',RST);
+u_txuart/shreg_D(7) <= ((u_txuart/shreg(8) AND WRn AND tx_baud_tick)
+	OR (u_txuart/shreg(8) AND tx_baud_tick AND NOT FC_1_.OUT)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(6).PIN AND FC_1_.OUT)
+	OR (u_txuart/shreg(7) AND NOT $OpTx$FX_DC$233)
+	OR (NOT IOM AND u_txuart/shreg(8) AND tx_baud_tick)
+	OR (state_FSM_FFd1 AND u_txuart/shreg(8) AND 
+	tx_baud_tick)
+	OR (NOT state_FSM_FFd2 AND u_txuart/shreg(8) AND 
+	tx_baud_tick)
+	OR (state_FSM_FFd3 AND u_txuart/shreg(8) AND 
+	tx_baud_tick));
+
+FDCPE_u_txuart/shreg8: FDCPE port map (u_txuart/shreg(8),u_txuart/shreg_D(8),clk,'0',RST);
+u_txuart/shreg_D(8) <= ((NOT state_FSM_FFd2 AND NOT u_txuart/shreg(8) AND 
+	NOT tx_baud_tick)
+	OR (state_FSM_FFd3 AND NOT u_txuart/shreg(8) AND 
+	NOT tx_baud_tick)
+	OR (NOT addr_latch(2) AND NOT u_txuart/shreg(8) AND NOT tx_baud_tick)
+	OR (NOT u_txuart/shreg(8) AND WRn AND NOT tx_baud_tick)
+	OR (state_FSM_FFd1 AND NOT u_txuart/shreg(8) AND 
+	NOT tx_baud_tick)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT u_txuart/bit_cnt(0) AND NOT u_txuart/bit_cnt(1) AND 
+	NOT u_txuart/bit_cnt(2) AND NOT u_txuart/bit_cnt(3) AND addr_latch(2) AND NOT WRn AND 
+	NOT A(7).PIN)
+	OR (NOT IOM AND NOT u_txuart/shreg(8) AND NOT tx_baud_tick)
+	OR (u_txuart/bit_cnt(0) AND NOT u_txuart/shreg(8) AND 
+	NOT tx_baud_tick)
+	OR (u_txuart/bit_cnt(1) AND NOT u_txuart/shreg(8) AND 
+	NOT tx_baud_tick)
+	OR (u_txuart/bit_cnt(2) AND NOT u_txuart/shreg(8) AND 
+	NOT tx_baud_tick)
+	OR (u_txuart/bit_cnt(3) AND NOT u_txuart/shreg(8) AND 
+	NOT tx_baud_tick));
+
+********** UnMapped Logic **********
+
+** Buried Nodes **
+
+FDCPE_D1_BUFR: FDCPE port map (D(1)_BUFR,D_D(1)_BUFR,clk,RST,'0');
+D_D(1)_BUFR <= ((D(1) AND NOT $OpTx$FX_DC$225)
+	OR (NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	D(1).PIN)
+	OR (state_FSM_FFd1 AND NOT state_FSM_FFd2 AND NOT state_FSM_FFd3 AND 
+	NOT WRn AND A(1).PIN)
+	OR (NOT RDn AND IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT addr_latch(0) AND rx_data(1))
+	OR (RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(1).PIN)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(1).PIN));
+
+FDCPE_D2_BUFR: FDCPE port map (D(2)_BUFR,D_D(2)_BUFR,clk,RST,'0');
+D_D(2)_BUFR <= ((D(2) AND NOT $OpTx$FX_DC$225)
+	OR (NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	D(2).PIN)
+	OR (state_FSM_FFd1 AND NOT state_FSM_FFd2 AND NOT state_FSM_FFd3 AND 
+	NOT WRn AND A(2).PIN)
+	OR (NOT RDn AND IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT addr_latch(0) AND rx_data(2))
+	OR (RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(2).PIN)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(2).PIN));
+
+FDCPE_D3_BUFR: FDCPE port map (D(3)_BUFR,D_D(3)_BUFR,clk,RST,'0');
+D_D(3)_BUFR <= ((D(3) AND NOT $OpTx$FX_DC$225)
+	OR (NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	D(3).PIN)
+	OR (state_FSM_FFd1 AND NOT state_FSM_FFd2 AND NOT state_FSM_FFd3 AND 
+	NOT WRn AND A(3).PIN)
+	OR (NOT RDn AND IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT addr_latch(0) AND rx_data(3))
+	OR (RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(3).PIN)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(3).PIN));
+
+FDCPE_D4_BUFR: FDCPE port map (D(4)_BUFR,D_D(4)_BUFR,clk,RST,'0');
+D_D(4)_BUFR <= ((D(4) AND NOT $OpTx$FX_DC$225)
+	OR (NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	D(4).PIN)
+	OR (state_FSM_FFd1 AND NOT state_FSM_FFd2 AND NOT state_FSM_FFd3 AND 
+	NOT WRn AND A(4).PIN)
+	OR (NOT RDn AND IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT addr_latch(0) AND rx_data(4))
+	OR (RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(4).PIN)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(4).PIN));
+
+FDCPE_D5_BUFR: FDCPE port map (D(5)_BUFR,D_D(5)_BUFR,clk,RST,'0');
+D_D(5)_BUFR <= ((D(5) AND NOT $OpTx$FX_DC$225)
+	OR (NOT RDn AND NOT IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	D(5).PIN)
+	OR (state_FSM_FFd1 AND NOT state_FSM_FFd2 AND NOT state_FSM_FFd3 AND 
+	NOT WRn AND A(5).PIN)
+	OR (NOT RDn AND IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT addr_latch(0) AND rx_data(5))
+	OR (RDn AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND NOT WRn AND A(5).PIN)
+	OR (IOM AND NOT state_FSM_FFd1 AND state_FSM_FFd2 AND 
+	NOT state_FSM_FFd3 AND addr_latch(0) AND NOT WRn AND A(5).PIN));
+
+FDCPE_rx_ready: FDCPE port map (rx_ready,rx_ready_D,clk,RST,'0');
+rx_ready_D <= ((NOT state_FSM_FFd3 AND rx_ready)
+	OR (NOT RDn AND rx_ready)
+	OR (NOT state_FSM_FFd2 AND rx_ready)
+	OR (state_FSM_FFd1 AND rx_ready)
+	OR (addr_latch(0) AND rx_ready)
+	OR (NOT IOM AND rx_ready)
+	OR (u_rxuart/rx_busy AND NOT u_rxuart/os_cnt(0) AND 
+	NOT rx_data(0) AND NOT u_rxuart/os_cnt(1) AND u_rxuart/os_cnt(2) AND 
+	u_rxuart/os_cnt(3) AND t0_q));
+
+Register Legend:
+ FDCPE (Q,D,C,CLR,PRE); 
+ FTCPE (Q,D,C,CLR,PRE); 
+ LDCP  (Q,D,G,CLR,PRE); 
+
+****************************  Compiler Options  ****************************
+
+Following is a list of all global compiler options used by the fitter run.
+
+Device(s) Specified                         : xc95108-15-PQ100
+Optimization Method                         : DENSITY
+Multi-Level Logic Optimization              : ON
+Ignore Timing Specifications                : OFF
+Default Register Power Up Value             : LOW
+Keep User Location Constraints              : ON
+What-You-See-Is-What-You-Get                : OFF
+Exhaustive Fitting                          : OFF
+Keep Unused Inputs                          : ON
+Slew Rate                                   : FAST
+Power Mode                                  : STD
+Ground on Unused IOs                        : ON
+Global Clock Optimization                   : ON
+Global Set/Reset Optimization               : ON
+Global Ouput Enable Optimization            : ON
+FASTConnect/UIM optimzation                 : ON
+Local Feedback                              : ON
+Pin Feedback                                : ON
+Input Limit                                 : 16
+Pterm Limit                                 : 18
