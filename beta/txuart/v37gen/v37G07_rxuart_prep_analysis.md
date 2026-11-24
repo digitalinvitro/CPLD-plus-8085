@@ -669,8 +669,13 @@ keep-МЦ; (б) в TXUART декод `~|bit_cnt` (4 вх) + сравник `bit_
 2. **RXUART_1M**: `sample_tick = ce_12m5 && (os_cnt==12)` в keep-МЦ и
    используется в always (`else if (sample_tick) ... else if (ce_12m5)
    os_cnt++` — эквивалентно G09 поклково).
-3. Keeps: `baud_tick_i`, `tx_idle`, `sample_tick` — стробы живут в МЦ,
-   потребители платят 1 вход вместо 4-10.
+3. Keeps: `baud_tick_i`, `tx_idle_i`, `sample_tick` — стробы живут в МЦ,
+   потребители платят 1 вход вместо 4-10. НЮАНС: `tx_idle` — имя порта
+   TXUART_1M, keep на нём требует редекларации — XST даёт
+   **ERROR:HDLCompilers:27** (Illegal redeclaration, ловилось в L10);
+   паттерн проекта: keep на внутреннем `wire tx_idle_i = &shreg` +
+   `assign tx_idle = tx_idle_i` (как baud_tick_i/baud_tick).
+   В генераторе линт на редекларации портов по всем модулям.
 Оценка: **~102-107/108 МЦ**, вх.ФБ ~175-190/216.
 
 **15.4. Верификация G10** (iverilog в песочнице нет — python-эмуляция

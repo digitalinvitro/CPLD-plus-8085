@@ -12,6 +12,12 @@
 
 ## 2026-11-24-8 — G10: фит-версия RX+TX для XC95108 (раздел 15)
 
+Фикс компиляции: `tx_idle` — порт TXUART_1M, keep-объявление
+`wire tx_idle = &shreg` = Illegal redeclaration (HDLCompilers:27, ловил
+L10). Исправлено: `wire tx_idle_i = &shreg` (keep) + `assign tx_idle =
+tx_idle_i`, паттерн baud_tick_i. В gen_v38G10.py добавлен линт на
+редекларации портов по всем модулям; верификация после фикса — вся PASS.
+
 Уточнение диагноза: шаринга shreg=bus_reg не было (rx_data отдельные 8
 МЦ); G08/G09 не влезли по МЦ: 111/112 > 108 (unmapped: tx shreg<2..8>
 16-19 вх, baud_cnt<1,2>, rx_ready 14 вх, D<x>_BUFR). G09 хуже: убран

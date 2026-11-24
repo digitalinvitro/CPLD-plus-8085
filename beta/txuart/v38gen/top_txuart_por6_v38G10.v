@@ -3,7 +3,8 @@
 // top_txuart_por6_v38G10.v - фит-версия G09 для XC95108 (раздел 15 разбора)
 //   TXUART_1M: 10-битный shreg (старт+8 данных+стоп), bit_cnt удалён,
 //     tx_idle = &shreg (walking-one, тик 10 = bit_cnt==0 в G09; стоп >= 26 клк 1-в-1);
-//     keeps: baud_tick_i, tx_idle — стробы в МЦ, биты shreg без 4-вх декодов.
+//     keeps: baud_tick_i, tx_idle_i — стробы в МЦ, биты shreg без 4-вх декодов
+//     (tx_idle — порт, потому keep на tx_idle_i: паттерн baud_tick_i/baud_tick).
 //   RXUART_1M: sample_tick = ce_12m5 && (os_cnt==12) в keep-МЦ и в always
 //     (в G09 условие коллапсировало в каждый бит: 9-10 вх вместо 2-3).
 //   bus_reg, FSM, порты, статусы — 1-в-1 с G09.
@@ -253,8 +254,9 @@ module TXUART_1M #(
   reg [9:0] shreg    = 10'h3FF;
   reg [4:0] baud_cnt = 5'd0;
   (* keep = "true" *) wire baud_tick_i = (baud_cnt == (BAUD_DIV - 5'd1));
-  (* keep = "true" *) wire tx_idle     = &shreg; // walking-one: 1 ровно на тике 10
+  (* keep = "true" *) wire tx_idle_i   = &shreg; // walking-one: 1 ровно на тике 10
   assign baud_tick = baud_tick_i;
+  assign tx_idle   = tx_idle_i;
   assign tx_out    = shreg[0:0];
   wire load = wr_en && tx_idle;
 
