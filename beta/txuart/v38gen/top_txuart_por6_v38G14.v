@@ -1,48 +1,48 @@
 `timescale 1ns/1ps
 //=====================================================================
-// top_txuart_por6_v38G14.v - С„РёС‚-РІРµСЂСЃРёСЏ РґР»СЏ XC95108 (СЂР°Р·РґРµР» 16.13)
-//   Р‘Р°Р·Р°: G13 (rpt G12+IL18 FAILED: 105 РњР¦ + 5 unmapped = 110 > 108;
-//   A<7> 19 РІС… вЂ” keep РЅР° РєРѕРјР±РёРЅР°С†РёРѕРЅРЅС‹Р№ РїРѕСЂС‚ tx_idle РїРѕРіР»РѕС‰С‘РЅ, rx_ready
-//   РґРµСЂР¶РёС‚СЃСЏ РєР°Рє СЂРµРіРёСЃС‚СЂ; С‚РІС‘СЂРґР°СЏ РіСЂР°РЅРёС†Р° РІ XC9500 С‚РѕР»СЊРєРѕ СЂРµРіРёСЃС‚СЂРѕРІР°СЏ).
-//   Р РµС€РµРЅРёРµ РїРѕ РїСѓС‚СЏРј РІР»Р°РґРµР»СЊС†Р° (16.13): (Р±)+(Р°), (РІ) РЅРµ Р±РµСЂС‘Рј,
-//   x2=~x1_q РћРўРњР•РќР•Рќ РІР»Р°РґРµР»СЊС†РµРј (РїСЂРѕС‚РёРІРѕС„Р°Р·Р° РѕСЃС‚Р°С‘С‚СЃСЏ Р Р•Р“РРЎРўР РћР’РћР™ РїР°СЂРѕР№
-//   x1_q/x2_q вЂ”assign-РёРЅРІРµСЂСЃРёСЏ РґР°Р»Р° Р±С‹ РєРѕРјР±РёРЅР°С†РёРѕРЅРЅС‹Р№ СЃРєСЊСЋ ~6-10 РЅСЃ РјРµР¶РґСѓ
-//   С„СЂРѕРЅС‚Р°РјРё X1/X2 Рё РЅРµСЃРёРјРјРµС‚СЂРёС‡РЅСѓСЋ РЅР°РіСЂСѓР·РєСѓ РґСЂР°Р№РІРµСЂР° "РєРІР°СЂС†Р°" 8085).
-//   РџР°РєРµС‚ G14:
-//   1) tmr_cnt 10->8 Р±РёС‚ (РїСѓС‚СЊ Р±): -2 РњР¦ (tmr_cnt<9> 10 РІС…, <8> 9 РІС…),
-//      -19 FB-РІС…РѕРґРѕРІ FB6; IRQ 1.024 РјСЃ -> 256 РјРєСЃ (3906 Р“С†, x4 вЂ” СЃРѕРіР»Р°СЃРѕРІР°РЅРѕ
-//      РІР»Р°РґРµР»СЊС†РµРј РІ 16.13), СЃС‚Р°С‚СѓСЃ A<5> = tmr_cnt[7] (РїРѕР»СѓРїРµСЂРёРѕРґ 128 С‚РёРєРѕРІ);
-//   2) RX os_cnt 4->3 Р±РёС‚Р°, mod-6 РЅР° ce_12m5 (РїСѓС‚СЊ Р°): Р±РёС‚ = 6 С‚РёРєРѕРІ =
-//      480 РЅСЃ = 2.083 РњР±РѕРґ (Р±С‹Р»Рѕ 26 РєР»Рє = 961.5 РєР±РѕРґ), РїРѕР»СѓР±РёС‚ = 3 С‚РёРєР°
-//      СЂРѕРІРЅРѕ, sample_tick РїСЂРё os_cnt==5, СЃС‚Р°СЂС‚-РїСЂРµСЃРµС‚ os_cnt=3; -1 РњР¦
-//      (os_cnt<3> СЃ 8 РІС…) + СѓРїСЂРѕС‰РµРЅРёРµ РґРµРєРѕРґРѕРІ (sample_tick 6->5 РІС…).
-//      Р”РѕРїСѓСЃРє: РµСЃР»Рё РїРёСЂ С€Р»С‘С‚ СЂРѕРІРЅРѕ 2.000 Рњ, RX +4.2% вЂ” С‚РѕС‚ Р¶Рµ РєР»Р°СЃСЃ,
-//      С‡С‚Рѕ С‚РµРєСѓС‰РёРµ -3.9% Рє TX 1Рњ (РґСЂРµР№С„ 0.42 Р±РёС‚Р° Рє 10-РјСѓ СЃСЌРјРїР»Сѓ);
-//      РЅР°РґС‘Р¶РЅРµРµ С‚Р°РєС‚РёСЂРѕРІР°С‚СЊ РїРёСЂР° РѕС‚ 25/12 РњР“С† = 2.083 Рњ.
-//   3) (РІ) СѓР±СЂР°С‚СЊ С‡С‚РµРЅРёРµ С‚Р°Р№РјРµСЂР° РёР· РїРѕСЂС‚Р° вЂ” РќР• Р±РµСЂС‘Рј: 0 РњР¦ СЌРєРѕРЅРѕРјРёРё
-//      (С‚РѕР»СЊРєРѕ -1 РІС…РѕРґ FB2) Рё РјРёРЅСѓСЃ РґРёР°РіРЅРѕСЃС‚РёРєР°.
-//   РђСЂРёС„РјРµС‚РёРєР°: demand 110 - 2 - 1 = 107 <= 108 (Р·Р°РїР°СЃ 1 РњР¦).
-//   РџСЂРёС‘РјРЅРёРєРё: FB6 (+2 РњР¦, ~20 СЃРІРѕР±. РІС…) -> 2 D-BUFR РїРѕ 7 РІС…; FB4
-//   (+1 РњР¦, ~8-12 СЃРІРѕР±. РІС…) -> rx_data<1> (5 РІС…); РїРѕСЃР»РµРґРЅРёРµ 1-2 D-BUFR вЂ”
-//   РµСЃР»Рё С„РёС‚С‚РµСЂ РїРµСЂРµСЃР°РґРёС‚ shreg<1,2>/bus_ld_* РёР· FB1/FB3. РџСЂРѕРіРѕРЅ: IL 18!
-//   РђСѓРґРёС‚ С„РёС‚Р° G10: 102/108 РњР¦, unmapped 7 (D<2..5>_BUFR 12 РІС… вЂ” РєРѕР»Р»Р°РїСЃ
-//   3-РёСЃС‚РѕС‡РЅРёРєРѕРІРѕРіРѕ РјСѓРєСЃР° bus_reg; A<4>_BUFR; baud_cnt<1,2> 22 РІС… вЂ”
-//   РґРµРєРѕРґ mod-25+load), РёС‚РѕРіРѕ РЅСѓР¶РЅРѕ 109 > 108.
-//   РђСѓРґРёС‚ С„РёС‚Р° G10: 102/108 РњР¦, unmapped 7 (D<2..5>_BUFR 12 РІС… вЂ” РєРѕР»Р»Р°РїСЃ
-//   3-РёСЃС‚РѕС‡РЅРёРєРѕРІРѕРіРѕ РјСѓРєСЃР° bus_reg; A<4>_BUFR; baud_cnt<1,2> 22 РІС… вЂ”
-//   РґРµРєРѕРґ mod-25+load), РёС‚РѕРіРѕ РЅСѓР¶РЅРѕ 109 > 108.
-//   G11: СЃС‚СЂРѕР±С‹ РІ keep-РњР¦ (РїСЂРёС‘Рј sample_tick РёР· G10):
-//   1) (* keep *) bus_ld_mem / bus_ld_rx / bus_ld_wr вЂ” РјСѓРєСЃ bus_reg
-//      РєРѕР»Р»Р°РїСЃРёСЂСѓРµС‚СЃСЏ РїРѕР±РёС‚РЅРѕ РІ D IO-РњР¦ (6-7 РІС…), 4 D-BUFR РёСЃС‡РµР·Р°СЋС‚;
-//   2) (* keep *) load РІ TXUART вЂ” Р±РёС‚С‹ shreg/baud_cnt Р±РµР· wr_en+tx_idle_i.
-//   РџРѕРІРµРґРµРЅРёРµ РЅР° С€РёРЅРµ 1-РІ-1 СЃ G10/G09 (keep РЅРµ РјРµРЅСЏРµС‚ Р»РѕРіРёРєСѓ).
-//   TXUART_1M: 10-Р±РёС‚РЅС‹Р№ shreg (СЃС‚Р°СЂС‚+8 РґР°РЅРЅС‹С…+СЃС‚РѕРї), bit_cnt СѓРґР°Р»С‘РЅ,
-//     tx_idle = &shreg (walking-one, С‚РёРє 10 = bit_cnt==0 РІ G09; СЃС‚РѕРї >= 26 РєР»Рє 1-РІ-1);
-//     keeps: baud_tick_i, РџРћР Рў tx_idle вЂ” СЃС‚СЂРѕР±С‹ РІ РњР¦, Р±РёС‚С‹ shreg Р±РµР· 4-РІС…
-//     РґРµРєРѕРґРѕРІ (РІ G12 tx_idle_i СѓРїСЂР°Р·РґРЅС‘РЅ: keep РїСЂСЏРјРѕ РЅР° РїРѕСЂС‚Сѓ tx_idle).
-//   RXUART_1M: sample_tick = ce_12m5 && (os_cnt==12) РІ keep-РњР¦ Рё РІ always
-//     (РІ G09 СѓСЃР»РѕРІРёРµ РєРѕР»Р»Р°РїСЃРёСЂРѕРІР°Р»Рѕ РІ РєР°Р¶РґС‹Р№ Р±РёС‚: 9-10 РІС… РІРјРµСЃС‚Рѕ 2-3).
-//   bus_reg, FSM, РїРѕСЂС‚С‹, СЃС‚Р°С‚СѓСЃС‹ вЂ” 1-РІ-1 СЃ G09.
+// top_txuart_por6_v38G14.v - фит-версия для XC95108 (раздел 16.13)
+//   База: G13 (rpt G12+IL18 FAILED: 105 МЦ + 5 unmapped = 110 > 108;
+//   A<7> 19 вх — keep на комбинационный порт tx_idle поглощён, rx_ready
+//   держится как регистр; твёрдая граница в XC9500 только регистровая).
+//   Решение по путям владельца (16.13): (б)+(а), (в) не берём,
+//   x2=~x1_q ОТМЕНЕН владельцем (противофаза остаётся РЕГИСТРОВОЙ парой
+//   x1_q/x2_q —assign-инверсия дала бы комбинационный скью ~6-10 нс между
+//   фронтами X1/X2 и несимметричную нагрузку драйвера "кварца" 8085).
+//   Пакет G14:
+//   1) tmr_cnt 10->8 бит (путь б): -2 МЦ (tmr_cnt<9> 10 вх, <8> 9 вх),
+//      -19 FB-входов FB6; IRQ 1.024 мс -> 256 мкс (3906 Гц, x4 — согласовано
+//      владельцем в 16.13), статус A<5> = tmr_cnt[7] (полупериод 128 тиков);
+//   2) RX os_cnt 4->3 бита, mod-6 на ce_12m5 (путь а): бит = 6 тиков =
+//      480 нс = 2.083 Мбод (было 26 клк = 961.5 кбод), полубит = 3 тика
+//      ровно, sample_tick при os_cnt==5, старт-пресет os_cnt=3; -1 МЦ
+//      (os_cnt<3> с 8 вх) + упрощение декодов (sample_tick 6->5 вх).
+//      Допуск: если пир шлёт ровно 2.000 М, RX +4.2% — тот же класс,
+//      что текущие -3.9% к TX 1М (дрейф 0.42 бита к 10-му сэмплу);
+//      надёжнее тактировать пира от 25/12 МГц = 2.083 М.
+//   3) (в) убрать чтение таймера из порта — НЕ берём: 0 МЦ экономии
+//      (только -1 вход FB2) и минус диагностика.
+//   Арифметика: demand 110 - 2 - 1 = 107 <= 108 (запас 1 МЦ).
+//   Приёмники: FB6 (+2 МЦ, ~20 своб. вх) -> 2 D-BUFR по 7 вх; FB4
+//   (+1 МЦ, ~8-12 своб. вх) -> rx_data<1> (5 вх); последние 1-2 D-BUFR —
+//   если фиттер пересадит shreg<1,2>/bus_ld_* из FB1/FB3. Прогон: IL 18!
+//   Аудит фита G10: 102/108 МЦ, unmapped 7 (D<2..5>_BUFR 12 вх — коллапс
+//   3-источникового мукса bus_reg; A<4>_BUFR; baud_cnt<1,2> 22 вх —
+//   декод mod-25+load), итого нужно 109 > 108.
+//   Аудит фита G10: 102/108 МЦ, unmapped 7 (D<2..5>_BUFR 12 вх — коллапс
+//   3-источникового мукса bus_reg; A<4>_BUFR; baud_cnt<1,2> 22 вх —
+//   декод mod-25+load), итого нужно 109 > 108.
+//   G11: стробы в keep-МЦ (приём sample_tick из G10):
+//   1) (* keep *) bus_ld_mem / bus_ld_rx / bus_ld_wr — мукс bus_reg
+//      коллапсируется побитно в D IO-МЦ (6-7 вх), 4 D-BUFR исчезают;
+//   2) (* keep *) load в TXUART — биты shreg/baud_cnt без wr_en+tx_idle_i.
+//   Поведение на шине 1-в-1 с G10/G09 (keep не меняет логику).
+//   TXUART_1M: 10-битный shreg (старт+8 данных+стоп), bit_cnt удалён,
+//     tx_idle = &shreg (walking-one, тик 10 = bit_cnt==0 в G09; стоп >= 26 клк 1-в-1);
+//     keeps: baud_tick_i, ПОРТ tx_idle — стробы в МЦ, биты shreg без 4-вх
+//     декодов (в G12 tx_idle_i упразднён: keep прямо на порту tx_idle).
+//   RXUART_1M: sample_tick = ce_12m5 && (os_cnt==12) в keep-МЦ и в always
+//     (в G09 условие коллапсировало в каждый бит: 9-10 вх вместо 2-3).
+//   bus_reg, FSM, порты, статусы — 1-в-1 с G09.
 //=====================================================================
 
 module retro_pcld_top (
@@ -96,16 +96,20 @@ module retro_pcld_top (
     input  wire       row3,
     input  wire       row4
 );
-  reg [6:0] seg_q   = 7'h40;
-  reg [3:0] dig_q   = 4'hF;
+
+  wire gsr_net = RST;
+
+  reg [6:0] seg_q_n   = 7'h00;
+  reg [3:0] dig_q_n   = 4'h0;
+
   reg       snd_q   = 1'b0;
   reg [3:0] kbcol_q = 4'h0;
 
   assign CS1   = 1'b1;
   assign READY = 1'b1;
 
-  // 1. РЈР·РµР» С‚Р°РєС‚РёСЂРѕРІР°РЅРёСЏ: 25 РњР“С† -> /4 (G14: РїСЂРѕС‚РёРІРѕС„Р°Р·Р° вЂ” СЂРµРіРёСЃС‚СЂРѕРІР°СЏ РїР°СЂР°,
-  //    x2_q РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅ; assign-РёРЅРІРµСЂСЃРёСЏ РѕС‚РјРµРЅРµРЅР° РІР»Р°РґРµР»СЊС†РµРј, 16.13)
+  // 1. Узел тактирования: 25 МГц -> /4 (G14: противофаза — регистровая пара,
+  //    x2_q восстановлен; assign-инверсия отменена владельцем, 16.13)
   (* keep = "true", equivalent_register_removal = "no" *)
   reg t0_q = 1'b0;
   (* keep = "true", equivalent_register_removal = "no" *)
@@ -122,14 +126,14 @@ module retro_pcld_top (
   assign X1 = x1_q;
   assign X2 = x2_q;
 
-  // 2. РЎР±СЂРѕСЃ РїСЂРѕС†РµСЃСЃРѕСЂР° РРњ1821Р’Рњ85Рђ
+  // 2. Сброс процессора ИМ1821ВМ85А
   RESET_CPU u_reset_cpu (
     .clk_out  (CLKOUT),
-    .RST      (RST),
+    .RST      (gsr_net),
     .RESET_IN (RESET_IN)
   );
 
-  // 3. РђРІС‚РѕРјР°С‚ С€РёРЅС‹: 8 СЃРѕСЃС‚РѕСЏРЅРёР№ = 3 С‚СЂРёРіРіРµСЂР°
+  // 3. Автомат шины: 8 состояний = 3 триггера
   localparam [2:0] S_IDLE  = 3'd0,
                    S_T1H   = 3'd1,
                    S_T2    = 3'd2,
@@ -149,7 +153,7 @@ module retro_pcld_top (
   wire in_wb      = (state == S_WB1) || (state == S_WB2) || (state == S_WB3);
   wire in_welo    = (state == S_WB2) || (state == S_WB3);
   wire wr_phase   = in_t2_wr || in_wb;
-  wire wb_out     = in_wb || ((state == S_IDLE) && !ALE && !RST);
+  wire wb_out = in_wb || ((state == S_IDLE) && !ALE);
   wire rd_drive   = in_t2_rd && !RDn && !ALE;
   wire io_wr      = (state == S_T2) && !WRn && IOM;
 
@@ -163,7 +167,7 @@ module retro_pcld_top (
   wire io_wr_tx_en = io_wr && addr_latch[2:2];
   wire kbcol_wr08  = io_wr && addr_latch[3:3];
 
-  // 4. TXUART Рё RXUART (1 РњР±РѕРґ, 8N1)
+  // 4. TXUART и RXUART (1 Мбод, 8N1)
   wire       tx_idle;
   wire       tx_baud_tick;
   wire [7:0] rx_data;
@@ -173,7 +177,7 @@ module retro_pcld_top (
     .BAUD_DIV(5'd25)
   ) u_txuart (
     .clk       (clk),
-    .RST       (RST),
+    .RST       (gsr_net),
     .wr_en     (io_wr_tx_en),
     .data_in   (A),
     .tx_out    (TX),
@@ -183,7 +187,7 @@ module retro_pcld_top (
 
   RXUART_1M u_rxuart (
     .clk      (clk),
-    .RST      (RST),
+    .RST      (gsr_net),
     .ce_12m5  (t0_q),
     .rx_in    (RX),
     .rd_clr   (rx_rd_clr),
@@ -191,14 +195,14 @@ module retro_pcld_top (
     .rx_ready (rx_ready)
   );
 
-  // 5. РЁРёРЅРЅС‹Р№ РґРІРёР¶РѕРє Рё РїРѕСЂС‚С‹
-  always @(posedge clk or posedge RST) begin
-    if (RST) begin
+  // 5. Шинный движок и порты
+  always @(posedge clk or posedge gsr_net) begin
+    if (gsr_net) begin
       state      <= S_IDLE;
       addr_latch <= 8'h00;
       bus_reg    <= 8'h00;
-      seg_q      <= 7'h40;
-      dig_q      <= 4'hF;
+      seg_q_n    <= 7'h00;
+      dig_q_n    <= 4'h0;
       snd_q      <= 1'b0;
     end else begin
       if (state == S_T1H && ALE)
@@ -212,10 +216,10 @@ module retro_pcld_top (
         bus_reg <= A;
 
       if (io_wr) begin
-        if (addr_latch[0:0]) seg_q <= A[6:0];
+        if (addr_latch[0:0]) seg_q_n <= ~A[6:0];
         if (addr_latch[1:1]) begin
-          dig_q <= A[3:0];
-          snd_q <= A[4:4];
+          dig_q_n <= ~A[3:0];
+          snd_q   <= A[4:4];
         end
       end
 
@@ -235,24 +239,34 @@ module retro_pcld_top (
     end
   end
 
-  // 6. РўР°Р№РјРµСЂ (G13: 8 Р±РёС‚ = 256 РјРєСЃ = 3906 Р“С†; Р±С‹Р»Рѕ 10 Р±РёС‚ = 1.024 РјСЃ вЂ”
-  //    СЃРµРјР°РЅС‚РёРєР° x4, С‚РѕР»СЊРєРѕ СЃ СЃРѕРіР»Р°СЃРѕРІР°РЅРёСЏ СЃРѕС„С‚Р°, 16.10-16.12)
-  reg [7:0] tmr_cnt = 8'd0;
-  reg       RST75_r = 1'b0;
-  wire timer_irq_tick = tx_baud_tick && (&tmr_cnt);
+  // 6. Асинхронный 8-битный делитель CLKOUT (3.125 МГц / 256 = 12.207 кГц, период 81.92 мкс)
+  // Без сумматоров и переносов: каждый каскад делит частоту предыдущего на 2
+  reg div0 = 1'b0;
+  reg div1 = 1'b0;
+  reg div2 = 1'b0;
+  reg div3 = 1'b0;
+  reg div4 = 1'b0;
+  reg div5 = 1'b0;
+  reg div6 = 1'b0;
+  reg div7 = 1'b0;
 
-  always @(posedge clk) begin
-    RST75_r <= timer_irq_tick;
-    if (tx_baud_tick) tmr_cnt <= tmr_cnt + 8'd1;
-  end
+  always @(posedge CLKOUT) div0 <= ~div0;
+  always @(posedge div0)   div1 <= ~div1;
+  always @(posedge div1)   div2 <= ~div2;
+  always @(posedge div2)   div3 <= ~div3;
+  always @(posedge div3)   div4 <= ~div4;
+  always @(posedge div4)   div5 <= ~div5;
+  always @(posedge div5)   div6 <= ~div6;
+  always @(posedge div6)   div7 <= ~div7;
+
+  assign RST75 = div7;
 
   always @(posedge clk)
     if (kbcol_wr08) kbcol_q <= A[7:4];
 
-  assign RST75 = RST75_r;
 
-  // 7. РўСЂРёСЃС‚РµР№С‚-РґСЂР°Р№РІРµСЂС‹ С€РёРЅС‹ Рё РґРµРєРѕРґ РїР°РјСЏС‚Рё
-  assign A = rd_drive ? (io_rd_kb ? {tx_idle, rx_ready, tmr_cnt[7:7], row4, row3, row2, row1, row0}
+  // 7. Тристейт-драйверы шины и декод памяти
+  assign A = rd_drive ? (io_rd_kb ? {tx_idle, rx_ready, row4, row3, row2, row1, row0}
                                   : bus_reg)
            : wb_out   ? addr_latch : 8'bZZZZZZZZ;
   assign D = wb_out ? bus_reg : 8'bZZZZZZZZ;
@@ -263,10 +277,10 @@ module retro_pcld_top (
   assign OE_n  = CS_n  | wr_phase;
   assign WE_n  = !in_welo;
 
-  // 8. Р’С‹С…РѕРґС‹ UART, РёРЅРґРёРєР°С†РёРё Рё РєР»Р°РІРёР°С‚СѓСЂС‹
+  // 8. Выходы UART, индикации и клавиатуры
   assign SID  = RX;
-  assign seg  = {1'b1, ~seg_q};
-  assign dig  = ~dig_q;
+  assign seg  = {1'b1, seg_q_n};
+  assign dig  = dig_q_n;
   assign SND  = snd_q;
   assign col0 = kbcol_q[0:0];
   assign col1 = kbcol_q[1:1];
@@ -275,7 +289,7 @@ module retro_pcld_top (
 endmodule
 
 // =============================================================================
-// РњРѕРґСѓР»СЊ: TXUART_1M
+// Модуль: TXUART_1M
 // =============================================================================
 module TXUART_1M #(
   parameter [4:0] BAUD_DIV = 5'd25
@@ -288,33 +302,34 @@ module TXUART_1M #(
   (* keep = "true" *) output wire tx_idle,
   output wire       baud_tick
 );
-  reg [9:0] shreg    = 10'h3FF;
+  reg [9:0] shreg_n  = 10'h000;
   reg [4:0] baud_cnt = 5'd0;
   (* keep = "true" *) wire baud_tick_i = (baud_cnt == (BAUD_DIV - 5'd1));
+  (* KEEP = "TRUE", S = "TRUE" *) wire tx_n = shreg_n[0:0];
   assign baud_tick = baud_tick_i;
-  assign tx_idle   = &shreg; // walking-one: 1 СЂРѕРІРЅРѕ РЅР° С‚РёРєРµ 10; keep РЅР°
-                             // РїРѕСЂС‚Сѓ = РіСЂР°РЅРёС†Р° РњР¦ РґР»СЏ СЃС‚Р°С‚СѓСЃ-РїСѓС‚Рё A<7>
-  assign tx_out    = shreg[0:0];
+  assign tx_idle   = ~(|shreg_n);
+  assign tx_out    = ~tx_n;
+
   (* keep = "true" *) wire load = wr_en && tx_idle;
 
   always @(posedge clk or posedge RST) begin
     if (RST) begin
-      shreg    <= 10'h3FF;
+      shreg_n    <= 10'h000;
       baud_cnt <= 5'd0;
     end else begin
       baud_cnt <= baud_tick_i ? 5'd0 : baud_cnt + 5'd1;
       if (load) begin
-        shreg    <= {1'b1, data_in, 1'b0};
+        shreg_n  <= {1'b0, ~data_in, 1'b1};
         baud_cnt <= 5'd0;
       end else if (baud_tick_i) begin
-        shreg <= {1'b1, shreg[9:1]};
+        shreg_n  <= {1'b0, shreg_n[9:1]};
       end
     end
   end
 endmodule
 
 // =============================================================================
-// РњРѕРґСѓР»СЊ: RXUART_1M
+// Модуль: RXUART_1M
 // =============================================================================
 module RXUART_1M (
   input  wire       clk,
@@ -325,22 +340,22 @@ module RXUART_1M (
   output wire [7:0] rx_data,
   (* keep = "true" *) output wire rx_ready
 );
-  // G14 (РїСѓС‚СЊ Р°): os_cnt 3 Р±РёС‚Р°, mod-6 РЅР° ce_12m5 вЂ” Р±РёС‚ = 6 С‚РёРєРѕРІ = 480 РЅСЃ
-  //   = 2.083 РњР±РѕРґ (Р±С‹Р»Рѕ 4 Р±РёС‚Р° mod-13, 26 РєР»Рє = 961.5 РєР±РѕРґ); РїРѕР»СѓР±РёС‚ = 3
-  //   С‚РёРєР° СЂРѕРІРЅРѕ; -1 РњР¦ (os_cnt<3> СЃ 8 РІС…) + СѓРїСЂРѕС‰РµРЅРёРµ РґРµРєРѕРґРѕРІ.
+  // G14 (путь а): os_cnt 3 бита, mod-6 на ce_12m5 — бит = 6 тиков = 480 нс
+  //   = 2.083 Мбод (было 4 бита mod-13, 26 клк = 961.5 кбод); полубит = 3
+  //   тика ровно; -1 МЦ (os_cnt<3> с 8 вх) + упрощение декодов.
   reg [2:0] os_cnt   = 3'd0;
-  reg [7:0] rx_shreg = 8'hFF;
+  reg [7:0] rx_shreg_n = 8'h00;
   reg       rx_busy  = 1'b0;
   reg       ready_q  = 1'b0;
 
   (* keep = "true" *) wire sample_tick = ce_12m5 && (os_cnt == 3'd5);
-  assign rx_data  = rx_shreg;
+  assign rx_data  = ~rx_shreg_n;
   assign rx_ready = ready_q;
 
   always @(posedge clk or posedge RST) begin
     if (RST) begin
       os_cnt   <= 3'd0;
-      rx_shreg <= 8'hFF;
+      rx_shreg_n <= 8'h00;
       rx_busy  <= 1'b0;
       ready_q  <= 1'b0;
     end else begin
@@ -350,13 +365,13 @@ module RXUART_1M (
       if (!rx_busy) begin
         if (!rx_in) begin
           rx_busy  <= 1'b1;
-          rx_shreg <= 8'b0111_1111;
+          rx_shreg_n <= 8'b1000_0000;
           os_cnt   <= 3'd3;
         end
       end else if (sample_tick) begin
         os_cnt   <= 3'd0;
-        rx_shreg <= {rx_in, rx_shreg[7:1]};
-        if (!rx_shreg[0:0]) begin
+        rx_shreg_n <= {~rx_in, rx_shreg_n[7:1]};
+        if (rx_shreg_n[0:0]) begin
           rx_busy <= 1'b0;
           ready_q <= 1'b1;
         end
@@ -368,7 +383,7 @@ module RXUART_1M (
 endmodule
 
 // =============================================================================
-// РњРѕРґСѓР»СЊ: RESET_CPU
+// Модуль: RESET_CPU
 // =============================================================================
 module RESET_CPU(
   input  wire clk_out,
