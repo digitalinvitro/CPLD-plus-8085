@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-fit_ff_audit.py — аудитор триггеров фити-отчёта Xilinx cpldfit (XC9500).
+fit_ff_audit.py (v1.1) — аудитор триггеров фити-отчёта Xilinx cpldfit (XC9500).
 
 Разбирает .rpt и печатает ТАБЛИЦУ всех триггеров проекта (FDCPE/FTCPE/LDCP —
 примитивы cpldfit) с тем, что в них реально подключилось:
 
+  v1.1: в КАЖДОЙ строке видно ИМЯ сети сброса/установки/такта
+  ('RST -> GSR-сброс', 'CLKOUT -> локальная'), и в конце печатается сводка
+  источников асинхронного управления (проверка единообразия GSR).
   - тактирование: глобальная сеть GCK или локальная;
-  - асинхронный CLR: глобальный GSR-сброс (норма) или локальная сеть ( suspect);
+  - асинхронный CLR: глобальный GSR-сброс (норма) или локальная сеть (suspect);
   - асинхронный PRE: глобальный GSR-установка или константа/локальная;
   - место (FB_MC), пад, ПТ/входы, исходная сеть D/T;
   - триггеры, не разместившиеся при упавшем фите (отдельно, с ERROR-пометкой).
@@ -144,17 +147,19 @@ def parse_ffs(text, legend):
         ffs.append(rec)
     return ffs
 
-# --- классификация подключения одного порта ---
+# --- классификация подключения одного порта (C/CLR/PRE) ---
 def cls_port(val, gsr, gck, kind):
+    """(текст для таблицы, код) — ИМЯ сети видно в каждой строке."""
     if val in ("'0'", '0'):
-        return '—', 'ok'
+        return "— (const '0')", 'none'
     if val in ("'1'", '1'):
-        return ('конст. 1', 'warn' if kind == 'PRE' else 'ok')
+        return "— (const '1')", 'none' if kind == 'CLR' else 'const1'
+    name = '`%s`' % val
     if gsr and norm(val) == norm(gsr):
-        return ('GSR %s' % ('сброс' if kind == 'CLR' else 'установка'), 'ok')
+        return '%s → GSR-%s' % (name, 'сброс' if kind == 'CLR' else 'установка'), 'gsr'
     if gck and norm(val) == norm(gck):
-        return ('GCK(глоб.)', 'ok' if kind == 'C' else 'warn')
-    return ('лок. %s' % val, 'warn' if kind in ('CLR', 'PRE') else 'info')
+        return '%s → GCK (глоб.)' % name, 'gck'
+    return '%s → локальная' % name, 'local'
 
 def loc_key(loc):
     m = re.match(r'FB(\d+)_(\d+)', loc or '')
@@ -177,7 +182,7 @@ def audit(path, out_lines):
     out_lines.append('| # | Триггер (Q) | Тип | Место | Пад | ПТ/Вх | Вход D/T | CLK | Async CLR | Async PRE | Статус GSR |')
     out_lines.append('|---|---|---|---|---|---|---|---|---|---|---|')
 
-    warns, unplaced = [], []
+    warns, unplaced, sources = [], [], {}
     order = sorted(ffs, key=lambda r: (0 if r['section'] == 'mapped' else 1,
                                        loc_key(info.get(norm(r.get('Q', '')), {}).get('loc', ''))))
     for i, r in enumerate(order, 1):
@@ -197,17 +202,22 @@ def audit(path, out_lines):
         pre_s, pre_c = cls_port(r.get('PRE', '—'), gsr, gck, 'PRE')
         if r['prim'] == 'LDCP':
             clk_s = 'гейт %s' % r.get('G', '')
+        for role, val, code in (('CLR', r.get('CLR'), clr_c), ('PRE', r.get('PRE'), pre_c)):
+            if code in ('gsr', 'local', 'const1'):
+                sources['%s %s (%s)' % (role, val, code)] = \
+                    sources.get('%s %s (%s)' % (role, val, code), 0) + 1
         if r['section'] == 'unmapped':
             status = '**НЕ РАЗМЕЩЁН**'
             unplaced.append(q)
-        elif clr_c == 'warn' or pre_c == 'warn':
-            status = '**ЛОКАЛЬНЫЙ** (%s/%s)' % (clr_s, pre_s)
-            warns.append('%s: %s/%s' % (q, clr_s, pre_s))
-        elif clr_s.startswith('GSR') or pre_s.startswith('GSR'):
+        elif clr_c == 'local' or pre_c == 'local' or clr_c == 'const1' or pre_c == 'const1':
+            status = '**ЛОКАЛЬНЫЙ/НЕ GSR**'
+            warns.append('%s: CLR=%s, PRE=%s' % (q, clr_s, pre_s))
+        elif clr_c == 'gsr' or pre_c == 'gsr':
             status = 'ok GSR'
         else:
             status = '**НЕТ асинхр.** (только INIT)'
-            warns.append('%s: без асинхронного сброса/установки' % q)
+            warns.append('%s: без асинхронного сброса/установки (CLR=%s, PRE=%s)'
+                         % (q, clr_s, pre_s))
         dt = r.get('D', r.get('T', r.get('G', '')))
         dt_s = '`%s`' % dt if len(dt) <= 28 else '`%s…' % dt[:27]
         out_lines.append('| %d | `%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s |'
@@ -221,6 +231,17 @@ def audit(path, out_lines):
     out_lines.append('**Итог:** всего %d; на GSR-сбросе/установке %d; '
                      'с локальным/без асинхронного управления %d; не размещено %d.'
                      % (len(ffs), n_gsr, len(warns), len(unplaced)))
+    if sources:
+        out_lines.append('')
+        out_lines.append('**Источники асинхронного управления** (проверка единообразия):')
+        for k in sorted(sources):
+            out_lines.append('- %s — %d тригг.' % (k, sources[k]))
+        n_src = {k.split(' (')[0] for k in sources}
+        if sum(1 for k in sources if k.startswith('CLR')) > 1 or \
+           sum(1 for k in sources if k.startswith('PRE')) > 1:
+            out_lines.append('- **РАЗНОБОЙ**: асинхронное управление идёт более чем с одной '
+                             'сети — глобальная линия GSR доступна только одной из них '
+                             '(пин 1), остальные идут продуктовыми термами.')
     for w in warns:
         out_lines.append('- WARN: %s' % w)
     for u in unplaced:
